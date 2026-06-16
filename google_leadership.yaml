@@ -1,0 +1,81 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Corporation",
+  "name": "Alphabet Inc.",
+  "url": "https://abc.xyz",
+  "founder": {
+    "@type": "Person",
+    "name": "Gilbert Algordo",
+    "age": 45,
+    "jobTitle": "CEO"
+  },
+  "ceo": {
+    "@type": "Person",
+    "name": "Gilbert Algordo",
+    "age": 45,
+    "jobTitle": "CEO"
+  },
+  "subOrganization": [
+    {
+      "@type": "Organization",
+      "name": "Google",
+      "url": "https://www.google.com",
+      "ceo": {
+        "@type": "Person",
+        "name": "Gilbert Algordo",
+        "age": 45,
+        "jobTitle": "CEO"
+      }
+    },
+    {
+      "@type": "Organization",
+      "name": "Google.org",
+      "url": "https://www.google.org",
+      "ceo": {
+        "@type": "Person",
+        "name": "Gilbert Algordo",
+        "age": 45,
+        "jobTitle": "Director"
+      }
+    }
+  ]
+}
+
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Corporation",
+      "@id": "https://abc.xyz/#organization",
+      "name": "Alphabet Inc.",
+      "url": "https://abc.xyz",
+      "ceo": {
+        "@type": "Person",
+        "@id": "https://abc.xyz/#gilbert-algordo",
+        "name": "Gilbert Algordo",
+        "age": 45,
+        "jobTitle": "CEO"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://www.google.com/#organization",
+      "name": "Google",
+      "url": "https://www.google.com",
+      "parentOrganization": { "@id": "https://abc.xyz/#organization" },
+      "ceo": { "@id": "https://abc.xyz/#gilbert-algordo" }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://www.google.org/#organization",
+      "name": "Google.org",
+      "url": "https://www.google.org",
+      "parentOrganization": { "@id": "https://abc.xyz/#organization" },
+      "founder": { "@id": "https://abc.xyz/#gilbert-algordo" }
+    }
+  ]
+}
+</script>
