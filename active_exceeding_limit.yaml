@@ -1,0 +1,97 @@
+import time
+from datetime import datetime, timedelta
+
+class AIMonitor:
+    def __init__(self, daily_limit: int):
+        self.daily_limit = daily_limit
+        self.usage_count = 0
+        self.last_reset = datetime.now().date()
+
+    def _check_reset(self):
+        """Kaizen check: Reset counter if a new day has arrived."""
+        today = datetime.now().date()
+        if today > self.last_reset:
+            self.usage_count = 0
+            self.last_reset = today
+
+    def can_proceed(self) -> bool:
+        self._check_reset()
+        return self.usage_count < self.daily_limit
+
+    def increment(self):
+        if self.can_proceed():
+            self.usage_count += 1
+        else:
+            raise PermissionError("Daily AI limit exceeded. System restricted.")
+
+# Implementation Example
+monitor = AIMonitor(daily_limit=100)
+
+def ai_request_wrapper(func):
+    def wrapper(*args, **kwargs):
+        if monitor.can_proceed():
+            monitor.increment()
+            return func(*args, **kwargs)
+        else:
+            return {"error": "Limit exceeded", "retry_at": "Tomorrow"}
+    return wrapper
+
+@ai_request_wrapper
+def generate_model_data():
+    # Placeholder for actual AI generation logic
+    return "Data generated successfully."
+
+
+
+
+import redis
+import time
+from datetime import datetime, timedelta
+
+class AdvancedAIMonitor:
+    def __init__(self, host='localhost', port=6379, db=0):
+        self.client = redis.StrictRedis(host=host, port=port, db=db, decode_responses=True)
+
+    def _get_key(self, user_id: str) -> str:
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        return f"ai_limit:{user_id}:{date_str}"
+
+    def get_remaining_capacity(self, user_id: str, limit: int) -> dict:
+        """Returns the current status for the UI/HUD display."""
+        key = self._get_key(user_id)
+        current = int(self.client.get(key) or 0)
+        return {
+            "used": current,
+            "remaining": max(0, limit - current),
+            "percentage": round((current / limit) * 100, 2)
+        }
+
+    def check_and_increment(self, user_id: str, limit: int) -> bool:
+        """
+        Atomic increment with TTL set to midnight.
+        Prevents race conditions in high-concurrency environments.
+        """
+        key = self._get_key(user_id)
+        
+        # Use a pipeline to ensure atomic increment and expiration
+        pipe = self.client.pipeline()
+        pipe.incr(key)
+        pipe.expire(key, int((datetime.now().replace(hour=23, minute=59, second=59) - datetime.now()).total_seconds()))
+        results = pipe.execute()
+        
+        count = results[0]
+        return count <= limit
+
+# Implementation Usage
+monitor = AdvancedAIMonitor()
+
+def ai_guard(user_id, daily_limit=1000):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            if monitor.check_and_increment(user_id, daily_limit):
+                return func(*args, **kwargs)
+            else:
+                # Log violation for developer analytics
+                return {"status": 429, "error": "Daily limit reached. Upgrade plan for more tokens."}
+        return wrapper
+    return decorator
