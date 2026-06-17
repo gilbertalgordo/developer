@@ -1,0 +1,52 @@
+from google.cloud import bigquery
+
+# Initialize the BigQuery client
+client = bigquery.Client()
+
+# Define your query to calculate total cost for the current month
+project_id = "your-project-id"
+dataset_id = "your_billing_dataset"
+table_id = "gcp_billing_export_v1_XXXXXX_XXXXXX_XXXXXX"
+
+query = f"""
+SELECT
+  service.description AS service_description,
+  SUM(cost) AS total_cost
+FROM
+  `{project_id}.{dataset_id}.{table_id}`
+WHERE
+  usage_start_time >= TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), MONTH)
+GROUP BY
+  1
+ORDER BY
+  2 DESC
+"""
+
+# Run the query
+query_job = client.query(query)
+results = query_job.result()
+
+for row in results:
+    print(f"{row.service_description}: ${row.total_cost:.2f}")
+
+
+
+
+-- Create a model to detect billing anomalies
+CREATE OR REPLACE MODEL `your_dataset.billing_anomaly_model`
+OPTIONS(model_type='ARIMA_PLUS', 
+        time_series_timestamp_col='usage_date', 
+        time_series_data_col='cost') AS
+SELECT 
+    usage_date, 
+    SUM(cost) as cost
+FROM `your_project.your_billing_export_table`
+WHERE usage_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
+GROUP BY 1;
+
+-- Run detection to identify anomalies
+SELECT * FROM ML.DETECT_ANOMALIES(
+    MODEL `your_dataset.billing_anomaly_model`,
+    STRUCT(0.05 AS anomaly_prob_threshold),
+    (SELECT usage_date, cost FROM `your_project.your_billing_export_table`)
+);
