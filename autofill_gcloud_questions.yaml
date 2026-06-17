@@ -1,0 +1,47 @@
+# Example of piping input to a gcloud command
+echo -e "y\n1\n" | gcloud init
+
+
+
+from langchain_google_vertexai import VertexAI
+from langchain.chains import RetrievalQA
+
+# Initialize the model
+llm = VertexAI(model_name="gemini-1.5-pro")
+
+# Assume 'vector_store' is your database of indexed GCP docs
+qa_chain = RetrievalQA.from_chain_type(
+    llm=llm,
+    chain_type="stuff",
+    retriever=vector_store.as_retriever()
+)
+
+# Function to autofill/answer the question
+def get_gcloud_answer(question):
+    return qa_chain.invoke({"query": question})
+
+
+
+from langchain_google_vertexai import ChatVertexAI
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain.tools import tool
+import subprocess
+
+# 1. Define tools for environment awareness
+@tool
+def run_gcloud_check(command: str):
+    """Executes a gcloud command to check the local environment state."""
+    result = subprocess.run(f"gcloud {command} --format=json", shell=True, capture_output=True, text=True)
+    return result.stdout
+
+# 2. Setup the model with Tool capability
+llm = ChatVertexAI(model="gemini-1.5-pro-002", temperature=0)
+tools = [run_gcloud_check]
+
+# 3. Create the Agent
+agent = create_tool_calling_agent(llm, tools, prompt)
+agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+# 4. Usage
+response = agent_executor.invoke({"input": "How do I create a firewall rule for my current project?"})
+print(response)
