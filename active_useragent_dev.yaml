@@ -1,0 +1,126 @@
+import asyncio
+import logging
+from abc import ABC, abstractmethod
+
+# Setup logging for the developer HUD/Console
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - [AGENT] - %(message)s')
+
+class AgentTask:
+    def __init__(self, task_id, command, priority=1):
+        self.task_id = task_id
+        self.command = command
+        self.priority = priority
+
+class ActiveUserAgent(ABC):
+    def __init__(self, name):
+        self.name = name
+        self.queue = asyncio.Queue()
+        self.active = True
+
+    async def enqueue_task(self, task: AgentTask):
+        await self.queue.put(task)
+        logging.info(f"Task {task.task_id} queued.")
+
+    async def run(self):
+        logging.info(f"{self.name} initialized and monitoring.")
+        while self.active:
+            task = await self.queue.get()
+            await self.process(task)
+            self.queue.task_done()
+
+    @abstractmethod
+    async def process(self, task: AgentTask):
+        """Logic for processing specific developer tasks."""
+        pass
+
+class DevAgent(ActiveUserAgent):
+    async def process(self, task: AgentTask):
+        # Implementation for code execution, git interactions, or debugging
+        logging.info(f"Executing: {task.command}")
+        await asyncio.sleep(1) # Simulated processing time
+        logging.info(f"Task {task.task_id} complete.")
+
+# Execution loop
+async def main():
+    agent = DevAgent("Core-Dev-Agent-01")
+    
+    # Example task
+    await agent.enqueue_task(AgentTask(1, "git pull origin main"))
+    
+    await agent.run()
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
+
+
+
+import asyncio
+import uuid
+import logging
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Callable, Dict, List
+
+# --- Configuration & Logging ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - [%(name)s] - %(message)s')
+
+@dataclass
+class Event:
+    type: str
+    data: Dict[str, Any]
+    event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+
+class EventBus:
+    """Central event broker for agent communication."""
+    def __init__(self):
+        self.subscribers: Dict[str, List[Callable]] = {}
+
+    def subscribe(self, event_type: str, callback: Callable):
+        if event_type not in self.subscribers:
+            self.subscribers[event_type] = []
+        self.subscribers[event_type].append(callback)
+
+    async def emit(self, event: Event):
+        logging.info(f"Emitting: {event.type} ({event.event_id})")
+        if event.type in self.subscribers:
+            for callback in self.subscribers[event.type]:
+                await callback(event)
+
+# --- Base Agent Implementation ---
+class BaseAgent:
+    def __init__(self, name: str, bus: EventBus):
+        self.name = name
+        self.bus = bus
+
+    async def handle_event(self, event: Event):
+        raise NotImplementedError
+
+# --- Specialized Developer Agent ---
+class CodeAnalysisAgent(BaseAgent):
+    async def handle_event(self, event: Event):
+        if event.type == "code.committed":
+            logging.info(f"[{self.name}] Analyzing changes in: {event.data.get('file')}")
+            # Insert logic: Run static analysis, linting, or complexity checks
+            await asyncio.sleep(0.5) 
+            await self.bus.emit(Event("code.analyzed", {"status": "success"}))
+
+# --- Main Runtime Execution ---
+async def main():
+    bus = EventBus()
+    
+    # Initialize Agents
+    analyzer = CodeAnalysisAgent("Analyst-Alpha", bus)
+    
+    # Setup subscriptions
+    bus.subscribe("code.committed", analyzer.handle_event)
+    
+    # Simulate a developer workflow trigger
+    logging.info("System Ready. Waiting for events...")
+    await bus.emit(Event("code.committed", {"file": "main.py", "user": "Gilbert"}))
+
+if __name__ == "__main__":
+    asyncio.run(main())
