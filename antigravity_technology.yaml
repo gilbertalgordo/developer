@@ -1,0 +1,328 @@
+import pygame
+import numpy as np
+import sys
+
+# Initialize Pygame
+pygame.init()
+WIDTH, HEIGHT = 1200, 800
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Antigravity Technology Simulation")
+clock = pygame.time.Clock()
+
+# Colors
+BG_COLOR = (10, 15, 28)
+WHITE = (240, 240, 245)
+TEXT_COLOR = (150, 160, 180)
+NORMAL_MASS_COLOR = (0, 200, 255)
+ANTIGRAVITY_COLOR = (255, 0, 128)
+
+# Simulation Parameters
+G = 1.0  # Gravitational constant
+TIME_STEP = 0.5
+FRICTION = 0.999  # Slight cosmic drag for stability
+
+class Particle:
+    def __init__(self, x, y, mass, is_antigravity=False):
+        self.pos = np.array([float(x), float(y)])
+        self.vel = np.array([0.0, 0.0])
+        self.acc = np.array([0.0, 0.0])
+        self.mass = mass
+        self.is_antigravity = is_antigravity
+        self.radius = max(4, int(abs(mass) ** 0.3)) if not is_antigravity else 15
+
+    def apply_force(self, force):
+        # F = ma -> a = F / m
+        # For negative mass, direction of acceleration flips naturally if force calculation includes signed mass
+        self.acc += force / abs(self.mass)
+
+    def update(self):
+        self.vel += self.acc * TIME_STEP
+        self.vel *= FRICTION
+        self.pos += self.vel * TIME_STEP
+        self.acc = np.array([0.0, 0.0])  # Reset acceleration
+
+        # Boundary collision (bounce)
+        for i in range(2):
+            bounds = WIDTH if i == 0 else HEIGHT
+            if self.pos[i] < 0:
+                self.pos[i] = 0
+                self.vel[i] *= -0.8
+            elif self.pos[i] > bounds:
+                self.pos[i] = bounds
+                self.vel[i] *= -0.8
+
+    def draw(self, surface):
+        color = ANTIGRAVITY_COLOR if self.is_antigravity else NORMAL_MASS_COLOR
+        pygame.draw.circle(surface, color, self.pos.astype(int), int(self.radius))
+        if self.is_antigravity:
+            # Draw a field aura
+            pygame.draw.circle(surface, (*color, 30), self.pos.astype(int), int(self.radius * 4), 1)
+
+def calculate_gravitational_forces(particles, antigravity_core):
+    """
+    Computes Newtonian forces alongside negative mass interactions.
+    If core is negative mass, it repels normal matter.
+    """
+    all_bodies = particles + ([antigravity_core] if antigravity_core else [])
+    
+    for i, p1 in enumerate(all_bodies):
+        for j, p2 in enumerate(all_bodies):
+            if i == j:
+                continue
+            
+            direction = p2.pos - p1.pos
+            distance = np.linalg.norm(direction)
+            
+            # Softening factor to prevent division by zero / infinite forces at close range
+            softening = 20.0 
+            if distance < 5:
+                continue
+                
+            # Newton's Law of Universal Gravitation: F = G * (m1 * m2) / r^2
+            # If p2.mass is negative, force vector naturally reverses, creating repulsion.
+            force_magnitude = (G * p1.mass * p2.mass) / (distance**2 + softening**2)
+            force_vector = (direction / distance) * force_magnitude
+            
+            p1.apply_force(force_vector)
+
+def main():
+    # Generate background dust particles (Normal matter)
+    particles = []
+    np.random.seed(42)
+    for _ in range(150):
+        x = np.random.randint(50, WIDTH - 50)
+        y = np.random.randint(50, HEIGHT - 50)
+        mass = np.random.uniform(10, 50)
+        particles.append(Particle(x, y, mass))
+
+    # Create an active Antigravity/Negative Mass Core (-10000 Mass)
+    # This creates a net repulsive force field
+    anti_core = Particle(WIDTH // 2, HEIGHT // 2, -15000, is_antigravity=True)
+
+    running = True
+    dragging = False
+
+    while running:
+        screen.fill(BG_COLOR)
+        
+        # Event Handling
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            
+            # Allow user to drag the Antigravity Core around
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    mouse_pos = np.array(pygame.mouse.get_pos())
+                    if np.linalg.norm(anti_core.pos - mouse_pos) < anti_core.radius * 2:
+                        dragging = True
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:
+                    dragging = False
+                    
+        if dragging:
+            anti_core.pos = np.array(pygame.mouse.get_pos(), dtype=float)
+            anti_core.vel = np.array([0.0, 0.0])
+
+        # Physics Updates
+        calculate_gravitational_forces(particles, anti_core)
+        
+        for p in particles:
+            p.update()
+            p.draw(screen)
+            
+        anti_core.update()
+        anti_core.draw(screen)
+
+        # HUD Overlay
+        font = pygame.font.SysFont("Courier", 16)
+        hud_text = [
+            "ANTIGRAVITY PROPULSION ENGINE SIMULATION",
+            "---------------------------------------",
+            f"Core Mass: {anti_core.mass} (Negative Mass Metric)",
+            f"Active Ambient Particles: {len(particles)}",
+            "Interactions: F = G*(m1*m2)/r^2 Vector Inversion",
+            "Action: Drag the pink core to repel normal matter."
+        ]
+        
+        for idx, text in enumerate(hud_text):
+            rendered = font.render(text, True, TEXT_COLOR)
+            screen.blit(rendered, (20, 20 + idx * 22))
+
+        pygame.display.flip()
+        clock.tick(60)
+
+    pygame.quit()
+    sys.exit()
+
+if __name__ == "__main__":
+    main()
+
+
+
+import pygame
+import numpy as np
+from scipy.ndimage import gaussian_filter
+import sys
+
+# Initialize Engine
+pygame.init()
+WIDTH, HEIGHT = 1200, 800
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Advanced Metric Spacetime Warp Simulation")
+clock = pygame.time.Clock()
+
+# Spatial Grid Setup for Spacetime Tensor Field
+GRID_SCALE = 20
+GRID_W = WIDTH // GRID_SCALE
+GRID_H = HEIGHT // GRID_SCALE
+
+# Colors
+COLOR_BG = (5, 8, 16)
+COLOR_GRID = (20, 40, 65)
+COLOR_ENERGY = (0, 255, 200, 80)
+COLOR_MASS = (230, 240, 255)
+
+class WarpEngine:
+    def __init__(self, x, y):
+        self.pos = np.array([float(x), float(y)])
+        self.radius = 90.0
+        self.amplitude = 45.0  # Magnitude of metric expansion/contraction
+
+    def compute_metric_tensor(self, grid_x, grid_y):
+        """
+        Simulates an Alcubierre-style distortion. Space contracts in front of 
+        the engine and expands behind it, creating a forward directional metric slope.
+        """
+        # Distance vectors from every grid point to the engine
+        dx = grid_x - self.pos[0]
+        dy = grid_y - self.pos[1]
+        r = np.sqrt(dx**2 + dy**2) + 1e-5
+        
+        # Alcubierre Top-Hat filter function approximation
+        # Smooth drop-off for the metric distortion zone
+        sigma = self.radius
+        field_intensity = np.exp(-(r**2) / (2 * sigma**2))
+        
+        # Warp drive creates a direction-dependent displacement gradient
+        # Let's align the drive along a normalized orientation vector (e.g., facing right)
+        direction = np.array([1.0, 0.0])
+        dot_product = (dx * direction[0] + dy * direction[1]) / r
+        
+        # Metric shift vector (distortion slope)
+        # Spatial compression in front (+ dot), expansion behind (- dot)
+        shift_x = -self.amplitude * field_intensity * dot_product * (dx / r)
+        shift_y = -self.amplitude * field_intensity * dot_product * (dy / r)
+        
+        return shift_x, shift_y
+
+class QuantumParticle:
+    def __init__(self, x, y):
+        self.pos = np.array([float(x), float(y)])
+        self.vel = np.random.uniform(-0.5, 0.5, 2)
+        
+    def update_geodesic(self, shift_grid_x, shift_grid_y):
+        """
+        Particles update their trajectory based on the localized gradient of the 
+        spacetime field, sliding down the metric curvature (geodesic pathing).
+        """
+        gx = int(self.pos[0] / GRID_SCALE) % GRID_W
+        gy = int(self.pos[1] / GRID_SCALE) % GRID_H
+        
+        # Extract gradient shifts acting on the particle's coordinate
+        g_force_x = shift_grid_x[gx, gy]
+        g_force_y = shift_grid_y[gx, gy]
+        
+        # Update kinematic state based on metric acceleration
+        self.vel[0] += g_force_x * 0.05
+        self.vel[1] += g_force_y * 0.05
+        
+        # Intertial dampening
+        self.vel *= 0.98
+        self.pos += self.vel
+        
+        # Toroidal topology boundary conditions (Pacman wrap)
+        self.pos[0] %= WIDTH
+        self.pos[1] %= HEIGHT
+
+def main():
+    engine = WarpEngine(WIDTH // 2, HEIGHT // 2)
+    particles = [QuantumParticle(np.random.randint(0, WIDTH), np.random.randint(0, HEIGHT)) for _ in range(300)]
+    
+    # Meshgrid representing coordinate space positions
+    x_range = np.arange(0, WIDTH, GRID_SCALE)
+    y_range = np.arange(0, HEIGHT, GRID_SCALE)
+    mx, my = np.meshgrid(x_range, y_range, indexing='ij')
+
+    running = True
+    while running:
+        screen.fill(COLOR_BG)
+        
+        # Interactive UI event tracking
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+                
+        # Lock warp drive core to mouse coordinates
+        mx_mouse, my_mouse = pygame.mouse.get_pos()
+        engine.pos = np.array([float(mx_mouse), float(my_mouse)])
+        
+        # Step 1: Compute Dynamic Spacetime Field State
+        shift_x, shift_y = engine.compute_metric_tensor(mx, my)
+        
+        # Smooth out tensor fields using a Gaussian blur to represent continuous spacetime fields
+        shift_x = gaussian_filter(shift_x, sigma=0.5)
+        shift_y = gaussian_filter(shift_y, sigma=0.5)
+
+        # Step 2: Render Distorted Metric Coordinate Grid
+        for i in range(GRID_W):
+            for j in range(GRID_H):
+                orig_x = i * GRID_SCALE
+                orig_y = j * GRID_SCALE
+                
+                # Apply computed displacement tensors to the localized grid coordinates
+                disp_x = orig_x + shift_x[i, j]
+                disp_y = orig_y + shift_y[i, j]
+                
+                # Draw dynamic gravitational metric lines
+                if i < GRID_W - 1:
+                    next_disp_x = (i+1)*GRID_SCALE + shift_x[(i+1)%GRID_W, j]
+                    next_disp_y = j*GRID_SCALE + shift_y[(i+1)%GRID_W, j]
+                    pygame.draw.line(screen, COLOR_GRID, (disp_x, disp_y), (next_disp_x, next_disp_y), 1)
+                if j < GRID_H - 1:
+                    down_disp_x = i*GRID_SCALE + shift_x[i, (j+1)%GRID_H]
+                    down_disp_y = (j+1)*GRID_SCALE + shift_y[i, (j+1)%GRID_H]
+                    pygame.draw.line(screen, COLOR_GRID, (disp_x, disp_y), (down_disp_x, down_disp_y), 1)
+
+        # Step 3: Compute Geodesic Trajectories for Matter Particles
+        for p in particles:
+            p.update_geodesic(shift_x, shift_y)
+            pygame.draw.circle(screen, COLOR_MASS, p.pos.astype(int), 2)
+            
+        # Draw Field Source Core
+        pygame.draw.circle(screen, (30, 80, 200), engine.pos.astype(int), 6)
+        pygame.draw.circle(screen, (0, 255, 150), engine.pos.astype(int), int(engine.radius), 1)
+
+        # Real-time HUD Layer
+        font = pygame.font.SysFont("Courier", 14)
+        hud_metrics = [
+            "QUANTUM METRIC DISTORTION OVERLAY",
+            "---------------------------------",
+            f"Warp Core Coords : {engine.pos.astype(int)}",
+            f"Metric Tensor G_μν: Alcubierre Displacement Variant",
+            f"Active Geodesics : {len(particles)} Matter Waves",
+            f"Field Gradient   : d_x(R) Envelope Expansion",
+            "Controls         : Move mouse to warp the grid metric topology"
+        ]
+        for idx, text in enumerate(hud_metrics):
+            render = font.render(text, True, (130, 150, 180))
+            screen.blit(render, (25, 25 + idx * 20))
+
+        pygame.display.flip()
+        clock.tick(60)
+
+    pygame.quit()
+    sys.exit()
+
+if __name__ == "__main__":
+    main()
