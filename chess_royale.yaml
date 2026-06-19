@@ -1,0 +1,339 @@
+class ChessPiece:
+    def __init__(self, color, position):
+        self.color = color  # 'White' or 'Black'
+        self.position = position  # Tuple (row, col)
+        self.name = self.__class__.__name__
+
+    def __repr__(self):
+        # Returns a clean string representation: e.g., "White King"
+        return f"{self.color} {self.name}"
+
+
+class King(ChessPiece):
+    def get_symbol(self):
+        return "♔" if self.color == "White" else "♚"
+
+
+class Queen(ChessPiece):
+    def get_symbol(self):
+        return "♕" if self.color == "White" else "♛"
+
+
+class Bishop(ChessPiece):
+    """The Royal Bishop / High Cleric"""
+    def get_symbol(self):
+        return "♗" if self.color == "White" else "♝"
+
+
+class Knight(ChessPiece):
+    """The Royal Knight / Cavalry"""
+    def get_symbol(self):
+        return "♘" if self.color == "White" else "♞"
+
+
+class Rook(ChessPiece):
+    """The Royal Guard / Castle Sentinel"""
+    def get_symbol(self):
+        return "♖" if self.color == "White" else "♜"
+
+
+class Pawn(ChessPiece):
+    """The Foot Soldier / Royal Page"""
+    def get_symbol(self):
+        return "♙" if self.color == "White" else "♟"
+
+
+
+def create_royal_board():
+    # Standard 8x8 grid initialized to empty spaces
+    board = [[None for _ in range(8)] for _ in range(8)]
+    
+    # Back row order: Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook
+    back_row_classes = [Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook]
+    
+    # Set up Black Pieces (Rows 0 and 1)
+    for col, piece_class in enumerate(back_row_classes):
+        board[0][col] = piece_class("Black", (0, col))
+    for col in range(8):
+        board[1][col] = Pawn("Black", (1, col))
+        
+    # Set up White Pieces (Rows 6 and 7)
+    for col in range(8):
+        board[6][col] = Pawn("White", (6, col))
+    for col, piece_class in enumerate(back_row_classes):
+        board[7][col] = piece_class("White", (7, col))
+        
+    return board
+
+def display_board(board):
+    print("   a  b  c  d  e  f  g  h")
+    print("  +------------------------+")
+    for row_idx, row in enumerate(board):
+        row_str = f"{8 - row_idx} |"
+        for piece in row:
+            if piece is None:
+                row_str += " . "
+            else:
+                row_str += f" {piece.get_symbol()} "
+        row_str += f"| {8 - row_idx}"
+        print(row_str)
+    print("  +------------------------+")
+    print("   a  b  c  d  e  f  g  h")
+
+# Generate and print the board configuration
+royal_board = create_royal_board()
+display_board(royal_board)
+
+
+
+from abc import ABC, abstractmethod
+
+class RoyalPiece(ABC):
+    """Abstract base class for all royal chess figurines."""
+    def __init__(self, color: str, position: tuple):
+        self.color = color          # 'White' or 'Black'
+        self.position = position    # (row, col) coordinates
+        self.has_moved = False      # Crucial for Castling and Pawn double-steps
+        self.symbol = self._set_symbol()
+
+    @abstractmethod
+    def _set_symbol(self) -> str:
+        pass
+
+    @abstractmethod
+    def get_valid_moves(self, board) -> list:
+        """Returns a list of valid (row, col) tuples based on movement rules."""
+        pass
+
+    def _is_on_board(self, row: int, col: int) -> bool:
+        return 0 <= row < 8 and 0 <= col < 8
+
+    def __repr__(self):
+        return f"{self.color} {self.__class__.__name__} at {self.position}"
+
+
+class King(RoyalPiece):
+    def _set_symbol(self): return "♔" if self.color == "White" else "♚"
+    
+    def get_valid_moves(self, board):
+        moves = []
+        directions = [(-1,-1), (-1,0), (-1,1), (0,-1), (0,1), (1,-1), (1,0), (1,1)]
+        r, c = self.position
+        for dr, dc in directions:
+            nr, nc = r + dr, c + dc
+            if self._is_on_board(nr, nc):
+                target = board[nr][nc]
+                if target is None or target.color != self.color:
+                    moves.append((nr, nc))
+        return moves
+
+
+class Queen(RoyalPiece):
+    def _set_symbol(self): return "♕" if self.color == "White" else "♛"
+    
+    def get_valid_moves(self, board):
+        moves = []
+        directions = [(-1,-1), (-1,1), (1,-1), (1,1), (-1,0), (1,0), (0,-1), (0,1)]
+        r, c = self.position
+        for dr, dc in directions:
+            nr, nc = r + dr, c + dc
+            while self._is_on_board(nr, nc):
+                target = board[nr][nc]
+                if target is None:
+                    moves.append((nr, nc))
+                elif target.color != self.color:
+                    moves.append((nr, nc))
+                    break
+                else:
+                    break
+                nr += dr
+                nc += dc
+        return moves
+
+
+class Bishop(RoyalPiece):
+    """The High Chancellor / Cleric"""
+    def _set_symbol(self): return "♗" if self.color == "White" else "♝"
+    
+    def get_valid_moves(self, board):
+        moves = []
+        directions = [(-1,-1), (-1,1), (1,-1), (1,1)]
+        r, c = self.position
+        for dr, dc in directions:
+            nr, nc = r + dr, c + dc
+            while self._is_on_board(nr, nc):
+                target = board[nr][nc]
+                if target is None:
+                    moves.append((nr, nc))
+                elif target.color != self.color:
+                    moves.append((nr, nc))
+                    break
+                else:
+                    break
+                nr += dr
+                nc += dc
+        return moves
+
+
+class Knight(RoyalPiece):
+    """The Royal Cavalry Guard"""
+    def _set_symbol(self): return "♘" if self.color == "White" else "♞"
+    
+    def get_valid_moves(self, board):
+        moves = []
+        intervals = [(-2,-1), (-2,1), (-1,-2), (-1,2), (1,-2), (1,2), (2,-1), (2,1)]
+        r, c = self.position
+        for dr, dc in intervals:
+            nr, nc = r + dr, c + dc
+            if self._is_on_board(nr, nc):
+                target = board[nr][nc]
+                if target is None or target.color != self.color:
+                    moves.append((nr, nc))
+        return moves
+
+
+class Rook(RoyalPiece):
+    """The Castle Sentinel"""
+    def _set_symbol(self): return "♖" if self.color == "White" else "♜"
+    
+    def get_valid_moves(self, board):
+        moves = []
+        directions = [(-1,0), (1,0), (0,-1), (0,1)]
+        r, c = self.position
+        for dr, dc in directions:
+            nr, nc = r + dr, c + dc
+            while self._is_on_board(nr, nc):
+                target = board[nr][nc]
+                if target is None:
+                    moves.append((nr, nc))
+                elif target.color != self.color:
+                    moves.append((nr, nc))
+                    break
+                else:
+                    break
+                nr += dr
+                nc += dc
+        return moves
+
+
+class Pawn(RoyalPiece):
+    """The Frontline Infantry / Page"""
+    def _set_symbol(self): return "♙" if self.color == "White" else "♟"
+    
+    def get_valid_moves(self, board):
+        moves = []
+        r, c = self.position
+        direction = -1 if self.color == "White" else 1
+        
+        # Forward Step
+        if self._is_on_board(r + direction, c) and board[r + direction][c] is None:
+            moves.append((r + direction, c))
+            # Initial Double Step
+            if not self.has_moved and self._is_on_board(r + 2 * direction, c) and board[r + 2 * direction][c] is None:
+                moves.append((r + 2 * direction, c))
+                
+        # Standard Attacks
+        for dc in [-1, 1]:
+            nr, nc = r + direction, c + dc
+            if self._is_on_board(nr, nc):
+                target = board[nr][nc]
+                if target is not None and target.color != self.color:
+                    moves.append((nr, nc))
+                    
+        return moves
+
+
+
+class PieceFactory:
+    """Design Pattern: Factory to decouple object creation."""
+    _mapping = {
+        'K': King, 'Q': Queen, 'B': Bishop, 
+        'N': Knight, 'R': Rook, 'P': Pawn
+    }
+    
+    @classmethod
+    def create(cls, piece_letter: str, color: str, position: tuple) -> RoyalPiece:
+        piece_class = cls._mapping.get(piece_letter.upper())
+        if not piece_class:
+            raise ValueError(f"Unknown piece notation: {piece_letter}")
+        return piece_class(color, position)
+
+
+class RoyalChessEngine:
+    def __init__(self):
+        self.board = [[None for _ in range(8)] for _ in range(8)]
+        self._initialize_royal_court()
+
+    def _initialize_royal_court(self):
+        back_row = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
+        
+        # Populate Imperial Black Army
+        for col, letter in enumerate(back_row):
+            self.board[0][col] = PieceFactory.create(letter, "Black", (0, col))
+            self.board[1][col] = PieceFactory.create('P', "Black", (1, col))
+            
+        # Populate Radiant White Army
+        for col in range(8):
+            self.board[6][col] = PieceFactory.create('P', "White", (6, col))
+        for col, letter in enumerate(back_row):
+            self.board[7][col] = PieceFactory.create(letter, "White", (7, col))
+
+    def parse_notation(self, pos_str: str) -> tuple:
+        """Converts algebraic chess notation (e.g., 'e4') into array coordinates (row, col)."""
+        col = ord(pos_str[0].lower()) - ord('a')
+        row = 8 - int(pos_str[1])
+        return row, col
+
+    def execute_move(self, start_str: str, end_str: str) -> bool:
+        """Verifies move validity and securely executes position transposition."""
+        start_row, start_col = self.parse_notation(start_str)
+        end_row, end_col = self.parse_notation(end_str)
+        
+        piece = self.board[start_row][start_col]
+        if piece is None:
+            print(f"Error: No royal figurine found at {start_str}")
+            return False
+            
+        valid_moves = piece.get_valid_moves(self.board)
+        if (end_row, end_col) not in valid_moves:
+            print(f"Invalid Action: {piece} cannot move to {end_str}")
+            return False
+            
+        # Move execution
+        self.board[end_row][end_col] = piece
+        self.board[start_row][start_col] = None
+        piece.position = (end_row, end_col)
+        piece.has_moved = True
+        return True
+
+    def render(self):
+        print("\n   ==== THE ROYAL BATTLEFIELD ====")
+        print("   a   b   c   d   e   f   g   h")
+        print(" +-------------------------------+")
+        for r_idx, row in enumerate(self.board):
+            row_display = f"{8 - r_idx} |"
+            for piece in row:
+                if piece is None:
+                    row_display += " .  "
+                else:
+                    row_display += f" {piece.symbol}  "
+            print(f"{row_display}| {8 - r_idx}")
+        print(" +-------------------------------+")
+        print("   a   b   c   d   e   f   g   h\n")
+
+
+
+if __name__ == "__main__":
+    # 1. Start the game engine
+    game = RoyalChessEngine()
+    game.render()
+    
+    # 2. Simulate White Pawn advancing two squares out from front line
+    print("Action: White advances Foot Soldier from e2 to e4.")
+    if game.execute_move("e2", "e4"):
+        game.render()
+        
+    # 3. Simulate Black Cavalry jumping over its front lines
+    print("Action: Black deploys Royal Cavalry from g8 to f6.")
+    if game.execute_move("g8", "f6"):
+        game.render()
