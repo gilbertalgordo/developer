@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Profile: Knull (Tactical Variant)</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="hud-container">
+        <!-- Top HUD Bar -->
+        <header class="hud-header">
+            <div class="status-indicator online"></div>
+            <span class="hud-title">SYSTEM_LOG // DATA_RETRIEVAL</span>
+            <div class="hud-line"></div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="profile-card">
+            <div class="profile-header">
+                <h1>KNULL</h1>
+                <p class="subtitle">TACTICAL SYMBIOTE VARIANT</p>
+            </div>
+
+            <div class="divider"></div>
+
+            <section class="profile-details">
+                <div class="detail-row">
+                    <span class="label">CLASSIFICATION:</span>
+                    <span class="value">FORMER MILITARY / SWAT OPERATIVE</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">VISUAL PROFILE:</span>
+                    <span class="value">WHITE LONG HAIR // NO BEARD</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">EQUIPMENT:</span>
+                    <span class="value">TACTICAL SYMBIOTIC VEST // ALL-BLACK NECROSWORD</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">STATUS:</span>
+                    <span class="value glitch-text" data-text="FADING / DISPERSING">FADING / DISPERSING</span>
+                </div>
+            </section>
+
+            <!-- Interactive HUD Elements -->
+            <footer class="hud-footer">
+                <button class="hud-btn" onclick="triggerScan()">INITIALIZE BIOMETRIC SCAN</button>
+                <div class="scan-bar" id="scanBar"></div>
+            </footer>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
+
+
+:root {
+    --hud-cyan: #00f3ff;
+    --hud-red: #ff2a2a;
+    --bg-dark: #0a0c10;
+    --panel-bg: rgba(16, 20, 26, 0.85);
+    --text-main: #e2e8f0;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Courier New', Courier, monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    overflow: hidden;
+    background-image: radial-gradient(circle, rgba(255, 42, 42, 0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+.hud-container {
+    width: 450px;
+    padding: 20px;
+    background: var(--panel-bg);
+    border: 1px solid var(--hud-red);
+    box-shadow: 0 0 20px rgba(255, 42, 42, 0.2);
+    position: relative;
+}
+
+.hud-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-indicator.online {
+    background-color: var(--hud-red);
+    box-shadow: 0 0 8px var(--hud-red);
+    animation: blink 1.5s infinite;
+}
+
+.hud-title {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.hud-line {
+    flex-grow: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--hud-red), transparent);
+}
+
+.profile-header h1 {
+    margin: 0;
+    font-size: 32px;
+    letter-spacing: 4px;
+    color: #fff;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.subtitle {
+    margin: 5px 0 0 0;
+    font-size: 12px;
+    color: var(--hud-red);
+    letter-spacing: 1px;
+}
+
+.divider {
+    height: 2px;
+    background: var(--hud-red);
+    margin: 15px 0;
+    position: relative;
+}
+
+.profile-details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 13px;
+    margin-bottom: 25px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 42, 42, 0.1);
+    padding-bottom: 6px;
+}
+
+.label {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.value {
+    font-weight: bold;
+    text-align: right;
+}
+
+.hud-footer {
+    position: relative;
+    overflow: hidden;
+}
+
+.hud-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--hud-red);
+    color: var(--hud-red);
+    padding: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: bold;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+
+.hud-btn:hover {
+    background: rgba(255, 42, 42, 0.1);
+    box-shadow: inset 0 0 10px rgba(255, 42, 42, 0.3);
+}
+
+.scan-bar {
+    width: 100%;
+    height: 2px;
+    background-color: var(--hud-cyan);
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: translateY(-10px);
+    opacity: 0;
+    box-shadow: 0 0 8px var(--hud-cyan);
+}
+
+/* Animations */
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+@keyframes scanEffect {
+    0% { transform: translateY(0); opacity: 1; }
+    50% { transform: translateY(40px); opacity: 1; }
+    100% { transform: translateY(0); opacity: 0; }
+}
+
+.scanning {
+    animation: scanEffect 2s ease-in-out;
+}
+
+
+
+function triggerScan() {
+    const scanBar = document.getElementById('scanBar');
+    
+    // Prevent overlapping animation triggers
+    if (scanBar.classList.contains('scanning')) return;
+    
+    scanBar.classList.add('scanning');
+    
+    // Remove class after animation finishes (2s)
+    setTimeout(() => {
+        scanBar.classList.remove('scanning');
+    }, 2000);
+}
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Tactical HUD: Knull Profile</title>
+    <style>
+        :root {
+            --hud-crimson: #ff1a1a;
+            --hud-glow: rgba(255, 26, 26, 0.4);
+            --bg-matrix: #05070a;
+            --panel-glass: rgba(10, 14, 22, 0.85);
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-matrix);
+            font-family: var(--font-mono);
+            color: #dadada;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* Ambient grid background */
+        .grid-background {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255, 26, 26, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 26, 26, 0.02) 1px, transparent 1px);
+            background-size: 30px 30px;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="grid-background"></div>
+
+    <tactical-hud></tactical-hud>
+
+    <script>
+        // --- ADVANCED WEB COMPONENT DEFINITION ---
+        class TacticalHud extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: 'open' });
+                this.particles = [];
+                this.symbioteActive = true;
+            }
+
+            connectedCallback() {
+                this.render();
+                this.initCanvasEffects();
+                this.shadowRoot.querySelector('.scan-trigger').addEventListener('click', () => this.executeBiometricScan());
+            }
+
+            render() {
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        :host {
+                            display: block;
+                            position: relative;
+                            z-index: 2;
+                            width: 500px;
+                            box-sizing: border-box;
+                        }
+
+                        .hud-frame {
+                            background: var(--panel-glass, rgba(10, 14, 22, 0.85));
+                            border: 1px solid var(--hud-crimson, #ff1a1a);
+                            box-shadow: 0 0 25px var(--hud-glow);
+                            padding: 25px;
+                            position: relative;
+                            backdrop-filter: blur(8px);
+                        }
+
+                        /* Corner brackets decoration */
+                        .hud-frame::before, .hud-frame::after {
+                            content: '';
+                            position: absolute;
+                            width: 15px;
+                            height: 15px;
+                            border: 2px solid var(--hud-crimson);
+                        }
+                        .hud-frame::before { top: -2px; left: -2px; border-right: 0; border-bottom: 0; }
+                        .hud-frame::after { bottom: -2px; right: -2px; border-left: 0; border-top: 0; }
+
+                        header {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            border-bottom: 1px solid rgba(255, 26, 26, 0.3);
+                            padding-bottom: 10px;
+                            margin-bottom: 20px;
+                        }
+
+                        .sys-title {
+                            font-size: 12px;
+                            letter-spacing: 3px;
+                            color: #888;
+                        }
+
+                        .status-node {
+                            display: flex;
+                            align-items: center;
+                            gap: 8px;
+                            font-size: 11px;
+                        }
+
+                        .pulse-dot {
+                            width: 6px;
+                            height: 6px;
+                            background: var(--hud-crimson);
+                            border-radius: 50%;
+                            animation: pulse 1s infinite alternate;
+                        }
+
+                        .profile-title h1 {
+                            margin: 0;
+                            font-size: 36px;
+                            letter-spacing: 6px;
+                            color: #fff;
+                            text-shadow: 0 0 8px rgba(255,255,255,0.2);
+                        }
+
+                        .profile-title p {
+                            margin: 4px 0 0 0;
+                            font-size: 11px;
+                            color: var(--hud-crimson);
+                            letter-spacing: 2px;
+                        }
+
+                        /* Symbiote Canvas Panel */
+                        .visualizer-container {
+                            width: 100%;
+                            height: 180px;
+                            margin: 20px 0;
+                            border: 1px solid rgba(255, 26, 26, 0.2);
+                            background: rgba(0,0,0,0.4);
+                            position: relative;
+                            overflow: hidden;
+                        }
+
+                        canvas {
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                        }
+
+                        .matrix-overlay {
+                            position: absolute;
+                            top: 10px;
+                            left: 10px;
+                            font-size: 10px;
+                            color: var(--hud-crimson);
+                            pointer-events: none;
+                            line-height: 1.4;
+                        }
+
+                        /* Data Fields Grid */
+                        .data-grid {
+                            display: grid;
+                            gap: 10px;
+                            margin-bottom: 25px;
+                        }
+
+                        .data-row {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            font-size: 12px;
+                            background: rgba(255, 26, 26, 0.03);
+                            padding: 8px 12px;
+                            border-left: 3px solid var(--hud-crimson);
+                        }
+
+                        .meta-label { color: rgba(255, 255, 255, 0.4); }
+                        .meta-val { font-weight: bold; color: #fff; text-align: right; }
+
+                        /* Actions */
+                        .scan-trigger {
+                            width: 100%;
+                            background: transparent;
+                            border: 1px solid var(--hud-crimson);
+                            color: var(--hud-crimson);
+                            padding: 12px;
+                            font-family: inherit;
+                            font-weight: bold;
+                            letter-spacing: 2px;
+                            cursor: pointer;
+                            transition: all 0.3s ease;
+                        }
+
+                        .scan-trigger:hover {
+                            background: rgba(255, 26, 26, 0.1);
+                            box-shadow: inset 0 0 15px rgba(255, 26, 26, 0.4);
+                        }
+
+                        .laser-line {
+                            position: absolute;
+                            left: 0;
+                            width: 100%;
+                            height: 2px;
+                            background: #00ffff;
+                            box-shadow: 0 0 10px #00ffff;
+                            opacity: 0;
+                            pointer-events: none;
+                        }
+
+                        @keyframes pulse {
+                            0% { opacity: 0.3; }
+                            100% { opacity: 1; box-shadow: 0 0 8px var(--hud-crimson); }
+                        }
+                    </style>
+
+                    <div class="hud-frame">
+                        <header>
+                            <div class="sys-title">SECURE_ARCHIVE // ID_7739</div>
+                            <div class="status-node">
+                                <div class="pulse-dot"></div>
+                                <span>SYMBIOTE_SYNC_OK</span>
+                            </div>
+                        </header>
+
+                        <div class="profile-title">
+                            <h1>KNULL</h1>
+                            <p>TACTICAL RECON / SWAT VARIANT</p>
+                        </div>
+
+                        <div class="visualizer-container">
+                            <canvas id="symbioteCanvas"></canvas>
+                            <div class="matrix-overlay">
+                                RENDER: REAR VIEW<br>
+                                TEXTURE: SYMBIOTIC VEST<br>
+                                STATE: FADING_DISPERSAL
+                            </div>
+                            <div class="laser-line" id="scannerLaser"></div>
+                        </div>
+
+                        <div class="data-grid">
+                            <div class="data-row">
+                                <span class="meta-label">HAIR STATUS</span>
+                                <span class="meta-val">WHITE / LONG / DEPLOYED</span>
+                            </div>
+                            <div class="data-row">
+                                <span class="meta-label">FACIAL PROFILE</span>
+                                <span class="meta-val">CLEAN SHAVEN / NO BEARD</span>
+                            </div>
+                            <div class="data-row">
+                                <span class="meta-label">TACTICAL LAYER</span>
+                                <span class="meta-val">KLYNTAR ENHANCED SWAT VEST</span>
+                            </div>
+                            <div class="data-row">
+                                <span class="meta-label">BACKGROUND</span>
+                                <span class="meta-val">EX-MILITARY ELITE SPECIALIST</span>
+                            </div>
+                        </div>
+
+                        <button class="scan-trigger">DIAGNOSTIC CEPHALIC SCAN</button>
+                    </div>
+                `;
+            }
+
+            initCanvasEffects() {
+                const canvas = this.shadowRoot.getElementById('symbioteCanvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Handle high DPI screens
+                const resize = () => {
+                    canvas.width = canvas.parentElement.clientWidth;
+                    canvas.height = canvas.parentElement.clientHeight;
+                };
+                resize();
+
+                // Particle Constructor for the Symbiotic Vest Fading effect
+                class SymbioteSpore {
+                    constructor(w, h) {
+                        this.x = w * 0.3 + Math.random() * (w * 0.4); // Centered where the vest would be
+                        this.y = h * 0.2 + Math.random() * (h * 0.7);
+                        this.radius = Math.random() * 2.5 + 0.5;
+                        this.speedY = -(Math.random() * 0.6 + 0.2); // Upward drifting (fading away)
+                        this.speedX = (Math.random() - 0.5) * 0.4;
+                        this.alpha = Math.random() * 0.8 + 0.2;
+                        this.decay = Math.random() * 0.003 + 0.002;
+                    }
+
+                    update(w, h) {
+                        this.y += this.speedY;
+                        this.x += this.speedX;
+                        this.alpha -= this.decay;
+                        
+                        // Respawn at bottom of vest array if faded out
+                        if (this.alpha <= 0 || this.y < 0) {
+                            this.y = h * 0.8;
+                            this.x = w * 0.3 + Math.random() * (w * 0.4);
+                            this.alpha = Math.random() * 0.8 + 0.2;
+                        }
+                    }
+
+                    draw(context) {
+                        context.save();
+                        context.globalAlpha = this.alpha;
+                        // Crimson/charcoal hue for the tactical symbiotic material
+                        context.fillStyle = Math.random() > 0.3 ? '#121620' : '#ff1a1a';
+                        context.beginPath();
+                        context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                        context.fill();
+                        context.restore();
+                    }
+                }
+
+                // Instantiate population pool
+                const particleCount = 90;
+                for (let i = 0; i < particleCount; i++) {
+                    this.particles.push(new SymbioteSpore(canvas.width, canvas.height));
+                }
+
+                // Loop
+                const animate = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Draw abstract shape representing the rear view silhouette outline
+                    ctx.strokeStyle = 'rgba(255, 256, 256, 0.05)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(canvas.width * 0.5, canvas.height * 0.1); // Long hair start
+                    ctx.lineTo(canvas.width * 0.45, canvas.height * 0.5);
+                    ctx.lineTo(canvas.width * 0.3, canvas.height * 0.6); // Shoulders
+                    ctx.lineTo(canvas.width * 0.35, canvas.height * 1.0); // Vest base
+                    ctx.lineTo(canvas.width * 0.65, canvas.height * 1.0);
+                    ctx.lineTo(canvas.width * 0.7, canvas.height * 0.6);
+                    ctx.lineTo(canvas.width * 0.55, canvas.height * 0.5);
+                    ctx.closePath();
+                    ctx.stroke();
+
+                    // Render dynamic Klyntar spores
+                    this.particles.forEach(p => {
+                        p.update(canvas.width, canvas.height);
+                        p.draw(ctx);
+                    });
+
+                    requestAnimationFrame(animate);
+                };
+
+                animate();
+                window.addEventListener('resize', resize);
+            }
+
+            executeBiometricScan() {
+                const laser = this.shadowRoot.getElementById('scannerLaser');
+                laser.style.transition = 'none';
+                laser.style.top = '0px';
+                laser.style.opacity = '1';
+                
+                // Force layout reflow to register style reset
+                laser.offsetHeight;
+
+                laser.style.transition = 'top 1.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease 1.2s';
+                laser.style.top = '180px';
+                laser.style.opacity = '0';
+            }
+        }
+
+        // Define component registry element globally
+        customElements.define('tactical-hud', TacticalHud);
+    </script>
+</body>
+</html>
