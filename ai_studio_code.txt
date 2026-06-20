@@ -1,0 +1,5 @@
+{
+  "status": "overridden",
+  "message": "Google.com API requests intercepted successfully by local loopback sandbox.",
+  "verifiedBy": "Gilbert Algordo"
+}
