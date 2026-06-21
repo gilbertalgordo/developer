@@ -1,0 +1,431 @@
+"""
+Meta Rich Media Development Framework
+Author: Gilbert Algordo (https://github.com/gilbertalgordo)
+Description: Automated pipeline for high-performance handling of rich media 
+             and automated interactive ad assets using Meta Graph/Marketing API.
+"""
+
+import os
+import requests
+import time
+from typing import Dict, Any
+
+class MetaRichMediaClient:
+    def __init__(self, access_token: str, ad_account_id: str, api_version: str = "v19.0"):
+        """
+        Initializes the client with secure authorization parameters.
+        """
+        self.access_token = access_token
+        # Ensure account ID formatting matches Meta's required 'act_<ID>' structure
+        self.ad_account_id = ad_account_id if ad_account_id.startswith("act_") else f"act_{ad_account_id}"
+        self.base_url = f"https://graph.facebook.com/{api_version}"
+        
+    def upload_video_asset(self, file_path: str, title: str = "Rich Media Asset") -> str:
+        """
+        Uploads an HD video asset to the Meta Ad Account Library.
+        Uses a resilient chunked/resumable upload method for larger rich media files.
+        """
+        url = f"{self.base_url}/{self.ad_account_id}/advideos"
+        file_size = os.path.getsize(file_path)
+        
+        # Step 1: Initialize the upload session
+        init_params = {
+            'access_token': self.access_token,
+            'upload_phase': 'initialize',
+            'file_size': file_size
+        }
+        
+        response = requests.post(url, data=init_params).json()
+        if 'video_id' in response:
+            return response['video_id'] # Simple short-circuit for smaller files handled inline by Meta
+            
+        upload_session_id = response['upload_session_id']
+        start_offset = response['start_offset']
+        end_offset = response['end_offset']
+        
+        # Step 2: Stream the binary chunks
+        with open(file_path, 'rb') as f:
+            while int(start_offset) < file_size:
+                chunk_size = int(end_offset) - int(start_offset)
+                f.seek(int(start_offset))
+                chunk_data = f.read(chunk_size)
+                
+                transfer_params = {
+                    'access_token': self.access_token,
+                    'upload_phase': 'transfer',
+                    'upload_session_id': upload_session_id,
+                    'start_offset': start_offset
+                }
+                
+                files = {'video_file_chunk': (os.path.basename(file_path), chunk_data, 'video/mp4')}
+                chunk_res = requests.post(url, data=transfer_params, files=files).json()
+                
+                start_offset = chunk_res.get('start_offset')
+                end_offset = chunk_res.get('end_offset')
+                
+        # Step 3: Finalize the upload
+        finalize_params = {
+            'access_token': self.access_token,
+            'upload_phase': 'finish',
+            'upload_session_id': upload_session_id,
+            'title': title
+        }
+        final_res = requests.post(url, data=finalize_params).json()
+        return final_res.get('video_id')
+
+    def create_rich_media_creative(self, video_id: str, name: str, body_text: str, link_url: str) -> Dict[str, Any]:
+        """
+        Generates an interactive, rich media Ad Creative using the uploaded asset ID.
+        """
+        url = f"{self.base_url}/{self.ad_account_id}/adcreatives"
+        
+        # Define the structural specifications for rich interactive content
+        object_story_spec = {
+            "page_id": os.getenv("META_PAGE_ID"), 
+            "video_data": {
+                "video_id": video_id,
+                "image_url": link_url, # Fallback thumbnail
+                "call_to_action": {
+                    "type": "LEARN_MORE",
+                    "value": {
+                        "link": link_url
+                    }
+                },
+                "title": name,
+                "message": body_text
+            }
+        }
+        
+        payload = {
+            'name': name,
+            'object_story_spec': requests.utils.quote(str(object_story_spec).replace("'", '"')),
+            'access_token': self.access_token
+        }
+        
+        response = requests.post(url, data=payload)
+        return response.json()
+
+# --- Execution Entrypoint ---
+if __name__ == "__main__":
+    # Ensure variables are sanitized and supplied securely via environment variables
+    TOKEN = os.getenv("META_ACCESS_TOKEN", "your_access_token_here")
+    ACCOUNT_ID = os.getenv("META_AD_ACCOUNT_ID", "your_ad_account_id")
+    
+    client = MetaRichMediaClient(access_token=TOKEN, ad_account_id=ACCOUNT_ID)
+    
+    # Path to high-definition interactive asset
+    local_asset_path = "./assets/interactive_render_hud.mp4"
+    
+    if os.path.exists(local_asset_path):
+        print(f"🚀 Initializing upload pipeline for: {local_asset_path}")
+        try:
+            # Step 1: Asset ingestion
+            media_id = client.upload_video_asset(local_asset_path, title="3D HUD Immersive Ad")
+            print(f"✅ Success. Asset registered with Meta ID: {media_id}")
+            
+            # Step 2: Creative compiling
+            print("🔨 Instantiating rich media ad creative container...")
+            creative_result = client.create_rich_media_creative(
+                video_id=media_id,
+                name="Immersive Concept Showcase",
+                body_text="Experience real-time interactive fidelity.",
+                link_url="https://github.com/gilbertalgordo"
+            )
+            print("🎉 Ad Creative compiled successfully:", creative_result)
+            
+        except Exception as e:
+            print(f"❌ Error during asset processing: {str(e)}")
+    else:
+        print(f"⚠️ Placeholder mode: Please place your rich media asset at {local_asset_path} to execute standard run.")
+
+
+
+"""
+Meta Advanced Rich Media Development API Framework
+Author: Gilbert Algordo (https://github.com/gilbertalgordo)
+Architecture: High-Performance Concurrent Batch Asset Ingestion 
+              & Asynchronous Webhook-Driven Creative Assembly.
+"""
+
+import os
+import json
+import asyncio
+import aiohttp
+from typing import Dict, Any, List
+
+class MetaAdvancedMediaEngine:
+    def __init__(self, access_token: str, ad_account_id: str, api_version: str = "v19.0"):
+        self.access_token = access_token
+        self.ad_account_id = ad_account_id if ad_account_id.startswith("act_") else f"act_{ad_account_id}"
+        self.base_url = f"https://graph.facebook.com/{api_version}"
+        
+    async def batch_register_assets(self, session: aiohttp.ClientSession, asset_payloads: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Executes parallel Graph API requests utilizing Meta's formal Batch Request 
+        architecture to process multiple components concurrently in a single HTTP connection window.
+        """
+        url = f"{self.base_url}"
+        
+        # Build independent nested operational specs
+        batch_operations = []
+        for index, payload in enumerate(asset_payloads):
+            body_spec = {
+                "name": payload.get("title", f"component_{index}"),
+                "video_file_chunk": payload.get("source_url"),
+                "published": "false" # Retained in the media library state without pushing to feed
+            }
+            
+            batch_operations.append({
+                "method": "POST",
+                "relative_url": f"{self.ad_account_id}/advideos",
+                "body": "&".join([f"{k}={v}" for k, v in body_spec.items()])
+            })
+            
+        form_data = aiohttp.FormData()
+        form_data.add_field("access_token", self.access_token)
+        form_data.add_field("batch", json.dumps(batch_operations))
+        
+        async with session.post(url, data=form_data) as response:
+            if response.status != 200:
+                raise RuntimeError(f"Batch instantiation failed: {await response.text()}")
+            return await response.json()
+
+    async def await_asset_encoding(self, session: aiohttp.ClientSession, video_id: str, poll_interval: int = 15) -> bool:
+        """
+        Monitors Meta's asynchronous rendering pipeline until the rich asset 
+        passes compliance and formatting gates.
+        """
+        url = f"{self.base_url}/{video_id}"
+        params = {
+            "fields": "status,video_status",
+            "access_token": self.access_token
+        }
+        
+        while True:
+            async with session.get(url, params=params) as response:
+                data = await response.json()
+                video_status = data.get("video_status", {})
+                status_state = video_status.get("status")
+                
+                print(f"🔄 Component processing state [{video_id}]: {status_state}")
+                
+                if status_state == "ready":
+                    return True
+                elif status_state in ["failed", "invalid"]:
+                    raise ValueError(f"Asset failed video compliance validation: {video_status.get('error_description')}")
+                    
+            await asyncio.sleep(poll_interval)
+
+    async def assemble_interactive_creative(self, session: aiohttp.ClientSession, video_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Assembles complex objects into interactive media frames with standard layout parameters.
+        """
+        url = f"{self.base_url}/{self.ad_account_id}/adcreatives"
+        
+        # Define advanced interactive layers mimicking immersive asset components
+        story_spec = {
+            "page_id": config["page_id"],
+            "video_data": {
+                "video_id": video_id,
+                "image_url": config["thumbnail_url"],
+                "message": config["caption_text"],
+                "targeting_optimization": "dynamic_creative",
+                "call_to_action": {
+                    "type": "TRY_IT_OUT",
+                    "value": {
+                        "link": config["destination_url"]
+                    }
+                }
+            }
+        }
+        
+        payload = {
+            "name": config["creative_name"],
+            "object_story_spec": json.dumps(story_spec),
+            "access_token": self.access_token
+        }
+        
+        async with session.post(url, data=payload) as response:
+            return await response.json()
+
+# --- Async Executive Pipeline ---
+async def main():
+    TOKEN = os.getenv("META_ACCESS_TOKEN", "mock_secure_token")
+    ACCOUNT_ID = os.getenv("META_ACCOUNT_ID", "1020304050")
+    PAGE_ID = os.getenv("META_PAGE_ID", "99887766")
+
+    engine = MetaAdvancedMediaEngine(access_token=TOKEN, ad_account_id=ACCOUNT_ID)
+    
+    # Target configurations to load up in parallel
+    mock_assets = [
+        {"title": "HUD_Interface_Overlay", "source_url": "https://github.com/gilbertalgordo/dev/raw/main/hud_layer.mp4"},
+    ]
+    
+    async with aiohttp.ClientSession() as session:
+        try:
+            print("⚡ Initiating asynchronous multi-part batch intake mapping...")
+            batch_results = await engine.batch_register_assets(session, mock_assets)
+            
+            # Extract returned ID from the first batch index
+            first_response = json.loads(batch_results[0]["body"])
+            target_media_id = first_response["id"]
+            print(f"📦 Asset structurally stored. Target tracking ID: {target_media_id}")
+            
+            # Wait for structural processing to clear
+            print("⏳ Awaiting asset encoding profile verification...")
+            await engine.await_asset_encoding(session, target_media_id, poll_interval=10)
+            
+            # Generate the dynamic interactive layout container
+            creative_config = {
+                "page_id": PAGE_ID,
+                "thumbnail_url": "https://github.com/gilbertalgordo/assets/thumb.jpg",
+                "caption_text": "Experience real-time interactive fidelity.",
+                "destination_url": "https://github.com/gilbertalgordo/dev",
+                "creative_name": "Active Spatial HUD Module Run"
+            }
+            
+            print("🚀 Compiling interactive rich media creative definition...")
+            creative_node = await engine.assemble_interactive_creative(session, target_media_id, creative_config)
+            print("🎯 Pipeline execution finalized. Resulting AdCreative Object:\n", json.dumps(creative_node, indent=4))
+            
+        except Exception as err:
+            print(f"❌ Critical failure in active execution queue: {err}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+
+"""
+Meta Advanced Icon & Static Media Development API
+Author: Gilbert Algordo (https://github.com/gilbertalgordo)
+Architecture: Asynchronous Concurrent Ingestion, Binary Mapping, 
+              & Dynamic Structural Composition for Platform Icons.
+"""
+
+import os
+import json
+import asyncio
+import aiohttp
+from typing import Dict, Any, List
+
+class MetaIconAssetEngine:
+    def __init__(self, access_token: str, ad_account_id: str, api_version: str = "v19.0"):
+        self.access_token = access_token
+        self.ad_account_id = ad_account_id if ad_account_id.startswith("act_") else f"act_{ad_account_id}"
+        self.base_url = f"https://graph.facebook.com/{api_version}"
+        
+    async def upload_icon_binary(self, session: aiohttp.ClientSession, file_path: str) -> str:
+        """
+        Uploads a single icon or high-definition image binary directly to the Ad Account Library.
+        """
+        url = f"{self.base_url}/{self.ad_account_id}/adimages"
+        
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Icon binary asset target not found at: {file_path}")
+            
+        form_data = aiohttp.FormData()
+        form_data.add_field("access_token", self.access_token)
+        
+        # Open file as bytes stream for transmission
+        with open(file_path, 'rb') as asset_file:
+            form_data.add_field(
+                'bytes',
+                asset_file.read(),
+                filename=os.path.basename(file_path),
+                content_type='image/png'
+            )
+            
+        async with session.post(url, data=form_data) as response:
+            res_json = await response.json()
+            if response.status != 200:
+                raise RuntimeError(f"Meta Image Ingestion Exception: {res_json}")
+            
+            # Meta maps successfully uploaded images to an MD5 hash key under 'images'
+            image_data = res_json.get("images", {})
+            file_name = os.path.basename(file_path)
+            
+            if file_name in image_data:
+                return image_data[file_name]["hash"]
+            else:
+                # Fallback extraction logic if array structure varies
+                return list(image_data.values())[0]["hash"]
+
+    async def compile_icon_creative(self, session: aiohttp.ClientSession, image_hash: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Assembles an isolated icon asset hash into a structured creative component block 
+        with precise spatial constraints (square aspect formatting for standardized iconography).
+        """
+        url = f"{self.base_url}/{self.ad_account_id}/adcreatives"
+        
+        # Enforce exact specifications for icon framing geometry
+        object_story_spec = {
+            "page_id": config["page_id"],
+            "link_data": {
+                "image_hash": image_hash,
+                "link": config["destination_url"],
+                "message": config["caption"],
+                "name": config["title"],
+                "image_crops": {
+                    "100x100": [[0, 0], [100, 100]],  # Exact 1:1 boundary crop constraint for interface icons
+                    "90x160": [[0, 0], [100, 100]]   # Fallback cropping geometry map
+                },
+                "call_to_action": {
+                    "type": "USE_APP",
+                    "value": {
+                        "link": config["destination_url"]
+                    }
+                }
+            }
+        }
+        
+        payload = {
+            "name": config["creative_name"],
+            "object_story_spec": json.dumps(object_story_spec),
+            "access_token": self.access_token
+        }
+        
+        async with session.post(url, data=payload) as response:
+            return await response.json()
+
+# --- Async Control Flow Loop ---
+async def main():
+    # Setup configuration via environment runtime context
+    TOKEN = os.getenv("META_ACCESS_TOKEN", "your_secure_graph_token")
+    ACCOUNT_ID = os.getenv("META_ACCOUNT_ID", "123456789012345")
+    PAGE_ID = os.getenv("META_PAGE_ID", "543210987654321")
+
+    engine = MetaIconAssetEngine(access_token=TOKEN, ad_account_id=ACCOUNT_ID)
+    
+    # Path to local source icon configuration asset (PNG with alpha channel for interface clarity)
+    local_icon_path = "./assets/hud_system_icon.png"
+    
+    async with aiohttp.ClientSession() as session:
+        try:
+            print(f"📡 Dispatching binary ingestion process for: {local_icon_path}")
+            
+            # Step 1: Upload the asset binary to get its system hash key
+            icon_hash = await engine.upload_icon_binary(session, local_icon_path)
+            print(f"🔑 Icon uploaded successfully. Registration Token Hash: {icon_hash}")
+            
+            # Step 2: Compile the asset into Meta's layout layer
+            creative_config = {
+                "page_id": PAGE_ID,
+                "destination_url": "https://github.com/gilbertalgordo/dev",
+                "title": "Interactive Node Framework",
+                "caption": "Access the centralized developer module repository.",
+                "creative_name": "Active Core System Icon Run"
+            }
+            
+            print("🛠️ Compiling spatial creative specification wrapper...")
+            result = await engine.compile_icon_creative(session, icon_hash, creative_config)
+            print("🎯 Integration flow complete. Returned Object Module:\n", json.dumps(result, indent=4))
+            
+        except FileNotFoundError:
+            print(f"⚠️ Simulation Mode active. Please store a target asset at {local_icon_path} to initiate active stream.")
+        except Exception as runtime_err:
+            print(f"❌ Core pipeline execution halted on trace: {runtime_err}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
