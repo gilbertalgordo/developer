@@ -1,0 +1,241 @@
+pip install google-genai
+
+
+
+export GEMINI_API_KEY="your_api_key_here"
+
+
+
+import os
+from google import genai
+
+def generate_ai_response():
+    # Initialize the client. It automatically picks up the GEMINI_API_KEY environment variable.
+    client = genai.Client()
+    
+    prompt = "Explain the core philosophy of Kaizen management in two sentences."
+    
+    print("Generating response...")
+    
+    # Request text generation using the flash model
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+    )
+    
+    print("\n--- AI Response ---")
+    print(response.text)
+
+if __name__ == "__main__":
+    # Simple validation check
+    if not os.environ.get("GEMINI_API_KEY"):
+        print("Error: GEMINI_API_KEY environment variable not set.")
+    else:
+        generate_ai_response()
+
+
+
+import os
+from typing import List
+from pydantic import BaseModel, Field
+from google import genai
+from google.genai import types
+
+# 1. Define your desired schema for structured JSON output
+class OptimizationStep(BaseModel):
+    phase: str = Field(description="The stage or phase name of the deployment.")
+    actions: List[str] = Field(description="List of exact actions to perform during this phase.")
+    metrics_to_track: List[str] = Field(description="KPIs or telemetry indicators to monitor.")
+
+class StrategyPlan(BaseModel):
+    strategy_name: str = Field(description="High-level title of the operational workflow.")
+    estimated_timeline_days: int = Field(description="Estimated implementation window in days.")
+    execution_steps: List[OptimizationStep] = Field(description="Sequential optimization breakdown.")
+
+def run_advanced_session():
+    # Initialize the unified client (picks up GEMINI_API_KEY from environment)
+    client = genai.Client()
+    
+    # 2. Configure global model behavior, schema constraints, and temperature
+    config = types.GenerateContentConfig(
+        system_instruction=(
+            "You are an advanced systems architecture assistant. "
+            "Incorporate structural precision, strategic oversight, and rapid development "
+            "methodologies (like Kaizen efficiency architectures) into your planning. "
+            "Provide structured, deterministic data structures directly."
+        ),
+        temperature=0.2, # Lower temperature for analytical, highly-structured tasks
+        response_mime_type="application/json",
+        response_schema=StrategyPlan,
+    )
+    
+    print("Initiating structured content generation workflow...")
+    
+    # 3. Generate content with the structured configuration using gemini-2.5-flash
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents="Generate a continuous automated CI/CD validation strategy for a microservice environment.",
+        config=config
+    )
+    
+    print("\n--- Structured JSON Result ---")
+    print(response.text)
+    
+    print("\n" + "="*50 + "\n")
+    
+    # 4. Independent Multi-Turn Conversational Chat Session
+    print("Opening an interactive, stateful multi-turn chat session...")
+    chat = client.chats.create(model="gemini-2.5-flash")
+    
+    # Turn 1
+    print("\nUser: How do we track performance bottlenecks in streaming data pipelines?")
+    chat_response_1 = chat.send_message("How do we track performance bottlenecks in streaming data pipelines?")
+    print(f"AI: {chat_response_1.text}")
+    
+    # Turn 2 (Context-aware continuation)
+    print("\nUser: Give me a sample instrumentation configuration for that.")
+    chat_response_2 = chat.send_message("Give me a sample instrumentation configuration for that.")
+    print(f"AI: {chat_response_2.text}")
+
+if __name__ == "__main__":
+    if not os.environ.get("GEMINI_API_KEY"):
+        print("Please export your GEMINI_API_KEY prior to executing this script.")
+    else:
+        run_advanced_session()
+
+
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+
+
+<div class="hud-container">
+  
+  <!-- Icon 1: Core AMP AI Engine (Layered Bolt + Auto-Sparks) -->
+  <div class="icon-card">
+    <div class="icon-wrapper">
+      <span class="material-symbols-outlined amp-base">bolt</span>
+      <span class="material-symbols-outlined ai-overlay">auto_awesome</span>
+    </div>
+    <div class="icon-label">AMP AI Core</div>
+  </div>
+
+  <!-- Icon 2: Performance Analytics Optimization -->
+  <div class="icon-card">
+    <div class="icon-wrapper">
+      <span class="material-symbols-outlined single-icon">monitoring</span>
+    </div>
+    <div class="icon-label">Telemetry Insights</div>
+  </div>
+
+  <!-- Icon 3: Automated Fast Agent Flow -->
+  <div class="icon-card">
+    <div class="icon-wrapper">
+      <span class="material-symbols-outlined single-icon">speed</span>
+    </div>
+    <div class="icon-label">Kaizen Pipeline</div>
+  </div>
+
+</div>
+
+<style>
+  /* HUD Dashboard Container Theme */
+  .hud-container {
+    display: flex;
+    gap: 24px;
+    background-color: #0d1117;
+    padding: 30px;
+    border-radius: 12px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    justify-content: center;
+  }
+
+  /* Structural Icon Layout */
+  .icon-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 20px;
+    border-radius: 10px;
+    width: 120px;
+    transition: all 0.25s ease;
+    cursor: pointer;
+  }
+
+  .icon-card:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: #38bdf8;
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+    transform: translateY(-2px);
+  }
+
+  .icon-wrapper {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+
+  /* Material Symbols Styling Definitions */
+  .material-symbols-outlined {
+    font-size: 40px;
+    user-select: none;
+  }
+
+  /* Single HUD Icons styling */
+  .single-icon {
+    color: #94a3b8;
+    font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 40;
+  }
+  .icon-card:hover .single-icon {
+    color: #38bdf8;
+    font-variation-settings: 'FILL' 1, 'wght' 400;
+  }
+
+  /* Layered Composite Icon Logic (AMP Bolt + Google AI Sparkle) */
+  .amp-base {
+    color: #f59e0b; /* Yellow/Orange AMP Identity color */
+    font-variation-settings: 'FILL' 1, 'wght' 400;
+    position: absolute;
+    left: 0;
+    top: 4px;
+    font-size: 38px;
+  }
+
+  .ai-overlay {
+    color: #38bdf8; /* Blue/Cyan AI Sparkle color */
+    font-variation-settings: 'FILL' 1, 'wght' 400;
+    position: absolute;
+    right: -4px;
+    top: -4px;
+    font-size: 22px;
+    filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.6));
+  }
+
+  .icon-card:hover .ai-overlay {
+    animation: pulse 1.5s infinite ease-in-out;
+  }
+
+  /* Dashboard Label text */
+  .icon-label {
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+  .icon-card:hover .icon-label {
+    color: #f8fafc;
+  }
+
+  /* Smooth pulse animation to give the interface a live HUD feel */
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.6)); }
+    50% { transform: scale(1.15); filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.9)); }
+  }
+</style>
