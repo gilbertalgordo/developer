@@ -168,3 +168,161 @@ if __name__ == "__main__":
     generator = AdvancedGalaxyGenerator()
     generator.initialize_pipelines()
     generator.generate()
+
+
+
+import numpy as np
+import networkx as nx
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import matplotlib.gridspec as gridspec
+import uuid
+
+# --- 1. GALACTIC OBJECT DATA STRUCTURE ---
+class Galaxy:
+    def __init__(self, obj_type='Spiral', is_sol=False, parent_cluster=''):
+        self.id = str(uuid.uuid4())[:8]  # Short, unique ID for database
+        self.is_sol = is_sol
+        
+        # Identification data (HUD compatible)
+        self.catalogue_ref = f"NGC {np.random.randint(1000, 9999)}"
+        self.type_label = obj_type
+        
+        # Spatial Position (3D space, normalized for 2D plot)
+        self.pos_x = np.random.uniform(0.1, 0.9)
+        self.pos_y = np.random.uniform(0.1, 0.9)
+        self.dist_mly = np.random.normal(50, 10, 1)[0] # Dist in millions of light years
+
+        # Physical Properties
+        self.diameter_kly = np.random.normal(120, 30, 1)[0]
+        self.star_count_approx = f"{np.random.randint(200, 400)}B"
+
+        if is_sol:
+            self.catalogue_ref = "SOL GALAXY (Local)"
+            self.pos_x = 0.85
+            self.pos_y = 0.85
+            self.dist_mly = 0.0 # Standard, as the reference frame
+            self.diameter_kly = 100.0
+
+    def get_hud_summary(self):
+        return f"{self.catalogue_ref} ({self.id})\nDist: {self.dist_mly:.1f} MLy | Dia: {self.diameter_kly:.1f} kLy"
+
+# --- 2. GALAXY CLUSTER (CONSTELLATION) BUILDER ---
+def build_virgo_cluster_analogue():
+    cluster_objects = []
+    
+    # a. Define core objects
+    m49_core = Galaxy(obj_type='Elliptical Giant', parent_cluster='Virgo (Analogue)')
+    m49_core.pos_x, m49_core.pos_y = 0.5, 0.5 # Set at center
+    cluster_objects.append(m49_core)
+
+    sol = Galaxy(obj_type='Spiral', is_sol=True, parent_cluster='Local Group')
+    cluster_objects.append(sol)
+    
+    # b. Add many dwarf and supporting galaxies
+    for i in range(120):
+        if i % 3 == 0:
+            gt = 'Spiral'
+        elif i % 5 == 0:
+            gt = 'Irregular'
+        else:
+            gt = 'Dwarf Spheroidal'
+        cluster_objects.append(Galaxy(obj_type=gt, parent_cluster='Virgo (Analogue)'))
+
+    # c. Add interacting pairs (specific science target)
+    p1 = Galaxy(obj_type='Interacting Spiral', parent_cluster='Virgo (Analogue)')
+    p1.pos_x, p1.pos_y = 0.72, 0.72
+    p2 = Galaxy(obj_type='Interacting Pair', parent_cluster='Virgo (Analogue)')
+    p2.pos_x, p2.pos_y = 0.74, 0.74
+    cluster_objects.extend([p1, p2])
+
+    return cluster_objects, m49_core, sol, [p1, p2]
+
+# --- 3. CONSTELLATION GRAPH & HUD RENDERING ENGINE ---
+def render_galactic_constellation(galaxy_data, core, sol, pairs):
+    # Setup the visual 'Head-Up Display' canvas
+    fig = plt.figure(figsize=(16, 10), facecolor='black')
+    gs = gridspec.GridSpec(1, 1)
+    ax = fig.add_subplot(gs[0], aspect='equal')
+    ax.axis('off') # Pure data viz
+    
+    # Set the HUD coordinate space
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+
+    # --- 3a. HUD Overlay Grid ---
+    for r in np.arange(0, 1.1, 0.2):
+        circle = patches.Circle((0.5, 0.5), r, color='#00d2d3', lw=0.5, alpha=0.3, fill=False, zorder=1)
+        ax.add_patch(circle)
+        ax.text(0.51, 0.5 + r, f"R {r:.1f}", color='#00d2d3', fontsize=7, alpha=0.5, zorder=1)
+
+    # Coordinate crosshair at central core
+    ax.plot([0.5, 0.5], [0.1, 0.9], color='#00d2d3', lw=0.5, alpha=0.3, zorder=1)
+    ax.plot([0.1, 0.9], [0.5, 0.5], color='#00d2d3', lw=0.5, alpha=0.3, zorder=1)
+
+    # --- 3b. Galactic Object Database & Visualization ---
+    for gal in galaxy_data:
+        # Define color based on type (for AI identification)
+        if gal.is_sol: col, size = '#e84118', 15  # Red for Sol
+        elif gal == core: col, size = '#f5f6fa', 200 # Bright central cluster core
+        elif 'Spiral' in gal.type_label: col, size = '#2ecc71', 20 # Blue for Spirals
+        elif 'Dwarf' in gal.type_label: col, size = '#9b59b6', 12 # Purple for dwarfs
+        else: col, size = '#f1c40f', 15
+
+        # Render object as a data point
+        ax.scatter(gal.pos_x, gal.pos_y, color=col, s=size, edgecolors=col, marker='.', zorder=2)
+        
+        # Small ID labels for interactive queries (Dwarf only here for clutter)
+        if 'Dwarf' in gal.type_label and np.random.uniform(0,1) < 0.1:
+             ax.text(gal.pos_x + 0.005, gal.pos_y + 0.005, gal.id, color='#9b59b6', fontsize=5, alpha=0.5)
+
+    # --- 3c. HUD Identifier Panels (Dynamic Callouts) ---
+    hud_callouts = [
+        # Callout: Title
+        (0.02, 0.92, "GALAXY CONSTELLATION:\nVIRGO CLUSTER (M49 GROUP)", '#00d2d3'),
+        # Callout: Status
+        (0.02, 0.86, "SYSTEM STATUS: ACTIVE | SURVEY: FIELD V1.0", '#00d2d3'),
+        # Callout: Sol Reference
+        (0.85, 0.88, sol.catalogue_ref, '#e84118'),
+        # Callout: M49 Core
+        (0.38, 0.5, f"{core.type_label}\n{core.catalogue_ref}", '#f5f6fa'),
+    ]
+
+    for x, y, text, col in hud_callouts:
+        box = patches.Rectangle((x-0.01, y-0.01), 0.16, 0.05, lw=1, edgecolor=col, facecolor='none', alpha=0.5, zorder=3)
+        ax.add_patch(box)
+        ax.text(x, y, text, color=col, fontsize=9, zorder=4)
+
+    # --- 3d. Detailed Interaction ID (Advanced Case) ---
+    # Draw a line and callout for the interacting pair
+    pair_center_x = (pairs[0].pos_x + pairs[1].pos_x) / 2
+    pair_center_y = (pairs[0].pos_y + pairs[1].pos_y) / 2
+    ax.plot([pair_center_x, pair_center_x + 0.08], [pair_center_y, pair_center_y], color='#2ecc71', lw=1, alpha=0.7)
+    
+    pair_callout_text = f"PAIR (INTERACTION): {pairs[0].catalogue_ref}/{pairs[1].catalogue_ref}\nEYE GALAXIES | TYPE: SAB+SA"
+    ax.text(pair_center_x + 0.09, pair_center_y, pair_callout_text, color='#2ecc71', fontsize=7, verticalalignment='center')
+    
+    # Optional: Highlight with a HUD box (using NetworkX logic)
+    ax.add_patch(patches.Rectangle((pair_center_x-0.02, pair_center_y-0.015), 0.04, 0.03, lw=1, edgecolor='#2ecc71', facecolor='none', alpha=0.5))
+
+    # --- 3e. Filament Network Connection (Graph Visualization) ---
+    cluster_graph = nx.Graph()
+    cluster_graph.add_nodes_from([g.id for g in galaxy_data])
+    
+    # Connect galaxies near M49 core for Filament Visualization (AI simulation)
+    neighbors = [g for g in galaxy_data if g != core and np.random.uniform(0,1) < 0.2]
+    cluster_graph.add_edges_from([(core.id, n.id) for n in neighbors])
+    
+    # Render Filaments (using networkx positions tied back to our grid)
+    pos_dict = {g.id: (g.pos_x, g.pos_y) for g in galaxy_data}
+    nx.draw_networkx_edges(cluster_graph, pos_dict, ax=ax, edge_color='#fff200', width=0.5, alpha=0.3, zorder=1)
+
+    plt.show()
+
+# --- 4. EXECUTION ---
+if __name__ == '__main__':
+    # Build the database
+    database, center_m49, home_sol, interacting_pairs = build_virgo_cluster_analogue()
+    
+    # Process the database into a complex identified HUD view
+    render_galactic_constellation(database, center_m49, home_sol, interacting_pairs)
