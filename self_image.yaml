@@ -1,0 +1,36 @@
+import torch
+from diffusers import StableDiffusionPipeline
+
+# Load the model (Ensure you have a model checkpoint suitable for 3D/realistic styles)
+model_id = "runwayml/stable-diffusion-v1-5" 
+pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
+pipe = pipe.to("cuda")
+
+# Define the prompt for consistency
+prompt = "A high-quality 3D rendered portrait of Gilbert Algordo, age 19, realistic skin texture, sharp focus, cinematic lighting"
+
+# Generate the image
+image = pipe(prompt).images[0]
+
+# Save the result
+image.save("gilbert_algordo_19.png")
+
+
+
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background: Deep Tech Black -->
+  <rect width="512" height="512" fill="#0a0a0a" />
+  
+  <!-- Stylized Face / 19y/o Profile -->
+  <circle cx="256" cy="200" r="80" fill="#1f1f1f" stroke="#00ffcc" stroke-width="2" />
+  <path d="M210 210 Q 256 250 302 210" stroke="#00ffcc" fill="transparent" stroke-width="3" />
+  
+  <!-- HUD Elements (Kaizen Aesthetic) -->
+  <text x="20" y="40" font-family="Arial" font-size="14" fill="#00ffcc">GILBERT ALGORDO // 19</text>
+  <text x="20" y="60" font-family="Arial" font-size="12" fill="#00ffcc">STATUS: ACTIVE // KAIZEN_L1</text>
+  
+  <!-- Decorative Data Rings -->
+  <circle cx="256" cy="200" r="120" stroke="#333" stroke-width="1" fill="none" stroke-dasharray="4 4" />
+  <line x1="256" y1="80" x2="256" y2="400" stroke="#00ffcc" stroke-width="0.5" opacity="0.5" />
+  <line x1="136" y1="200" x2="376" y2="200" stroke="#00ffcc" stroke-width="0.5" opacity="0.5" />
+</svg>
