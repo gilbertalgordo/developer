@@ -1,0 +1,279 @@
+import time
+from ppadb.client import Client as AdbClient
+
+def connect_device():
+    # Connect to the local ADB server
+    client = AdbClient(host="127.0.0.1", port=5037)
+    devices = client.devices()
+    
+    if len(devices) == 0:
+        print("[-] No devices found. Make sure USB Debugging is enabled.")
+        return None
+    
+    print(f"[+] Connected to: {devices[0].serial}")
+    return devices[0]
+
+def keyboard_automation():
+    device = connect_device()
+    if not device:
+        return
+
+    # 1. Open a target app (e.g., Google Chrome)
+    print("[*] Opening application...")
+    device.shell("am start -a android.intent.action.VIEW -d https://www.google.com")
+    time.sleep(3) # Wait for app to load
+
+    # 2. Simulate a click on the search/text bar to wake up GBoard
+    # Adjust X and Y coordinates based on your screen resolution
+    print("[*] Focusing text field...")
+    device.shell("input tap 500 1000") 
+    time.sleep(1)
+
+    # 3. Input text directly into the focused field
+    print("[*] Typing text...")
+    message = "Hello_World_from_Automation" # Use underscores or escape spaces
+    device.shell(f"input text '{message}'")
+    time.sleep(1)
+
+    # 4. Press 'Enter' key to submit
+    print("[*] Pressing Enter key...")
+    device.shell("input keyevent 66") # 66 is the keycode for KEYCODE_ENTER
+
+if __name__ == "__main__":
+    keyboard_automation()
+
+
+
+
+#!/bin/bash
+
+# Define keycodes
+ENTER_KEY=66
+BACKSPACE_KEY=67
+
+echo "[*] Ensuring ADB is running..."
+adb wait-for-device
+
+echo "[*] Tapping screen to focus input (X: 500, Y: 1000)..."
+adb shell input tap 500 1000
+sleep 1
+
+echo "[*] Sending text..."
+# Note: Standard ADB text input doesn't handle raw spaces well; use %s or quotes
+adb shell input text "Kaizen_Automation_Initialized"
+
+echo "[*] Pressing Enter..."
+adb shell input keyevent $ENTER_KEY
+
+echo "[+] Done."
+
+
+
+import time
+import uiautomator2 as u2
+
+class AdvancedKeyboardAutomation:
+    def __init__(self, device_ip_or_serial=None):
+        """
+        Initializes connection to the device. 
+        If device_ip_or_serial is None, it connects to the only USB-connected device.
+        """
+        print("[*] Connecting to device via UIAutomator2 engine...")
+        self.d = u2.connect(device_ip_or_serial)
+        print(f"[+] Connected to device: {self.d.device_info['model']}")
+
+    def ensure_keyboard_ready(self):
+        """Checks if the virtual keyboard (IME) is actively showing on screen."""
+        self.d.watch_context()
+        # Returns True/False regarding keyboard visibility status
+        return self.d.info.get('keyboardShowing', False)
+
+    def advanced_type(self, search_resource_id, text_to_type, submit=True):
+        """
+        Dynamically finds an element by ID, focuses it, verifies the keyboard 
+        state, types the text smoothly, and handles submissions.
+        """
+        print(f"[*] Searching for target input element: {search_resource_id}")
+        
+        # 1. Dynamic Wait (Implicit/Explicit blend) up to 10 seconds instead of sleep()
+        element = self.d(resourceId=search_resource_id)
+        if not element.wait(timeout=10.0):
+            raise TimeoutError(f"Element {search_resource_id} not found on screen.")
+
+        # 2. Precision click to focus the element and invoke Gboard safely
+        print("[*] Element found. Focusing field...")
+        element.click()
+        
+        # 3. Dynamic verification of keyboard visibility
+        time.sleep(0.5) # Quick buffer for keyboard rendering engine
+        if not self.ensure_keyboard_ready():
+            print("[!] Warning: Keyboard layer not explicitly reported by system. Retrying focus...")
+            element.click()
+
+        # 4. Input injection via native IME wrapper (handles spaces and special characters perfectly)
+        print(f"[*] Injecting string data safely: '{text_to_type}'")
+        element.set_text(text_to_type)
+
+        # 5. Native IME action triggers (Simulating Gboard 'Search' or 'Go' Action flags)
+        if submit:
+            print("[*] Dispatching Keyevent: ENTER/SUBMIT")
+            # Action code 66 handles IME_ACTION_DONE / ENTER natively
+            self.d.press("enter")
+
+    def clear_input_field(self, search_resource_id):
+        """Natively clears a text field cleanly using UIAutomator selection methods."""
+        element = self.d(resourceId=search_resource_id)
+        if element.exists:
+            element.clear_text()
+            print("[+] Field cleared successfully.")
+
+    def continuous_backspace(self, count=5):
+        """Simulates native hardware backspace strokes directly down the input channel."""
+        print(f"[*] Sending {count} consecutive backspace inputs...")
+        for _ in range(count):
+            self.d.press("delete")
+
+
+if __name__ == "__main__":
+    # Initialize engine (Auto-detects USB connected phone/emulator)
+    automation = AdvancedKeyboardAutomation()
+
+    try:
+        # Example Scenario: Automating a search field inside a target app
+        # Replace with your target package's exact Resource ID found via Appium Inspector / uiautomatorviewer
+        TARGET_INPUT_ID = "com.android.chrome:id/search_box_text"
+        
+        # Automate the process cleanly
+        automation.advanced_type(
+            search_resource_id=TARGET_INPUT_ID,
+            text_to_type="Advanced Open Source Android Automation 2026",
+            submit=True
+        )
+        
+        # Optional: structural manipulation after typing
+        # automation.continuous_backspace(count=4)
+        
+    except Exception as e:
+        print(f"[-] Automation Pipeline Error: {e}")
+
+
+
+# Install the advanced python wrapper interface
+pip install uiautomator2
+
+# Ensure your target device is connected via USB/Network with Debugging Enabled, then run:
+python -m uiautomator2 init
+
+
+
+#!/usr/bin/env python3
+"""
+Advanced Android Virtual Keyboard (Gboard) Automation Framework
+Author: Gilbert Algordo
+License: MIT
+"""
+
+import time
+import sys
+import uiautomator2 as u2
+
+class GboardAutomationEngine:
+    def __init__(self, target_serial=None):
+        """
+        Initializes the low-latency automation bridge to the Android device.
+        """
+        print("[*] Initializing Superfast Kaizen Automation Core...")
+        try:
+            # Connects via USB or specified Network IP
+            self.d = u2.connect(target_serial)
+            print(f"[+] Active Connection established with: {self.d.device_info['model']}")
+        except Exception as e:
+            print(f"[-] Synchronization Failure: Ensure device is connected via ADB. Error: {e}")
+            sys.exit(1)
+
+    def is_keyboard_visible(self) -> bool:
+        """
+        Directly queries the Window Manager Service status flags to check 
+        if Gboard/Virtual Keyboard is currently rendered on screen.
+        """
+        self.d.watch_context()
+        return self.d.info.get('keyboardShowing', False)
+
+    def inject_text_advanced(self, resource_id: str, payload_text: str, auto_submit: bool = True):
+        """
+        Locates an element dynamically, handles field focus safely, verifies the 
+        system IME layer status, and injects text cleanly via accessibility channels.
+        """
+        print(f"[*] Locating target UI element node: {resource_id}")
+        element = self.d(resourceId=resource_id)
+        
+        # Non-blocking explicit wait logic (max 8.0 seconds timeout)
+        if not element.wait(timeout=8.0):
+            raise TimeoutError(f"Target node window timeout: {resource_id} could not be resolved.")
+
+        print("[*] Element focused. Activating virtual keyboard subsystem...")
+        element.click()
+        
+        # Brief hardware render delay buffer
+        time.sleep(0.4)
+        
+        if not self.is_keyboard_visible():
+            print("[!] Warning: Keyboard state unverified by kernel. Forcing secondary focus focus layout...")
+            element.click()
+
+        print(f"[*] Injecting stream payload securely into input buffer: '{payload_text}'")
+        # Direct UTF-8 string manipulation bypassing raw ADB shell limitation errors
+        element.set_text(payload_text)
+
+        if auto_submit:
+            print("[*] Dispatching system IME Action flag: ENTER")
+            self.d.press("enter")
+
+    def safe_clear_field(self, resource_id: str):
+        """
+        Natively clears an input field layout cleanly without corrupting the backstack.
+        """
+        element = self.d(resourceId=resource_id)
+        if element.exists:
+            element.clear_text()
+            print("[+] Field input buffer wiped successfully.")
+
+    def continuous_backspace_injection(self, iterations: int = 1):
+        """
+        Sends precise raw backspace keyevents down the active hardware input channel.
+        """
+        print(f"[*] Injecting {iterations} successive backspace commands...")
+        for _ in range(iterations):
+            self.d.press("delete")
+
+
+if __name__ == "__main__":
+    # Initialize the automated framework
+    # Engine defaults to the single connected Android device environment
+    automation = GboardAutomationEngine()
+
+    try:
+        # Configuration Target (Replace with your application's target node ID)
+        TARGET_INPUT_NODE = "com.android.chrome:id/search_box_text"
+        INPUT_DATA = "Advanced Kaizen Automation Engine 2026"
+
+        # Execute automated flow pipeline
+        automation.inject_text_advanced(
+            resource_id=TARGET_INPUT_NODE,
+            payload_text=INPUT_DATA,
+            auto_submit=True
+        )
+        
+        print("[+] Automation execution sequence concluded cleanly.")
+
+    except Exception as error:
+        print(f"[-] Critical Error terminating pipeline execution: {error}")
+
+
+
+
+# Install the advanced system bridge client bindings
+pip install uiautomator2
+
+# Verify target device is listed via ADB, then initialize the background agent daemon:
+python -m uiautomator2 init
