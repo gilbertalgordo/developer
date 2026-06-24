@@ -1,0 +1,296 @@
+#!/usr/bin/env python3
+"""
+Tax Filing Autofill & Computation Engine
+Tailored for Self-Employed Professionals / Freelancers (BIR Form 1701A / 1701)
+"""
+
+from dataclasses import dataclass, asdict
+import json
+from typing import Dict, Any
+
+@dataclass
+class TaxpayerProfile:
+    tin: str
+    rdo_code: str
+    first_name: str
+    last_name: str
+    registered_address: str
+    email: str
+    tax_regime: str  # "8_PERCENT_FLAT" or "GRADUATED_RATES"
+
+@dataclass
+class FinancialSummary:
+    total_gross_sales: float
+    total_withholding_tax_paid: float  # Total from 2307 forms received
+    allowable_deductions: float = 0.0  # Used if Graduated Rates + Itemized/OSD is chosen
+
+class TaxEnginePH:
+    EXEMPT_THRESHOLD = 250000.0
+
+    def __init__(self, profile: TaxpayerProfile, financials: FinancialSummary):
+        self.profile = profile
+        self.financials = financials
+
+    def compute_tax(self) -> Dict[str, Any]:
+        gross = self.financials.total_gross_sales
+        withheld = self.financials.total_withholding_tax_paid
+        tax_due = 0.0
+
+        if self.profile.tax_regime == "8_PERCENT_FLAT":
+            # 8% flat tax on gross receipts over 250k
+            taxable_income = max(0.0, gross - self.EXEMPT_THRESHOLD)
+            tax_due = taxable_income * 0.08
+        elif self.profile.tax_regime == "GRADUATED_RATES":
+            # Simplified look-up for regular progressive tax tables
+            taxable_income = max(0.0, gross - self.financials.allowable_deductions)
+            tax_due = self._calculate_graduated_tax(taxable_income)
+        else:
+            raise ValueError(f"Unknown tax regime: {self.profile.tax_regime}")
+
+        net_tax_payable = max(0.0, tax_due - withheld)
+
+        return {
+            "taxable_income": taxable_income,
+            "tax_due": tax_due,
+            "total_withholding_credits": withheld,
+            "net_tax_payable_or_overpayment": tax_due - withheld
+        }
+
+    def _calculate_graduated_tax(self, income: float) -> float:
+        # Standard progressive brackets
+        if income <= 250000:
+            return 0.0
+        elif income <= 400000:
+            return (income - 250000) * 0.15
+        elif income <= 800000:
+            return 22500 + (income - 400000) * 0.20
+        elif income <= 2000000:
+            return 102500 + (income - 800000) * 0.25
+        elif income <= 8000000:
+            return 402500 + (income - 2000000) * 0.30
+        else:
+            return 2202500 + (income - 8000000) * 0.35
+
+    def generate_autofill_payload(self) -> str:
+        calculations = self.compute_tax()
+        payload = {
+            "taxpayer_details": asdict(self.profile),
+            "financial_summary": asdict(self.financials),
+            "tax_computation": calculations,
+            "metadata": {
+                "form_type": "1701A" if self.profile.tax_regime == "8_PERCENT_FLAT" else "1701",
+                "engine_version": "1.0.0-open-source"
+            }
+        }
+        return json.dumps(payload, indent=2)
+
+# --- Execution Example ---
+if __name__ == "__main__":
+    # 1. Define Profile
+    user_profile = TaxpayerProfile(
+        tin="123-456-789-000",
+        rdo_code="054A",  # Example: East Cavite / Laguna regions
+        first_name="Gilbert",
+        last_name="Algordo",
+        registered_address="San Pedro, Laguna, Philippines",
+        email="gilbert@example.com",
+        tax_regime="8_PERCENT_FLAT"
+    )
+
+    # 2. Extract summarized financial data from your local system / CSV exports
+    annual_financials = FinancialSummary(
+        total_gross_sales=1250000.00,       # Gross annual revenue
+        total_withholding_tax_paid=20000.00  # Total advanced tax from client 2307s
+    )
+
+    # 3. Process calculations and generate autofill layout
+    engine = TaxEnginePH(profile=user_profile, financials=annual_financials)
+    autofill_json = engine.generate_autofill_payload()
+
+    print(autofill_json)
+
+
+
+
+#!/usr/bin/env python3
+"""
+Advanced Tax Filing Automation & eBIRForms Document Compiler
+Target: BIR Form 1701A (Annual Income Tax Return for Purely Business/Profession)
+Compliant with TRAIN Law and updated RMC rules.
+"""
+
+from dataclasses import dataclass, field
+from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
+import xml.etree.ElementTree as ET
+from xml.dom import minidom
+from datetime import datetime
+import json
+from typing import Dict, Any, Optional
+
+@dataclass(frozen=True)
+def BIRTaxpayerProfile:
+    tin: str               # 9 or 12 digit core TIN format
+    branch_code: str       # New 5-digit format (e.g., "00000")
+    rdo_code: str          # Revenue District Office Code
+    last_name: str
+    first_name: str
+    middle_name: str
+    registered_address: str
+    zip_code: str
+    email_address: str
+    contact_number: str
+    civil_status: str       # "Single" or "Married"
+    tax_regime: str         # "8_PERCENT_FLAT" or "GRADUATED_OSD"
+
+@dataclass
+class FinancialLedger:
+    gross_sales_receipts: Decimal
+    prior_years_excess_credits: Decimal = Decimal("0.00")
+    quarterly_payments_1to3: Decimal = Decimal("0.00")
+    withholding_credits_1to3: Decimal = Decimal("0.00")
+    withholding_credits_q4_2307: Decimal = Decimal("0.00")
+
+class AdvancedBIRTaxEngine:
+    EXEMPTION_THRESHOLD = Decimal("250000.00")
+    
+    def __init__(self, profile: BIRTaxpayerProfile, ledger: FinancialLedger, year: int):
+        self.profile = profile
+        self.ledger = ledger
+        self.year = year
+
+    @staticmethod
+    def bir_round(amount: Decimal) -> int:
+        """
+        Implements strict BIR Form rounding regulations:
+        Centavos equal to or greater than 50 round UP; 49 or less drop down.
+        """
+        return int(amount.quantize(Decimal('1.'), rounding=ROUND_HALF_UP))
+
+    def process_return_calculations(self) -> Dict[str, Any]:
+        gross = self.ledger.gross_sales_receipts
+        
+        # Total tax credits aggregated across schedules
+        total_credits = (
+            self.ledger.prior_years_excess_credits +
+            self.ledger.quarterly_payments_1to3 +
+            self.ledger.withholding_credits_1to3 +
+            self.ledger.withholding_credits_q4_2307
+        )
+
+        if self.profile.tax_regime == "8_PERCENT_FLAT":
+            taxable_income = max(Decimal("0.00"), gross - self.EXEMPTION_THRESHOLD)
+            tax_due = taxable_income * Decimal("0.08")
+            atc_code = "II015" if "Proprietor" in self.profile.civil_status else "II017"
+        elif self.profile.tax_regime == "GRADUATED_OSD":
+            # Optional Standard Deduction: 40% of Gross Financial Receipts
+            osd_deduction = gross * Decimal("0.40")
+            taxable_income = max(Decimal("0.00"), gross - osd_deduction)
+            tax_due = self._compute_graduated_bracket(taxable_income)
+            atc_code = "II012"
+        else:
+            raise ValueError(f"Unsupported Tax Engine Regime: {self.profile.tax_regime}")
+
+        net_payable = tax_due - total_credits
+
+        return {
+            "atc": atc_code,
+            "gross_sales": self.bir_round(gross),
+            "allowable_deductions_or_exemption": self.bir_round(self.EXEMPTION_THRESHOLD if self.profile.tax_regime == "8_PERCENT_FLAT" else osd_deduction),
+            "taxable_income": self.bir_round(taxable_income),
+            "tax_due": self.bir_round(tax_due),
+            "total_credits": self.bir_round(total_credits),
+            "net_tax_payable": self.bir_round(net_payable) if net_payable > 0 else 0,
+            "overpayment": self.bir_round(abs(net_payable)) if net_payable < 0 else 0
+        }
+
+    def _compute_graduated_bracket(self, income: Decimal) -> Decimal:
+        if income <= 250000:
+            return Decimal("0.00")
+        elif income <= 400000:
+            return (income - Decimal("250000")) * Decimal("0.15")
+        elif income <= 800000:
+            return Decimal("22500") + (income - Decimal("400000")) * Decimal("0.20")
+        elif income <= 2000000:
+            return Decimal("102500") + (income - Decimal("800000")) * Decimal("0.25")
+        elif income <= 8000000:
+            return Decimal("402500") + (income - Decimal("2000000")) * Decimal("0.30")
+        else:
+            return Decimal("2202500") + (income - Decimal("8000000")) * Decimal("0.35")
+
+    def compile_ebirforms_xml(self) -> str:
+        """
+        Compiles structural runtime definitions directly into an eBIRForms-parsable XML structure tree.
+        """
+        calcs = self.process_return_calculations()
+        
+        root = ET.Element("Form1701A", version="1.0")
+        
+        # Document Header Element Tree Context
+        header = ET.SubElement(root, "Header")
+        ET.SubElement(header, "TaxYear").text = str(self.year)
+        ET.SubElement(header, "AmendedReturn").text = "No"
+        ET.SubElement(header, "ShortPeriod").text = "No"
+
+        # Structural Profile Mappings
+        taxpayer = ET.SubElement(root, "TaxpayerProfile")
+        ET.SubElement(taxpayer, "TIN").text = self.profile.tin.replace("-", "")
+        ET.SubElement(taxpayer, "BranchCode").text = self.profile.branch_code
+        ET.SubElement(taxpayer, "RDOCode").text = self.profile.rdo_code
+        ET.SubElement(taxpayer, "LastName").text = self.profile.last_name
+        ET.SubElement(taxpayer, "FirstName").text = self.profile.first_name
+        ET.SubElement(taxpayer, "MiddleName").text = self.profile.middle_name
+        ET.SubElement(taxpayer, "RegisteredAddress").text = self.profile.registered_address
+        ET.SubElement(taxpayer, "ZipCode").text = self.profile.zip_code
+        ET.SubElement(taxpayer, "EmailAddress").text = self.profile.email_address
+        ET.SubElement(taxpayer, "ContactNumber").text = self.profile.contact_number
+
+        # Core Computational Line Item Mapping
+        computations = ET.SubElement(root, "TaxComputations")
+        ET.SubElement(computations, "ATC").text = calcs["atc"]
+        ET.SubElement(computations, "GrossSalesReceipts").text = str(calcs["gross_sales"])
+        ET.SubElement(computations, "DeductionsOrExemptions").text = str(calcs["allowable_deductions_or_exemption"])
+        ET.SubElement(computations, "TaxableIncome").text = str(calcs["taxable_income"])
+        ET.SubElement(computations, "TaxDue").text = str(calcs["tax_due"])
+        ET.SubElement(computations, "TotalTaxCredits").text = str(calcs["total_credits"])
+        ET.SubElement(computations, "NetTaxPayable").text = str(calcs["net_tax_payable"])
+        ET.SubElement(computations, "Overpayment").text = str(calcs["overpayment"])
+
+        # Pretty-print xml conversion formatting
+        raw_string = ET.tostring(root, encoding="utf-8")
+        parsed_xml = minidom.parseString(raw_string)
+        return parsed_xml.toprettyxml(indent="  ")
+
+# --- Interactive System Instantiation ---
+if __name__ == "__main__":
+    # Initialize structured profile using safe data schemas
+    profile_instance = BIRTaxpayerProfile(
+        tin="123456789",
+        branch_code="00000",
+        rdo_code="054A",  # Region District Office covering San Pedro, Laguna areas
+        last_name="Algordo",
+        first_name="Gilbert",
+        middle_name="L",
+        registered_address="San Pedro, Laguna, Philippines",
+        zip_code="4023",
+        email_address="gilbert@racecorporation.com",
+        contact_number="+639171234567",
+        civil_status="Single",
+        tax_regime="8_PERCENT_FLAT"
+    )
+
+    # Initialize Ledger entries with precise Decimal types to prevent standard floating-point conversion loss
+    ledger_instance = FinancialLedger(
+        gross_sales_receipts=Decimal("2850000.00"),  # Keeps within the 3.0M VAT ceiling
+        prior_years_excess_credits=Decimal("15000.00"),
+        quarterly_payments_1to3=Decimal("45000.00"),
+        withholding_credits_1to3=Decimal("12500.00"),
+        withholding_credits_q4_2307=Decimal("5000.00")
+    )
+
+    # Compile data payloads 
+    engine = AdvancedBIRTaxEngine(profile=profile_instance, ledger=ledger_instance, year=2025)
+    
+    # Generate unified XML directly mapped to structural storage requirements
+    ebir_xml_payload = engine.compile_ebirforms_xml()
+    print("--- GENERATED COMPLIANT EBIRFORMS XML DATASOURCE ---")
+    print(ebir_xml_payload)
