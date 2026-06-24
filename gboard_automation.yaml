@@ -277,3 +277,418 @@ pip install uiautomator2
 
 # Verify target device is listed via ADB, then initialize the background agent daemon:
 python -m uiautomator2 init
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" width="100%" height="100%">
+  <style>
+    .icon-bg { fill: #19202e; stroke: #2d3748; stroke-width: 1.5; }
+    .icon-glyph { fill: none; stroke: #94a3b8; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .fill-glyph { fill: #94a3b8; }
+    .accent-glyph { stroke: #38bdf8; }
+    .label-text { font-family: -apple-system, sans-serif; font-size: 12px; fill: #64748b; text-anchor: middle; font-weight: bold; }
+  </style>
+
+  <g id="icon-ai-stickers" transform="translate(40, 30)">
+    <rect width="100" height="100" rx="16" class="icon-bg" />
+    <rect x="35" y="30" width="30" height="32" rx="8" class="icon-glyph accent-glyph" />
+    <circle cx="44" cy="41" r="2" class="fill-glyph" />
+    <circle cx="56" cy="41" r="2" class="fill-glyph" />
+    <path d="M 42,50 Q 50,56 58,50" class="icon-glyph accent-glyph" />
+    <text x="50" y="122" class="label-text">AI STICKER</text>
+  </g>
+
+  <g id="icon-voice-mic" transform="translate(190, 30)">
+    <rect width="100" height="100" rx="16" class="icon-bg" />
+    <rect x="44" y="28" width="12" height="24" rx="6" class="icon-glyph fill-glyph" style="stroke:none;" />
+    <rect x="44" y="28" width="12" height="24" rx="6" class="icon-glyph" />
+    <path d="M 36,42 Q 50,58 64,42" class="icon-glyph" />
+    <line x1="50" y1="52" x2="50" y2="62" class="icon-glyph" />
+    <line x1="40" y1="62" x2="60" y2="62" class="icon-glyph" />
+    <text x="50" y="122" class="label-text">VOICE MIC</text>
+  </g>
+
+  <g id="icon-globe-language" transform="translate(340, 30)">
+    <rect width="100" height="100" rx="16" class="icon-bg" />
+    <circle cx="50" cy="46" r="20" class="icon-glyph" />
+    <ellipse cx="50" cy="46" rx="7" ry="20" class="icon-glyph" />
+    <line x1="30" y1="46" x2="70" y2="46" class="icon-glyph" />
+    <path d="M 33,36 Q 50,42 67,36" class="icon-glyph" />
+    <path d="M 33,56 Q 50,50 67,56" class="icon-glyph" />
+    <text x="50" y="122" class="label-text">LANGUAGE</text>
+  </g>
+
+  <g id="icon-backspace" transform="translate(490, 30)">
+    <rect width="100" height="100" rx="16" class="icon-bg" />
+    <path d="M 68,32 H 44 L 30,46 L 44,60 H 68 Z" class="icon-glyph" />
+    <line x1="48" y1="41" x2="58" y2="51" class="icon-glyph" />
+    <line x1="58" y1="41" x2="48" y2="51" class="icon-glyph" />
+    <text x="50" y="122" class="label-text">BACKSPACE</text>
+  </g>
+
+  <g id="icon-settings-gear" transform="translate(640, 30)">
+    <rect width="100" height="100" rx="16" class="icon-bg" />
+    <circle cx="50" cy="46" r="8" class="icon-glyph" />
+    <path d="M 50,26 V 32 M 50,60 V 66 M 30,46 H 36 M 64,46 H 70 M 36,32 L 40,36 M 60,56 L 64,60 M 36,60 L 40,56 M 60,32 L 64,36" class="icon-glyph" style="stroke-width: 3;" />
+    <text x="50" y="122" class="label-text">SETTINGS</text>
+  </g>
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="100%" height="100%">
+  <defs>
+    <linearGradient id="gboardBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#181d29" />
+      <stop offset="100%" stop-color="#0e121a" />
+    </linearGradient>
+
+    <linearGradient id="accentSpace" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#000000" flood-opacity="0.6" />
+    </filter>
+  </defs>
+
+  <style>
+    .sys-font { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .toolbar-bg { fill: #1c2331; }
+    .key-bg { fill: #262f42; }
+    .special-key-bg { fill: #1f2736; }
+    .action-key-bg { fill: #0284c7; }
+    .alpha-text { font-size: 22px; fill: #f1f5f9; font-weight: 500; text-anchor: middle; dominant-baseline: middle; }
+    .sub-text { font-size: 10px; fill: #64748b; text-anchor: end; }
+    .label-text { font-size: 14px; fill: #94a3b8; font-weight: 600; text-anchor: middle; dominant-baseline: middle; }
+    .vector-glyph { fill: none; stroke: #94a3b8; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+  </style>
+
+  <rect width="800" height="450" rx="16" fill="url(#gboardBg)" stroke="#2d3748" stroke-width="2" />
+
+  <g id="utility-toolbar">
+    <rect x="0" y="0" width="800" height="55" class="toolbar-bg" />
+    <line x1="0" y1="55" x2="800" y2="55" stroke="#2b354a" stroke-width="1.5" />
+    
+    <path d="M 22,27.5 L 32,19.5 L 32,35.5 Z" fill="#94a3b8" />
+    
+    <g transform="translate(65, 15)">
+      <rect width="24" height="24" rx="6" fill="none" stroke="#94a3b8" stroke-width="2" />
+      <circle cx="8" cy="9" r="1.5" fill="#94a3b8" />
+      <circle cx="16" cy="9" r="1.5" fill="#94a3b8" />
+      <path d="M 6,15 Q 12,20 18,15" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+    </g>
+
+    <g transform="translate(125, 15)">
+      <circle cx="12" cy="12" r="5" class="vector-glyph" />
+      <path d="M 12,3 V 6 M 12,18 V 21 M 3,12 H 6 M 18,12 H 21" class="vector-glyph" />
+    </g>
+
+    <g transform="translate(185, 14)">
+      <path d="M 4,4 H 16 V 22 H 4 Z" class="vector-glyph" stroke-width="2" />
+      <path d="M 7,4 V 2 H 13 V 4" class="vector-glyph" stroke-width="2" />
+    </g>
+
+    <g transform="translate(745, 14)">
+      <rect x="5" y="2" width="10" height="15" rx="5" fill="#94a3b8" />
+      <path d="M 1,9 Q 10,19 19,9" class="vector-glyph" stroke-width="2" />
+      <line x1="10" y1="16" x2="10" y2="21" class="vector-glyph" stroke-width="2" />
+    </g>
+  </g>
+
+  <g id="row-1" transform="translate(0, 70)">
+    <g transform="translate(8, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">Q</text><text x="66" y="16" class="sys-font sub-text">1</text></g>
+    <g transform="translate(86, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">W</text><text x="66" y="16" class="sys-font sub-text">2</text></g>
+    <g transform="translate(164, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">E</text><text x="66" y="16" class="sys-font sub-text">3</text></g>
+    <g transform="translate(242, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">R</text><text x="66" y="16" class="sys-font sub-text">4</text></g>
+    <g transform="translate(320, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">T</text><text x="66" y="16" class="sys-font sub-text">5</text></g>
+    <g transform="translate(398, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">Y</text><text x="66" y="16" class="sys-font sub-text">6</text></g>
+    <g transform="translate(476, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">U</text><text x="66" y="16" class="sys-font sub-text">7</text></g>
+    <g transform="translate(554, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">I</text><text x="66" y="16" class="sys-font sub-text">8</text></g>
+    <g transform="translate(632, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">O</text><text x="66" y="16" class="sys-font sub-text">9</text></g>
+    <g transform="translate(710, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">P</text><text x="66" y="16" class="sys-font sub-text">0</text></g>
+  </g>
+
+  <g id="row-2" transform="translate(0, 142)">
+    <g transform="translate(47, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">A</text><text x="66" y="16" class="sys-font sub-text">@</text></g>
+    <g transform="translate(125, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">S</text><text x="66" y="16" class="sys-font sub-text">#</text></g>
+    <g transform="translate(203, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">D</text><text x="66" y="16" class="sys-font sub-text">$</text></g>
+    <g transform="translate(281, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">F</text><text x="66" y="16" class="sys-font sub-text">%</text></g>
+    <g transform="translate(359, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">G</text><text x="66" y="16" class="sys-font sub-text">&amp;</text></g>
+    <g transform="translate(437, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">H</text><text x="66" y="16" class="sys-font sub-text">-</text></g>
+    <g transform="translate(515, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">J</text><text x="66" y="16" class="sys-font sub-text">+</text></g>
+    <g transform="translate(593, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">K</text><text x="66" y="16" class="sys-font sub-text">(</text></g>
+    <g transform="translate(671, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">L</text><text x="66" y="16" class="sys-font sub-text">)</text></g>
+  </g>
+
+  <g id="row-3" transform="translate(0, 214)">
+    <g transform="translate(8, 0)">
+      <rect width="105" height="60" rx="8" class="special-key-bg" filter="url(#softShadow)"/>
+      <path d="M 52,18 L 38,34 H 47 V 43 H 57 V 34 H 66 Z" fill="#94a3b8" />
+    </g>
+    
+    <g transform="translate(122, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">Z</text><text x="66" y="16" class="sys-font sub-text">!</text></g>
+    <g transform="translate(200, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">X</text><text x="66" y="16" class="sys-font sub-text">"</text></g>
+    <g transform="translate(278, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">C</text><text x="66" y="16" class="sys-font sub-text">'</text></g>
+    <g transform="translate(356, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">V</text><text x="66" y="16" class="sys-font sub-text">:</text></g>
+    <g transform="translate(434, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">B</text><text x="66" y="16" class="sys-font sub-text">;</text></g>
+    <g transform="translate(512, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">N</text><text x="66" y="16" class="sys-font sub-text">/</text></g>
+    <g transform="translate(590, 0)"><rect width="72" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/><text x="36" y="32" class="sys-font alpha-text">M</text><text x="66" y="16" class="sys-font sub-text">?</text></g>
+
+    <g transform="translate(670, 0)">
+      <rect width="122" height="60" rx="8" class="special-key-bg" filter="url(#softShadow)"/>
+      <path d="M 69,20 H 51 L 39,30 L 51,40 H 69 Z" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linejoin="round" />
+      <line x1="51" y1="26" x2="61" y2="34" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" />
+      <line x1="61" y1="26" x2="51" y2="34" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" />
+    </g>
+  </g>
+
+  <g id="row-4" transform="translate(0, 286)">
+    <g transform="translate(8, 0)">
+      <rect width="115" height="60" rx="8" class="special-key-bg" filter="url(#softShadow)"/>
+      <text x="57.5" y="32" class="sys-font label-text">?123</text>
+    </g>
+
+    <g transform="translate(131, 0)">
+      <rect width="65" height="60" rx="8" class="special-key-bg" filter="url(#softShadow)"/>
+      <circle cx="32.5" cy="30" r="11" fill="none" stroke="#94a3b8" stroke-width="2" />
+      <ellipse cx="32.5" cy="30" rx="4" ry="11" fill="none" stroke="#94a3b8" stroke-width="1.5" />
+      <line x1="21.5" y1="30" x2="43.5" y2="30" stroke="#94a3b8" stroke-width="1.5" />
+    </g>
+
+    <g transform="translate(204, 0)">
+      <rect width="392" height="60" rx="8" fill="url(#accentSpace)" filter="url(#softShadow)"/>
+      <text x="196" y="32" class="sys-font alpha-text" style="font-size: 16px; opacity: 0.95; letter-spacing: 0.5px;">Gboard</text>
+    </g>
+
+    <g transform="translate(604, 0)">
+      <rect width="65" height="60" rx="8" class="key-bg" filter="url(#softShadow)"/>
+      <circle cx="32.5" cy="35" r="3" fill="#f1f5f9" />
+    </g>
+
+    <g transform="translate(677, 0)">
+      <rect width="115" height="60" rx="8" class="action-key-bg" filter="url(#softShadow)"/>
+      <g transform="translate(45, 17)">
+        <circle cx="10" cy="10" r="6" fill="none" stroke="#ffffff" stroke-width="2.5" />
+        <line x1="15" y1="15" x2="23" y2="23" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" />
+      </g>
+    </g>
+  </g>
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient for the Smartphone Screen -->
+    <linearGradient id="screenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#111726" />
+      <stop offset="100%" stop-color="#07090e" />
+    </linearGradient>
+
+    <!-- Gboard Spacebar Accent Glow -->
+    <linearGradient id="spaceGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+
+    <!-- Key Engine Soft Shadow Filter -->
+    <filter id="keyShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+
+    <!-- Glassmorphic HUD Header Gradient -->
+    <linearGradient id="hudHeader" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.07" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.01" />
+    </linearGradient>
+  </defs>
+
+  <style>
+    .font-sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .hud-label { font-size: 10px; fill: #0284c7; letter-spacing: 2px; font-weight: bold; opacity: 0.8; }
+    .hud-value { font-size: 12px; fill: #f8fafc; font-family: monospace; }
+    .key-text { font-size: 22px; fill: #e2e8f0; font-weight: 500; text-anchor: middle; dominant-baseline: middle; }
+    .key-subtext { font-size: 10px; fill: #64748b; text-anchor: end; }
+    .special-key { font-size: 14px; fill: #94a3b8; font-weight: 600; text-anchor: middle; dominant-baseline: middle; }
+    .icon-glyph { fill: #94a3b8; }
+    .trace-line { stroke: #38bdf8; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 800; stroke-dashoffset: 0; filter: drop-shadow(0px 0px 8px #0ea5e9); opacity: 0.85; }
+    .trace-node { fill: #ffffff; stroke: #0ea5e9; stroke-width: 3; filter: drop-shadow(0px 0px 6px #38bdf8); }
+  </style>
+
+  <!-- Main UI Canvas Background -->
+  <rect width="800" height="500" rx="24" fill="url(#screenGrad)" stroke="#1e293b" stroke-width="4" />
+
+  <!-- ==================== AUTOMATION HUD OVERLAY ==================== -->
+  <g id="hud-dashboard" class="font-sans">
+    <!-- Top Glass Header bar -->
+    <rect x="0" y="0" width="800" height="65" fill="url(#hudHeader)" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1" />
+    <line x1="0" y1="65" x2="800" y2="65" stroke="#1e293b" stroke-width="1" />
+
+    <!-- Brand / Author Tagging -->
+    <text x="30" y="30" class="hud-label">FRAMEWORK ENGINE</text>
+    <text x="30" y="48" class="hud-value" style="font-size: 16px; font-weight: bold; fill: #38bdf8;">GBOARD_AUTOMATION_v2.6</text>
+
+    <!-- Automation Parameters Status Matrix -->
+    <text x="320" y="28" class="hud-label">TARGET IME</text>
+    <text x="320" y="46" class="hud-value">com.google.android.inputmethod.latin</text>
+
+    <text x="610" y="28" class="hud-label">KERNEL STATUS</text>
+    <circle cx="618" cy="42" r="5" fill="#10b981" />
+    <text x="630" y="46" class="hud-value" style="fill: #10b981; font-weight: bold;">KEYBOARD_SHOWING</text>
+  </g>
+
+  <!-- ==================== GBOARD WRAPPER CONTAINER ==================== -->
+  <!-- Base Keyboard Frame Grid Positioning -->
+  <g id="gboard-core" transform="translate(0, 75)">
+    <!-- Keyboard Layer Backplate background -->
+    <rect x="0" y="0" width="800" height="425" fill="#151b26" />
+    <line x1="0" y1="0" x2="800" y2="0" stroke="#334155" stroke-width="1.5" />
+
+    <!-- GBOARD FUNCTIONAL UTILITY TOOLBAR BAR -->
+    <g id="gboard-toolbar" transform="translate(0, 0)">
+      <rect x="0" y="0" width="800" height="50" fill="#19202e" />
+      <line x1="0" y1="50" x2="800" y2="50" stroke="#222f43" stroke-width="1" />
+      
+      <!-- Gboard Menu Icons Chevron -->
+      <path d="M 25,25 L 35,17 L 35,33 Z" class="icon-glyph" />
+      
+      <!-- Quick Feature Icon Elements -->
+      <!-- Google Arts AI / Sticker Icon Feature -->
+      <rect x="75" y="13" width="24" height="24" rx="6" fill="none" stroke="#94a3b8" stroke-width="2" />
+      <circle cx="83" cy="21" r="2" fill="#94a3b8" />
+      <circle cx="91" cy="21" r="2" fill="#94a3b8" />
+      <path d="M 81,28 Q 87,33 93,28" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+
+      <!-- GIF Icon -->
+      <rect x="135" y="14" width="26" height="22" rx="4" fill="none" stroke="#94a3b8" stroke-width="2" />
+      <text x="148" y="30" class="font-sans" font-size="11" font-weight="900" fill="#94a3b8" text-anchor="middle">GIF</text>
+
+      <!-- Clipboard Icon -->
+      <path d="M 200,14 H 212 V 34 H 200 Z" fill="none" stroke="#94a3b8" stroke-width="2" />
+      <path d="M 203,14 V 11 H 209 V 14" fill="none" stroke="#94a3b8" stroke-width="2" />
+
+      <!-- Settings Gear Icon -->
+      <circle cx="265" cy="25" r="6" fill="none" stroke="#94a3b8" stroke-width="2.5" />
+      <path d="M 265,15 V 19 M 265,31 V 35 M 255,25 H 259 M 271,25 H 275" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" />
+
+      <!-- Vocal Voice Dictation Wave Mic Icon -->
+      <g transform="translate(750, 12)">
+        <rect x="0" y="2" width="10" height="16" rx="5" fill="#94a3b8" />
+        <path d="M -4,10 Q 5,21 14,10" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+        <line x1="5" y1="18" x2="5" y2="22" stroke="#94a3b8" stroke-width="2" />
+      </g>
+    </g>
+
+    <!-- ==================== PHYSICAL KEY LAYOUT MATRIX ==================== -->
+    <!-- ROW 1 (Q W E R T Y U I O P) -->
+    <g id="key-row-1" transform="translate(0, 56)">
+      <!-- Q --> <g transform="translate(8, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">Q</text><text x="66" y="14" class="font-sans key-subtext">1</text></g>
+      <!-- W --> <g transform="translate(86, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">W</text><text x="66" y="14" class="font-sans key-subtext">2</text></g>
+      <!-- E --> <g transform="translate(164, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">E</text><text x="66" y="14" class="font-sans key-subtext">3</text></g>
+      <!-- R --> <g transform="translate(242, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">R</text><text x="66" y="14" class="font-sans key-subtext">4</text></g>
+      <!-- T --> <g transform="translate(320, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">T</text><text x="66" y="14" class="font-sans key-subtext">5</text></g>
+      <!-- Y --> <g transform="translate(398, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">Y</text><text x="66" y="14" class="font-sans key-subtext">6</text></g>
+      <!-- U --> <g transform="translate(476, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">U</text><text x="66" y="14" class="font-sans key-subtext">7</text></g>
+      <!-- I --> <g transform="translate(554, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">I</text><text x="66" y="14" class="font-sans key-subtext">8</text></g>
+      <!-- O --> <g transform="translate(632, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">O</text><text x="66" y="14" class="font-sans key-subtext">9</text></g>
+      <!-- P --> <g transform="translate(710, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">P</text><text x="66" y="14" class="font-sans key-subtext">0</text></g>
+    </g>
+
+    <!-- ROW 2 (A S D F G H J K L) -->
+    <g id="key-row-2" transform="translate(0, 118)">
+      <!-- Indented Padding alignment for A-L Row -->
+      <!-- A --> <g transform="translate(47, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">A</text><text x="66" y="14" class="font-sans key-subtext">@</text></g>
+      <!-- S --> <g transform="translate(125, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">S</text><text x="66" y="14" class="font-sans key-subtext">#</text></g>
+      <!-- D --> <g transform="translate(203, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">D</text><text x="66" y="14" class="font-sans key-subtext">$</text></g>
+      <!-- F --> <g transform="translate(281, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">F</text><text x="66" y="14" class="font-sans key-subtext">%</text></g>
+      <!-- G --> <g transform="translate(359, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">G</text><text x="66" y="14" class="font-sans key-subtext">&amp;</text></g>
+      <!-- H --> <g transform="translate(437, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">H</text><text x="66" y="14" class="font-sans key-subtext">-</text></g>
+      <!-- J --> <g transform="translate(515, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">J</text><text x="66" y="14" class="font-sans key-subtext">+</text></g>
+      <!-- K --> <g transform="translate(593, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">K</text><text x="66" y="14" class="font-sans key-subtext">(</text></g>
+      <!-- L --> <g transform="translate(671, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">L</text><text x="66" y="14" class="font-sans key-subtext">)</text></g>
+    </g>
+
+    <!-- ROW 3 (SHIFT CAPS / Z X C V B N M / BACKSPACE DEL) -->
+    <g id="key-row-3" transform="translate(0, 180)">
+      <!-- Advanced Capitalization / Shift Key Node -->
+      <g transform="translate(8, 0)">
+        <rect width="105" height="54" rx="6" fill="#19202e" filter="url(#keyShadow)"/>
+        <!-- Upward Arrow Vector Glyph -->
+        <path d="M 52,16 L 38,32 H 46 V 40 H 58 V 32 H 66 Z" fill="#94a3b8" />
+      </g>
+      
+      <!-- Character Set Keys -->
+      <!-- Z --> <g transform="translate(121, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">Z</text><text x="66" y="14" class="font-sans key-subtext">!</text></g>
+      <!-- X --> <g transform="translate(199, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">X</text><text x="66" y="14" class="font-sans key-subtext">"</text></g>
+      <!-- C --> <g transform="translate(277, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">C</text><text x="66" y="14" class="font-sans key-subtext">'</text></g>
+      <!-- V --> <g transform="translate(355, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">V</text><text x="66" y="14" class="font-sans key-subtext">:</text></g>
+      <!-- B --> <g transform="translate(433, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">B</text><text x="66" y="14" class="font-sans key-subtext">;</text></g>
+      <!-- N --> <g transform="translate(511, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">N</text><text x="66" y="14" class="font-sans key-subtext">/</text></g>
+      <!-- M --> <g transform="translate(589, 0)"><rect width="72" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/><text x="36" y="29" class="font-sans key-text">M</text><text x="66" y="14" class="font-sans key-subtext">?</text></g>
+
+      <!-- Smart Hardware Backspace Delete Target (Keyevent 67) -->
+      <g transform="translate(669, 0)">
+        <rect width="123" height="54" rx="6" fill="#19202e" filter="url(#keyShadow)"/>
+        <!-- Backspace Left facing Arrow X icon -->
+        <path d="M 52,27 L 62,17 M 62,27 L 52,17" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" transform="translate(10, 5)"/>
+        <path d="M 68,15 H 52 L 40,27 L 52,39 H 68 Z" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linejoin="round" />
+      </g>
+    </g>
+
+    <!-- ROW 4 (SYMBOL MODIFIERS / COMMA / SPACEBAR ENGINE / PERIOD / IME ACTIONS) -->
+    <g id="key-row-4" transform="translate(0, 242)">
+      <!-- Numeric System Layout Toggle Key (?123) -->
+      <g transform="translate(8, 0)">
+        <rect width="115" height="54" rx="6" fill="#19202e" filter="url(#keyShadow)"/>
+        <text x="57" y="29" class="font-sans special-key">?123</text>
+      </g>
+
+      <!-- Emoji/Globe Language Key Layout Modifiers -->
+      <g transform="translate(131, 0)">
+        <rect width="65" height="54" rx="6" fill="#19202e" filter="url(#keyShadow)"/>
+        <!-- Globe Grid Web Wireframe Icon Circle Vector -->
+        <circle cx="32" cy="27" r="11" fill="none" stroke="#94a3b8" stroke-width="2" />
+        <ellipse cx="32" cy="27" rx="4" ry="11" fill="none" stroke="#94a3b8" stroke-width="1.5" />
+        <line x1="21" y1="27" x2="43" y2="27" stroke="#94a3b8" stroke-width="1.5" />
+      </g>
+
+      <!-- Low Delay Command Spacebar Component -->
+      <g transform="translate(204, 0)">
+        <!-- Highlighted with accent system glow for automated keystroke focal points -->
+        <rect width="392" height="54" rx="6" fill="url(#spaceGlow)" opacity="0.85" filter="url(#keyShadow)"/>
+        <text x="196" y="27" class="font-sans key-text" style="font-size: 16px; fill: #ffffff; opacity: 0.9; letter-spacing: 1px;">Gboard</text>
+      </g>
+
+      <!-- Quick Context Period Character Key -->
+      <g transform="translate(604, 0)">
+        <rect width="65" height="54" rx="6" fill="#212a3a" filter="url(#keyShadow)"/>
+        <circle cx="32" cy="32" r="2.5" fill="#e2e8f0" />
+      </g>
+
+      <!-- Advanced Blue Native IME Action/Enter Execution Button Key (Keyevent 66) -->
+      <g transform="translate(677, 0)">
+        <rect width="115" height="54" rx="6" fill="#0284c7" filter="url(#keyShadow)"/>
+        <!-- Custom Magnifying Glass Vector Search Glyph Icon -->
+        <g transform="translate(45, 15)">
+          <circle cx="10" cy="10" r="7" fill="none" stroke="#ffffff" stroke-width="2.5" />
+          <line x1="15" y1="15" x2="24" y2="24" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" />
+        </g>
+      </g>
+    </g>
+
+    <!-- ==================== INTERACTION LAYER: AUTOMATION TRACE GRAPH ==================== -->
+    <!-- Represents code-driven glide swipe gesture mapping dynamically calculated paths -->
+    <g id="automation-gesture-trace">
+      <!-- Translucent Fluid Vector Stroke Path Vector -->
+      <path d="M 281,145 L 359,145 L 203,145 L 164,85" class="trace-line" />
+      
+      <!-- Spatial Spline Target Node Indicator Hub Rings -->
+      <circle cx="281" cy="145" r="6" class="trace-node" /> <!-- 'F' Key Coordinate Node -->
+      <circle cx="359" cy="145" r="6" class="trace-node" /> <!-- 'G' Key Coordinate Node -->
+      <circle cx="203" cy="145" r="6" class="trace-node" /> <!-- 'D' Key Coordinate Node -->
+      <circle cx="164" cy="85" r="8" class="trace-node" style="fill: #38bdf8; stroke: #ffffff; stroke-width: 2;" />  <!-- 'E' Key Terminal Node -->
+    </g>
+
+  </g>
+</svg>
