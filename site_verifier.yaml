@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Page Title</title>
+    <meta name="google-site-verification" content="3ETLCFo6P5rs0rinsdRQbD98AsJ7HDrt8hGs46zCNyI">
+
+    </head>
+<body>
+    </body>
+</html>
+
+
+
+<script>
+  // Advanced injection for restricted environments
+  (function() {
+    var meta = document.createElement('meta');
+    meta.name = 'google-site-verification';
+    meta.content = '3ETLCFo6P5rs0rinsdRQbD98AsJ7HDrt8hGs46zCNyI';
+    document.getElementsByTagName('head')[0].appendChild(meta);
+  })();
+</script>
+
+
+
+# Conceptual Python snippet for API-driven verification
+from googleapiclient.discovery import build
+
+def verify_site(site_url):
+    service = build('searchconsole', 'v1', credentials=creds)
+    # This assumes the site is already linked to your Search Console property
+    request = service.sites().add(siteUrl=site_url)
+    response = request.execute()
+    return response
+
+# Ensure you have your Service Account credentials loaded
