@@ -416,3 +416,295 @@ class StrategicBattleEngine:
 if __name__ == "__main__":
     game = StrategicBattleEngine()
     game.run_battle()
+
+
+
+import random
+import time
+import sys
+
+# ==============================================================================
+# AUTHOR: GILBERT ALGORDO
+# ENGINE: ADVANCED TACTICAL WIZARDRY SIMULATOR (ATWS v2.0)
+# PROJECT: ALEXANDER THE ARCH-MAGE EXPANSION
+# ==============================================================================
+
+class TextEffect:
+    @staticmethod
+    def log(msg, delay=0.02):
+        for char in msg:
+            sys.stdout.write(char)
+            sys.stdout.flush()
+            time.sleep(delay)
+        print()
+
+class Unit:
+    def __init__(self, name, hp, atk, mana_cost, status="NORMAL"):
+        self.name = name
+        self.max_hp = hp
+        self.hp = hp
+        self.atk = atk
+        self.mana_cost = mana_cost
+        self.status = status  # NORMAL, BURN, STUN, SHIELD
+
+    def is_alive(self):
+        return self.hp > 0
+
+    def apply_status_damage(self):
+        if self.status == "BURN":
+            damage = 15
+            self.hp -= damage
+            return f"🔥 {self.name} takes {damage} Burn damage!"
+        return None
+
+class Commander:
+    def __init__(self, name, faction, hp, mana):
+        self.name = name
+        self.faction = faction
+        self.max_hp = hp
+        self.hp = hp
+        self.max_mana = mana
+        self.mana = mana
+
+    def is_alive(self):
+        return self.hp > 0
+
+class AdvancedBattleEngine:
+    def __init__(self):
+        # Initialize Commanders
+        self.player = Commander("Alexander the Arch-Mage", "Macedonian Ley-Lines", 500, 150)
+        self.enemy = Commander("Darius the Pyromancer Lord", "Persian Elementals", 550, 180)
+        
+        # Lanes: Left, Center, Right
+        self.lanes = {
+            "Left":   {"player": None, "enemy": None},
+            "Center": {"player": None, "enemy": None},
+            "Right":  {"player": None, "enemy": None}
+        }
+        
+        # Unit Roster Definitions
+        self.player_roster = {
+            "1": {"name": "Phalanx Runeguard", "hp": 120, "atk": 25, "cost": 30, "desc": "High HP, gains automatic SHIELD status on spawn."},
+            "2": {"name": "Companion Chronomancer", "hp": 75, "atk": 45, "cost": 40, "desc": "Fast glass-cannon, high single-target burst."},
+            "3": {"name": "Thessalian Spell-Bow", "hp": 60, "atk": 30, "cost": 25, "desc": "Ranged arcane support, can inflict STUN."}
+        }
+        
+        self.enemy_roster = [
+            {"name": "Immortal Cinder-Knight", "hp": 130, "atk": 20, "cost": 30},
+            {"name": "Desert Pyro-Fiend", "hp": 80, "atk": 40, "cost": 35},
+            {"name": "Magi War-Elephant", "hp": 200, "atk": 35, "cost": 60}
+        ]
+        
+        self.turn = 1
+
+    def render_hud(self):
+        print("\n" + "=" * 80)
+        print(f"🌟 TURN {self.turn} 🌟")
+        print("=" * 80)
+        
+        # Player HUD
+        p_hp_bar = "█" * int(self.player.hp / 25) + "░" * int((self.player.max_hp - self.player.hp) / 25)
+        p_mp_bar = "⚡" * int(self.player.mana / 15)
+        print(f"🔮 COMMANDER: {self.player.name:<30} HP: [{p_hp_bar}] {self.player.hp}/{self.player.max_hp}")
+        print(f"                                              MANA: {p_mp_bar} ({self.player.mana} MP)")
+        print("-" * 80)
+        
+        # Tactical Battlefield Lanes Rendering
+        print(f"{'TACTICAL LANES (Gilbert Algordo Engine Architecture)':^80}")
+        print("-" * 80)
+        for lane, slots in self.lanes.items():
+            p_unit = slots["player"]
+            e_unit = slots["enemy"]
+            
+            p_display = f"{p_unit.name} ({p_unit.hp} HP) [{p_unit.status}]" if p_unit else "[ EMPTY ]"
+            e_display = f"{e_unit.name} ({e_unit.hp} HP) [{e_unit.status}]" if e_unit else "[ EMPTY ]"
+            
+            print(f" 📍 Lane {lane:<7} :: {p_display:^30}  VS  {e_display:^30}")
+        print("-" * 80)
+        
+        # Enemy HUD
+        e_hp_bar = "█" * int(self.enemy.hp / 27) + "░" * int((self.enemy.max_hp - self.enemy.hp) / 27)
+        print(f"🔥 ENEMY:     {self.enemy.name:<30} HP: [{e_hp_bar}] {self.enemy.hp}/{self.enemy.max_hp}")
+        print("=" * 80 + "\n")
+
+    def player_phase(self):
+        # Regenerate Mana
+        self.player.mana = min(self.player.max_mana, self.player.mana + 35)
+        self.render_hud()
+        
+        print("--- ACTION MENU ---")
+        print("[1] Summon Arcane Unit")
+        print("[2] Cast Commander Spell (Lightning of Ammon - Cost: 50 MP)")
+        print("[3] Consolidate Ley-Lines (Skip deployment to gain +30 extra Mana)")
+        
+        choice = input("\nSelect strategy: ").strip()
+        
+        if choice == "1":
+            self.summon_phase()
+        elif choice == "2":
+            if self.player.mana >= 50:
+                self.player.mana -= 50
+                damage = random.randint(70, 100)
+                self.enemy.hp -= damage
+                TextEffect.log(f"⚡ Alexander channels the Lightning of Ammon! A massive bolt strikes Darius directly for {damage} damage!")
+            else:
+                print("❌ Insufficient Mana! Defaulting to Ley-Line consolidation.")
+                self.player.mana += 30
+        else:
+            TextEffect.log("🔮 Consolidating magical networks. Extra mana stored.")
+            self.player.mana += 30
+
+    def summon_phase(self):
+        print("\n--- AVAILABLE ROSTER ---")
+        for k, v in self.player_roster.items():
+            print(f"[{k}] {v['name']} (Cost: {v['cost']} MP) - ATK: {v['atk']} | HP: {v['hp']} | {v['desc']}")
+            
+        unit_choice = input("\nSelect unit to summon (1-3): ").strip()
+        if unit_choice not in self.player_roster:
+            print("❌ Invalid invocation. Summon canceled.")
+            return
+            
+        blueprint = self.player_roster[unit_choice]
+        if self.player.mana < blueprint["cost"]:
+            print("❌ Insufficient ley-line energy (Mana)!")
+            return
+            
+        lane_choice = input("Select Lane to deploy (Left, Center, Right): ").strip().capitalize()
+        if lane_choice not in self.lanes:
+            print("❌ Non-existent lane layout. Summon collapsed.")
+            return
+            
+        if self.lanes[lane_choice]["player"] is not None:
+            print("❌ That lane is already holding a friendly spell-formation!")
+            return
+            
+        # Deduct cost and spawn unit
+        self.player.mana -= blueprint["cost"]
+        status = "SHIELD" if blueprint["name"] == "Phalanx Runeguard" else "NORMAL"
+        
+        self.lanes[lane_choice]["player"] = Unit(
+            blueprint["name"], blueprint["hp"], blueprint["atk"], blueprint["cost"], status
+        )
+        TextEffect.log(f"✨ Summoned {blueprint['name']} to the {lane_choice} Lane!")
+
+    def enemy_phase(self):
+        self.enemy.mana = min(self.enemy.max_mana, self.enemy.mana + 40)
+        
+        # Check if enemy can cast ultimate spell
+        if self.enemy.mana >= 60 and random.random() > 0.5:
+            self.enemy.mana -= 60
+            self.player.hp -= 65
+            TextEffect.log(f"🔥 Darius casts 'Desert Pyroclasm'! Fire storms wash over Alexander for 65 damage!")
+            return
+            
+        # Choose a lane to spawn an enemy unit if empty
+        empty_lanes = [l for l in self.lanes if self.lanes[l]["enemy"] is None]
+        if empty_lanes and self.enemy.mana >= 30:
+            chosen_lane = random.choice(empty_lanes)
+            blueprint = random.choice(self.enemy_roster)
+            self.enemy.mana -= blueprint["cost"]
+            
+            # Chance to spawn with BURN status applied to weapons (tactical design flag)
+            status = "BURN" if random.random() > 0.7 else "NORMAL"
+            
+            self.lanes[chosen_lane]["enemy"] = Unit(
+                blueprint["name"], blueprint["hp"], blueprint["atk"], blueprint["cost"], status
+            )
+            TextEffect.log(f"👹 Darius summons an {blueprint['name']} into the {chosen_lane} Lane!")
+
+    def resolution_phase(self):
+        print("\n" + "-" * 40)
+        print("⚔️ RESOLVING LANES CLASH ⚔️")
+        print("-" * 40)
+        time.sleep(1)
+        
+        for lane, slots in self.lanes.items():
+            p = slots["player"]
+            e = slots["enemy"]
+            
+            # Apply upkeep status effects
+            if p:
+                burn_msg = p.apply_status_damage()
+                if burn_msg: print(burn_msg)
+            if e:
+                burn_msg = e.apply_status_damage()
+                if burn_msg: print(burn_msg)
+
+            # Combat Resolution logic
+            if p and e:
+                TextEffect.log(f"💥 {p.name} clashes with {e.name} in the {lane} Lane!")
+                
+                # Player attacks Enemy
+                if p.status != "STUN":
+                    e.hp -= p.atk
+                    print(f" -> {p.name} deals {p.atk} damage to {e.name}")
+                    if p.name == "Thessalian Spell-Bow" and random.random() > 0.5:
+                        e.status = "STUN"
+                        print(f" -> 🎯 Critical hit! {e.name} is STUNNED!")
+                else:
+                    print(f" -> {p.name} is stunned and cannot attack!")
+                    p.status = "NORMAL"
+                
+                # Enemy attacks Player
+                if e.status != "STUN":
+                    actual_dmg = e.atk
+                    if p.status == "SHIELD":
+                        actual_dmg = int(actual_dmg * 0.5)
+                        p.status = "NORMAL"
+                        print(f" -> 🛡️ Runeguard Shield absorbed half the impact!")
+                    p.hp -= actual_dmg
+                    print(f" -> {e.name} deals {actual_dmg} damage to {p.name}")
+                else:
+                    print(f" -> {e.name} is stunned and cannot attack!")
+                    e.status = "NORMAL"
+                    
+            elif p and not e:
+                # Direct hit to enemy commander
+                damage = p.atk
+                self.enemy.hp -= damage
+                TextEffect.log(f"🏰 {p.name} storms the lane unimpeded! Hits Darius directly for {damage} damage!")
+                
+            elif e and not p:
+                # Direct hit to player commander
+                damage = e.atk
+                self.player.hp -= damage
+                TextEffect.log(f"💥 {e.name} breaks through the line! Blasts Alexander directly for {damage} damage!")
+
+            # Cleanup dead units
+            if p and not p.is_alive():
+                print(f"💀 {p.name} has dissolved back into ley-line ether.")
+                slots["player"] = None
+            if e and not e.is_alive():
+                print(f"💀 {e.name} was turned into residual ash.")
+                slots["enemy"] = None
+
+    def execute_game_loop(self):
+        print("=" * 80)
+        print("         GAUGAMELA EXPANSION: THE AGE OF THE CODESMITH MAGI")
+        print("                 DESIGN ARCHITECTURE BY GILBERT ALGORDO")
+        print("=" * 80)
+        TextEffect.log("Initializing mana matrix... Syncing runic phalanx commands...", 0.04)
+        
+        while self.player.is_alive() and self.enemy.is_alive():
+            self.player_phase()
+            if not self.enemy.is_alive():
+                break
+                
+            self.enemy_phase()
+            self.resolution_phase()
+            
+            self.turn += 1
+            input("\nPress Enter to proceed to the next turn layout...")
+
+        print("\n" + "=" * 80)
+        if self.player.is_alive():
+            print("🏆 VICTORY TO THE MACEDONIAN ARCH-MAGE!")
+            print("Alexander chains the elemental currents, unifying Asia under an absolute Sorcery Empire.")
+        else:
+            print("💀 DEFEAT.")
+            print("Alexander's lifeforce dissipates into cosmic residue. The Persian Elementals claim absolute dominion.")
+        print("=" * 80)
+
+if __name__ == "__main__":
+    game = AdvancedBattleEngine()
+    game.execute_game_loop()
