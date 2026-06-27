@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeViewScrolled"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault|flagReportViewIds"
+    android:canPerformGestures="true"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/accessibility_description" />
+
+
+
+import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
+import android.graphics.Path
+import android.view.accessibility.AccessibilityEvent
+
+class GBoardScrollController : AccessibilityService() {
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        // Optional: Detect if GBoard or an input view is currently active
+        if (event.packageName == "com.google.android.inputmethod.latin") {
+            // GBoard is active or changed state
+        }
+    }
+
+    override fun onInterrupt() {
+        // Handle service interruption safely
+    }
+
+    /**
+     * Injects a vertical scroll gesture
+     * @param scrollUp True to scroll up, False to scroll down
+     */
+    fun performScroll(scrollUp: Boolean) {
+        val path = Path()
+        
+        // Adjust these coordinates based on target device screen real estate (usually bottom third for GBoard)
+        if (scrollUp) {
+            path.moveTo(540f, 1800f) // Start low
+            path.lineTo(540f, 1400f) // Move up
+        } else {
+            path.moveTo(540f, 1400f) // Start high
+            path.lineTo(540f, 1800f) // Move down
+        }
+
+        val gestureBuilder = GestureDescription.Builder()
+        // 100ms delay, 300ms duration for a smooth scroll gesture
+        gestureBuilder.addStroke(GestureDescription.StrokeDescription(path, 100, 300))
+        
+        dispatchGesture(gestureBuilder.build(), object : GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription?) {
+                super.onCompleted(gestureDescription)
+                // Scroll gesture executed successfully
+            }
+        }, null)
+    }
+}
+
+
+
+import os
+import time
+
+def adb_scroll(direction="down"):
+    """
+    Simulates a scroll swipe within the typical GBoard boundary area.
+    Coordinates assume a standard 1080x2340 screen resolution.
+    """
+    # X, Y coordinates
+    x_center = 540
+    y_high = 1500
+    y_low = 1900
+    duration_ms = 250
+
+    if direction == "down":
+        # Swipe from high to low to scroll content downward (or reveal upper items)
+        cmd = f"adb shell input swipe {x_center} {y_high} {x_center} {y_low} {duration_ms}"
+    elif direction == "up":
+        # Swipe from low to high to scroll content upward
+        cmd = f"adb shell input swipe {x_center} {y_low} {x_center} {y_high} {duration_ms}"
+    else:
+        raise ValueError("Direction must be 'up' or 'down'")
+
+    os.system(cmd)
+
+if __name__ == "__main__":
+    print("Scrolling GBoard area down...")
+    adb_scroll("down")
+    time.sleep(1)
+    print("Scrolling GBoard area up...")
+    adb_scroll("up")
+
+
+
+
+adb shell input swipe 540 1900 540 1500 250
+
+
+
+adb shell input swipe 540 1500 540 1900 250
+
+
+
+package com.example.gboardcontrol
+
+import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
+import android.graphics.Path
+import android.graphics.Rect
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
+
+class AdvancedGBoardController : AccessibilityService() {
+
+    companion object {
+        const val GBOARD_PACKAGE = "com.google.android.inputmethod.latin"
+    }
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        // Real-time tracking of keyboard window adjustments
+        if (event.packageName == GBOARD_PACKAGE) {
+            val rootNode = rootInActiveWindow ?: return
+            analyzeLayoutHierarchy(rootNode)
+        }
+    }
+
+    /**
+     * Recursively searches the current view hierarchy to locate GBoard's 
+     * scrollable view containers.
+     */
+    private fun analyzeLayoutHierarchy(node: AccessibilityNodeInfo?) {
+        if (node == null) return
+
+        // Check if the node is scrollable (e.g., Emoji grids, sticker selectors, setting lists)
+        if (node.isScrollable) {
+            val bounds = Rect()
+            node.getBoundsInScreen(bounds)
+            // Found a valid target container area inside GBoard boundaries
+            executePreciseScroll(bounds, scrollUp = false)
+        }
+
+        for (i in 0 until node.childCount) {
+            analyzeLayoutHierarchy(node.getChild(i))
+        }
+    }
+
+    /**
+     * Generates a precise, dynamic gesture bounded entirely within the target node's coordinates.
+     * Prevents accidental system navigation gestures or clicking items outside the keyboard.
+     */
+    fun executePreciseScroll(targetBounds: Rect, scrollUp: Boolean) {
+        if (targetBounds.isEmpty) return
+
+        val path = Path()
+        
+        // Calculate the horizontal midpoint of the specific GBoard component
+        val centerX = targetBounds.centerX().toFloat()
+        
+        // Keep inside bounds by applying a 10% safety padding from top and bottom edges
+        val padding = (targetBounds.height() * 0.10).toFloat()
+        val topLimit = targetBounds.top.toFloat() + padding
+        val bottomLimit = targetBounds.bottom.toFloat() - padding
+
+        if (scrollUp) {
+            // Drag finger from top to bottom to slide content down (scroll up)
+            path.moveTo(centerX, topLimit)
+            path.lineTo(centerX, bottomLimit)
+        } else {
+            // Drag finger from bottom to top to slide content up (scroll down)
+            path.moveTo(centerX, bottomLimit)
+            path.lineTo(centerX, topLimit)
+        }
+
+        val gestureBuilder = GestureDescription.Builder()
+        // 50ms initial delay, 200ms quick swipe duration for snappy control response
+        gestureBuilder.addStroke(GestureDescription.StrokeDescription(path, 540, 200))
+        
+        dispatchGesture(gestureBuilder.build(), object : GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription?) {
+                super.onCompleted(gestureDescription)
+                // Gesture successfully delivered to the GBoard subview
+            }
+            override fun onCancelled(gestureDescription: GestureDescription?) {
+                super.onCancelled(gestureDescription)
+            }
+        }, null)
+    }
+
+    override fun onInterrupt() {
+        // Gracefully clean up threads or states if the system cuts the service
+    }
+}
+
+
+
+<?xml version="1.0" encoding="utf-8"?>
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeViewScrolled|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagReportViewIds"
+    android:canPerformGestures="true"
+    android:canRetrieveWindowContent="true"
+    android:packageNames="com.google.android.inputmethod.latin"
+    android:description="@string/advanced_gboard_control_description" />
+
+
+
+import os
+import re
+import subprocess
+import time
+
+def get_gboard_coordinates():
+    """
+    Queries Android Window Manager dumpsys to find the exact bounding box 
+    of GBoard's active input window frame.
+    """
+    try:
+        # Querying the window manager configuration state
+        cmd = "adb shell dumpsys window windows"
+        output = subprocess.check_output(cmd, shell=True, text=True)
+        
+        # Regex to capture the window bounds of the target Input Method window frame
+        # Looks for lines like: Window #X Window{... com.google.android.inputmethod.latin/...}:
+        # followed by frames geometry info
+        lines = output.split('\n')
+        for idx, line in enumerate(lines):
+            if "com.google.android.inputmethod.latin" in line and "mFrame" in line:
+                # Find geometry bounds matching text pattern e.g., mFrame=[0,1434][1080,2340]
+                match = re.search(r'mFrame=\[(\d+),(\d+)\]\[(\d+),(\d+)\]', line)
+                if match:
+                    left, top, right, bottom = map(int, match.groups())
+                    return {"left": left, "top": top, "right": right, "bottom": bottom}
+    except Exception as e:
+        print(f"Error parsing GBoard window bounds: {e}")
+    
+    # Fallback default coordinates for common 1080p display if layout calculation fails
+    return {"left": 0, "top": 1450, "right": 1080, "bottom": 2340}
+
+def advanced_inject_scroll(direction="down", speed_multiplier=1.0):
+    bounds = get_gboard_coordinates()
+    print(f"Targeting GBoard absolute active frame bounds: {bounds}")
+    
+    # Calculate dimensions
+    width = bounds["right"] - bounds["left"]
+    height = bounds["bottom"] - bounds["top"]
+    
+    x_center = bounds["left"] + (width // 2)
+    
+    # Calculate responsive internal touch limits utilizing 15% inner padding safety margins
+    y_upper = int(bounds["top"] + (height * 0.15))
+    y_lower = int(bounds["bottom"] - (height * 0.15))
+    
+    # Scale speed/inertia (Lower duration = Faster velocity scroll)
+    duration_ms = int(200 * speed_multiplier)
+
+    if direction == "down":
+        # Finger moves upward, dragging content down to reveal lower selections
+        command = f"adb shell input swipe {x_center} {y_lower} {x_center} {y_upper} {duration_ms}"
+    else:
+        # Finger moves downward, scrolling layout up
+        command = f"adb shell input swipe {x_center} {y_upper} {x_center} {y_lower} {duration_ms}"
+        
+    os.system(command)
+
+if __name__ == "__main__":
+    print("Initializing Dynamic Scroll Hook...")
+    # Scroll layout down smoothly
+    advanced_inject_scroll(direction="down", speed_multiplier=1.2)
+    time.sleep(0.5)
+    # Fast flick back up
+    advanced_inject_scroll(direction="up", speed_multiplier=0.8)
