@@ -1,0 +1,418 @@
+import random
+import time
+
+class WizardCommander:
+    def __init__(self, name, faction, hp, mana, spells):
+        self.name = name
+        self.faction = faction
+        self.max_hp = hp
+        self.hp = hp
+        self.max_mana = mana
+        self.mana = mana
+        self.spells = spells
+        self.shield_active = False
+
+    def is_alive(self):
+        return self.hp > 0
+
+    def display_hud(self):
+        hp_bar = "█" * int(self.hp / 10) + "░" * int((self.max_hp - self.hp) / 10)
+        mp_bar = "█" * int(self.mana / 10) + "░" * int((self.max_mana - self.mana) / 10)
+        print(f"\n=== {self.name.upper()} ({self.faction}) ===")
+        print(f"HEALTH: [{hp_bar}] {self.hp}/{self.max_hp}")
+        print(f"MANA  : [{mp_bar}] {self.mana}/{self.max_mana}")
+        if self.shield_active:
+            print("🛡️ ACTIVE EFFECT: Aegis Ward (Reduces incoming damage by 50%)")
+        print("=" * (len(self.name) + 15))
+
+class BattleEngine:
+    def __init__(self):
+        # Alexander's spellbook
+        alex_spells = {
+            1: {"name": "Gorgon Phalanx Shards", "mana": 20, "damage_range": (25, 40), "desc": "Summons ethereal, glowing sarissas that rain down on the enemy."},
+            2: {"name": "Lightning of Ammon", "mana": 40, "damage_range": (50, 75), "desc": "Channels a massive bolt of divine lightning from the heavens."},
+            3: {"name": "Aegis Ward", "mana": 15, "damage_range": (0, 0), "desc": "Creates a protective barrier, halving damage taken next turn."},
+            4: {"name": "Mana Transfusion", "mana": -30, "damage_range": (0, 0), "desc": "Sacrifices 15 HP to gather energies and restore 30 Mana."}
+        }
+        
+        # Darius's spellbook
+        darius_spells = {
+            1: {"name": "Immortal Ash Blast", "mana": 20, "damage_range": (20, 35)},
+            2: {"name": "Desert Pyroclasm", "mana": 45, "damage_range": (55, 70)},
+            3: {"name": "Chimeric Vaporize", "mana": 25, "damage_range": (30, 50)}
+        }
+
+        self.player = WizardCommander("Alexander the Great", "Macedonian Sorcerers", 200, 100, alex_spells)
+        self.enemy = WizardCommander("Emperor Darius III", "Persian Elementals", 220, 120, darius_spells)
+        self.turn = 1
+
+    def print_intro(self):
+        print("=" * 70)
+        print("        CHRONICLES OF GAUGAMELA: THE AGE OF THE MAGI")
+        print("=" * 70)
+        print("The battlefield is charged with pure arcane energy.")
+        print("Instead of iron and bronze, empires clash with raw sorcery.")
+        print("Alexander rides Bucephalus, a steed glowing with ley-line runes,")
+        print("ready to break Darius's elemental ranks.")
+        print("=" * 70)
+        time.sleep(1.5)
+
+    def player_turn(self):
+        self.player.display_hud()
+        print("\n--- YOUR TURN ---")
+        print("Select your Arcane Strategy:")
+        for key, spell in self.player.spells.items():
+            print(f"[{key}] {spell['name']} (Cost: {abs(spell['mana'])} MP) - {spell['desc']}")
+        
+        while True:
+            try:
+                choice = int(input("\nEnter choice (1-4): "))
+                if choice in self.player.spells:
+                    spell = self.player.spells[choice]
+                    if spell['mana'] > 0 and self.player.mana < spell['mana']:
+                        print("❌ Insufficient Mana! Choose another spell.")
+                        continue
+                    return spell
+                print("❌ Invalid input. Choose 1, 2, 3, or 4.")
+            except ValueError:
+                print("❌ Please enter a valid number.")
+
+    def execute_player_spell(self, spell):
+        print(f"\n✨ Alexander casts {spell['name'].upper()}!")
+        self.player.mana -= spell['mana']
+        
+        if spell['name'] == "Aegis Ward":
+            self.player.shield_active = True
+            print("🛡️ A golden, runic barrier envelops Alexander!")
+        elif spell['name'] == "Mana Transfusion":
+            self.player.hp -= 15
+            print("🧪 Alexander sacrifices life essence! -15 HP, +30 Mana.")
+        else:
+            damage = random.randint(*spell['damage_range'])
+            print(f"💥 Arcane energies blast Darius for {damage} damage!")
+            self.enemy.hp -= damage
+            if self.enemy.hp < 0:
+                self.enemy.hp = 0
+
+    def enemy_turn(self):
+        print("\n--- DARIUS'S TURN ---")
+        time.sleep(1)
+        
+        # Simple AI selection logic
+        available_spells = [s for s in self.enemy.spells.values() if s['mana'] <= self.enemy.mana]
+        if not available_spells:
+            print("🔮 Darius channels the ambient ether to regain 20 Mana.")
+            self.enemy.mana += 20
+            return
+
+        spell = random.choice(available_spells)
+        self.enemy.mana -= spell['mana']
+        print(f"🔥 Darius weaves {spell['name'].upper()}!")
+        
+        damage = random.randint(*spell['damage_range'])
+        if self.player.shield_active:
+            damage = int(damage * 0.5)
+            print(f"🛡️ Alexander's Aegis Ward absorbs half the impact!")
+            self.player.shield_active = False # Shield wears off after blocking
+            
+        print(f"⚡ The spell hits Alexander for {damage} damage!")
+        self.player.hp -= damage
+        if self.player.hp < 0:
+            self.player.hp = 0
+
+    def start_battle(self):
+        self.print_intro()
+        
+        while self.player.is_alive() and self.enemy.is_alive():
+            print(f"\n⏱️ --- ROUND {self.turn} ---")
+            
+            # Alexander goes first
+            spell = self.player_turn()
+            self.execute_player_spell(spell)
+            
+            if not self.enemy.is_alive():
+                break
+                
+            # Darius goes second
+            self.enemy_turn()
+            
+            # End of round upkeep
+            self.turn += 1
+            time.sleep(1)
+
+        print("\n" + "=" * 70)
+        if self.player.is_alive():
+            print("🏆 VICTORY! Emperor Darius flees as his elemental lines shatter.")
+            print("Alexander the Great conquers Asia with supreme wizardry!")
+        else:
+            print("💀 DEFEAT. Alexander falls as his runic phalanx dissolves into cosmic ash.")
+            print("The Persian sorcerers secure dominance over the ancient world.")
+        print("=" * 70)
+
+if __name__ == "__main__":
+    game = BattleEngine()
+    game.start_battle()
+
+
+
+import random
+import time
+from typing import Dict, List, Tuple, Optional
+
+# --- GAME UTILITIES & EFFECTS ---
+class StatusEffect:
+    def __init__(self, name: str, duration: int, modifier: float, effect_type: str):
+        self.name = name
+        self.duration = duration
+        self.modifier = modifier  # Can be damage reduction, DOT, etc.
+        self.effect_type = effect_type  # "shield", "dot", "stun"
+
+class Spell:
+    def __init__(self, name: str, cost: int, dmg_range: Tuple[int, int], effect: Optional[StatusEffect] = None, desc: str = ""):
+        self.name = name
+        self.cost = cost
+        self.dmg_range = dmg_range
+        self.effect = effect
+        self.desc = desc
+
+# --- ENTITY SYSTEM ---
+class CombatEntity:
+    def __init__(self, name: str, faction: str, hp: int, mana: int):
+        self.name = name
+        self.faction = faction
+        self.max_hp = hp
+        self.hp = hp
+        self.max_mana = mana
+        self.mana = mana
+        self.spellbook: Dict[int, Spell] = {}
+        self.statuses: List[StatusEffect] = []
+
+    def is_alive(self) -> bool:
+        return self.hp > 0
+
+    def apply_status(self, effect: StatusEffect):
+        # Prevent stacking identical statuses; refresh duration instead
+        for existing in self.statuses:
+            if existing.name == effect.name:
+                existing.duration = max(existing.duration, effect.duration)
+                return
+        self.statuses.append(effect)
+
+    def process_turn_upkeep(self) -> str:
+        upkeep_log = []
+        # Passive mana regeneration
+        old_mana = self.mana
+        self.mana = min(self.max_mana, self.mana + 12)
+        
+        # Process active status effects
+        for effect in self.statuses[:]:
+            if effect.effect_type == "dot":
+                dot_damage = int(effect.modifier)
+                self.hp = max(0, self.hp - dot_damage)
+                upkeep_log.append(f"  ⚡ [{self.name}] takes {dot_damage} damage from active {effect.name}!")
+            
+            effect.duration -= 1
+            if effect.duration <= 0:
+                upkeep_log.append(f"  ✨ {effect.name} has dissipated from {self.name}.")
+                self.statuses.remove(effect)
+                
+        return "\n".join(upkeep_log) if upkeep_log else ""
+
+    def get_incoming_modifier(self) -> float:
+        mod = 1.0
+        for effect in self.statuses:
+            if effect.effect_type == "shield":
+                mod *= effect.modifier
+        return mod
+
+# --- ADVANCED COMMANDER PROFILES ---
+class AlexanderTheGreat(CombatEntity):
+    def __init__(self):
+        super().__init__("Alexander the Great", "Macedonian Ley-Phalanx", 250, 150)
+        self.spellbook = {
+            1: Spell("Sarissa Shardstorm", 25, (30, 45), 
+                     StatusEffect("Static Shock", 2, 8, "dot"),
+                     "Launches runic force-spears that pierce lines and leave lingering static shock (DOT)."),
+            2: Spell("Lightning of Ammon", 55, (65, 90), None,
+                     "Fires a massive bolt of divine energy directly from the heavens. Pure raw damage."),
+            3: Spell("Aegis of the Core", 20, (0, 0), 
+                     StatusEffect("Aegis Barrier", 1, 0.40, "shield"),
+                     "Deploys a localized quantum ward. Absorbs 60% of incoming damage on the next turn."),
+            4: Spell("Kaizen Overdrive", -45, (0, 0), None,
+                     "Sacrifices 25 HP to instantly synchronize spell matrices, recovering 45 Mana.")
+        }
+
+class DariusIII(CombatEntity):
+    def __init__(self):
+        super().__init__("Emperor Darius III", "Persian Fire-Immortals", 280, 180)
+        self.spellbook = {
+            1: Spell("Immortal Pyroclasm", 30, (35, 50), 
+                     StatusEffect("Melt Armor", 2, 10, "dot"), 
+                     "Unleashes streams of alchemical fire that burn targets over time."),
+            2: Spell("Chimeric Singularity", 60, (70, 95), None, 
+                     "Folds space into an unstable gravity well that collapses on the enemy lines."),
+            3: Spell("Royal Solar Veil", 25, (0, 0), 
+                     StatusEffect("Sun-Shield", 1, 0.50, "shield"), 
+                     "Bends ambient light into a highly reflective ward. Redirection threshold 50%.")
+        }
+
+# --- TEXT ENGINE UI LAYER ---
+class BattleInterface:
+    @staticmethod
+    def render_hud(player: CombatEntity, enemy: CombatEntity, turn: int):
+        print(f"\n╔{'═' * 78}╗")
+        print(f"║ INTERACTIVE BATTLEFIELD HUD  {' ' * 38} ROUND: {turn:02d} ║")
+        print(f"╠{'═' * 78}╣")
+        
+        # Player Data
+        p_hp_pct = int((player.hp / player.max_hp) * 20)
+        p_hp_bar = "█" * p_hp_pct + "░" * (20 - p_hp_pct)
+        p_mp_pct = int((player.mana / player.max_mana) * 15)
+        p_mp_bar = "█" * p_mp_pct + "░" * (15 - p_mp_pct)
+        
+        # Enemy Data
+        e_hp_pct = int((enemy.hp / enemy.max_hp) * 20)
+        e_hp_bar = "█" * e_hp_pct + "░" * (20 - e_hp_pct)
+        e_mp_pct = int((enemy.mana / enemy.max_mana) * 15)
+        e_mp_bar = "█" * e_mp_pct + "░" * (15 - e_mp_pct)
+
+        print(f"║  %-28s │  %-28s ║" % (player.name.upper(), enemy.name.upper()))
+        print(f"║  Faction: %-21s │  Faction: %-21s ║" % (player.faction, enemy.faction))
+        print(f"║  HP: [{p_hp_bar}] {player.hp:3d}/{player.max_hp:3d}  │  HP: [{e_hp_bar}] {enemy.hp:3d}/{enemy.max_hp:3d}  ║")
+        print(f"║  MP: [{p_mp_bar}] {player.mana:3d}/{player.max_mana:3d}  │  MP: [{e_mp_bar}] {enemy.mana:3d}/{enemy.max_mana:3d}  ║")
+        
+        # Active Status Displays
+        p_status = ", ".join([s.name for s in player.statuses]) if player.statuses else "None"
+        e_status = ", ".join([s.name for s in enemy.statuses]) if enemy.statuses else "None"
+        print(f"║  Active: %-25s │  Active: %-25s ║" % (p_status[:25], e_status[:25]))
+        print(f"╚{'═' * 78}╝")
+
+# --- ENGINE ENGINE SIMULATION ---
+class StrategicBattleEngine:
+    def __init__(self):
+        self.player = AlexanderTheGreat()
+        self.enemy = DariusIII()
+        self.turn = 1
+
+    def run_battle(self):
+        print("\n" + "⚔️" * 40)
+        print("          GAUGAMELA MATRIX: CRUSADE OF THE ARCANE EMPIRES")
+        print("⚔️" * 40)
+        time.sleep(1)
+
+        while self.player.is_alive() and self.enemy.is_alive():
+            # 1. Processing Upkeep Phases
+            p_upkeep = self.player.process_turn_upkeep()
+            e_upkeep = self.enemy.process_turn_upkeep()
+            
+            BattleInterface.render_hud(self.player, self.enemy, self.turn)
+            
+            if p_upkeep or e_upkeep:
+                print("⏳ [PHASE UPKEEP EFFECTS]")
+                if p_upkeep: print(p_upkeep)
+                if e_upkeep: print(e_upkeep)
+                print("─" * 80)
+
+            if not self.player.is_alive() or not self.enemy.is_alive():
+                break
+
+            # 2. Player Spell-Weaving Choice Phase
+            chosen_spell = self.prompt_player_action()
+            self.execute_spell(chosen_spell, self.player, self.enemy)
+            
+            if not self.enemy.is_alive():
+                break
+
+            # 3. Dynamic AI Response Generation Phase
+            self.execute_ai_turn()
+            
+            self.turn += 1
+            time.sleep(1.5)
+
+        self.evaluate_victory()
+
+    def prompt_player_action(self) -> Spell:
+        print("\n🔮 SELECT STRATEGIC MATRIX COMMAND:")
+        for idx, spell in self.player.spellbook.items():
+            cost_str = f"{abs(spell.cost)} MP" if spell.cost > 0 else f"Gain {abs(spell.cost)} MP"
+            print(f"  [{idx}] {spell.name:<22} ({cost_str:<9}) -> {spell.desc}")
+        
+        while True:
+            try:
+                choice = int(input("\nEnter operational index (1-4): "))
+                if choice in self.player.spellbook:
+                    selection = self.player.spellbook[choice]
+                    if selection.cost > 0 and self.player.mana < selection.cost:
+                        print("❌ Operational Alert: Matrix energy insufficient! Recharge via choice [4].")
+                        continue
+                    return selection
+                print("❌ Array configuration out of bounds. Select 1-4.")
+            except ValueError:
+                print("❌ Critical Input Fault. Enter standard numerical format.")
+
+    def execute_spell(self, spell: Spell, caster: CombatEntity, target: CombatEntity):
+        print(f"\n💫 {caster.name} manifests arcane sequence: [{spell.name.upper()}]")
+        caster.mana -= spell.cost
+
+        if spell.cost < 0:
+            # Recharging Matrix Mechanoid
+            caster.hp = max(0, caster.hp - 25)
+            print(f"🩸 {caster.name} overclocks life matrix! Siphons -25 HP to hyper-inject +{abs(spell.cost)} Mana.")
+            return
+
+        if spell.dmg_range == (0, 0) and spell.effect:
+            # Defensive / Buff Spell Array
+            caster.apply_status(spell.effect)
+            print(f"🛡️ [{spell.effect.name}] operational grid mapped onto {caster.name}.")
+        else:
+            # Attack Spell Matrix Layer
+            base_dmg = random.randint(*spell.dmg_range)
+            defense_modifier = target.get_incoming_modifier()
+            final_dmg = int(base_dmg * defense_modifier)
+            
+            target.hp = max(0, target.hp - final_dmg)
+            print(f"💥 Discharge Vector hits {target.name} for {final_dmg} force damage! "
+                  f"(Mitigated {int((1 - defense_modifier)*100)}% output energy via shielding structure)")
+            
+            if spell.effect and target.is_alive():
+                target.apply_status(spell.effect)
+                print(f"⚠️ Corrosive tracking alert: {target.name} infected with status [{spell.effect.name}].")
+
+    def execute_ai_turn(self):
+        print(f"\n🤖 {self.enemy.name} tracking systems active...")
+        time.sleep(1)
+
+        # AI Heuristic Algorithm Logic
+        # Priority 1: Use shields if low health and shield is available
+        if self.enemy.hp < 80 and self.enemy.mana >= self.enemy.spellbook[3].cost and not any(s.name == "Sun-Shield" for s in self.enemy.statuses):
+            ai_spell = self.enemy.spellbook[3]
+        # Priority 2: Heavy damage singularity if pool permits
+        elif self.enemy.mana >= self.enemy.spellbook[2].cost:
+            ai_spell = self.enemy.spellbook[2]
+        # Priority 3: Fallback attack
+        elif self.enemy.mana >= self.enemy.spellbook[1].cost:
+            ai_spell = self.enemy.spellbook[1]
+        # Priority 4: Ambient manual mana gather cycle
+        else:
+            print(f"🔮 {self.enemy.name} is dry on mana! Forces an atmospheric draw phase, reclaiming 30 MP.")
+            self.enemy.mana = min(self.enemy.max_mana, self.enemy.mana + 30)
+            return
+
+        self.execute_spell(ai_spell, self.enemy, self.player)
+
+    def evaluate_victory(self):
+        print("\n" + "═" * 80)
+        if self.player.is_alive() and not self.enemy.is_alive():
+            print("🥇 THE ARCH-MAGE TRIUMPHS!")
+            print("Alexander the Great locks down Asia Minor. The Persian elemental fonts belong to Macedon.")
+        elif not self.player.is_alive() and self.enemy.is_alive():
+            print("💀 MATRIX LOSS ENCOUNTERED.")
+            print("Alexander's lifeforce collapses into cosmic ashes. Darius preserves the Eternal Sun Dynasty.")
+        else:
+            print("💥 ANNIHILATION SPELL COLLISION.")
+            print("Both sorcerers vaporized one another in the epicenter. The battleground collapses into a dead zone.")
+        print("═" * 80 + "\n")
+
+if __name__ == "__main__":
+    game = StrategicBattleEngine()
+    game.run_battle()
