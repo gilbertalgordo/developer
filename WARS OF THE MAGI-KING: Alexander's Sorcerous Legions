@@ -295,3 +295,240 @@ class UltimateConsoleRPG:
 if __name__ == "__main__":
     game_executable = UltimateConsoleRPG()
     game_executable.startup_engine()
+
+
+import random
+import time
+import sys
+
+# ==============================================================================
+# AUTHOR: GILBERT ALGORDO
+# ENGINE: ARCANE TACTICAL CONSOLE ENGINE (ATCE v5.5 - STORYLINE EXPANSION)
+# TARGET SYSTEMS: SONY PLAYSTATION 5, XBOX SERIES X|S, NINTENDO SWITCH
+# ==============================================================================
+
+class ConsoleColor:
+    CYAN = '\033[96m'
+    GOLD = '\033[93m'
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    PURPLE = '\033[95m'
+    BOLD = '\033[1m'
+    RESET = '\033[0m'
+
+class ItemArtifact:
+    def __init__(self, item_id, name, cost, hp, mp, atk, passive, desc):
+        self.item_id = item_id
+        self.name = name
+        self.cost = cost
+        self.hp_bonus = hp
+        self.mp_bonus = mp
+        self.atk_bonus = atk
+        self.passive = passive  # "QUANTUM_FLOW", "LIFESTEAL"
+        self.desc = desc
+
+class HeroMage:
+    def __init__(self, name, faction, hp, mana, atk, character_id, taunt_text):
+        self.name = name
+        self.faction = faction
+        self.max_hp = hp
+        self.hp = hp
+        self.max_mana = mana
+        self.mana = mana
+        self.base_atk = atk
+        self.character_id = character_id
+        self.taunt_text = taunt_text
+        self.gold = 300
+        self.inventory = {}
+        self.cooldowns = {"SPECIAL_1": 0}
+
+    @property
+    def total_attack(self):
+        bonus = sum(item.atk_bonus for item in self.inventory.values())
+        return self.base_atk + bonus
+
+    def equip_item(self, item):
+        self.inventory[item.item_id] = item
+        self.max_hp += item.hp_bonus
+        self.hp += item.hp_bonus
+        self.max_mana += item.mp_bonus
+        self.mana += item.mp_bonus
+
+class StorylineNarrator:
+    @staticmethod
+    def print_cinematic(text, delay=0.03):
+        for char in text:
+            sys.stdout.write(char)
+            sys.stdout.flush()
+            time.sleep(delay)
+        print()
+
+    @staticmethod
+    def trigger_post_chapter_epilogue(hero, boss_name):
+        print("\n" + ConsoleColor.PURPLE + "🎬 === CINEMATIC STORYLINE UNLOCKED ===" + ConsoleColor.RESET)
+        print(f"🎬 CHAPTER RESOLUTION NODES: Running tracking matrix for [{hero.name}]")
+        print("-" * 80)
+        
+        if hero.character_id == "ALEXANDER_MAIN":
+            StorylineNarrator.print_cinematic(
+                f"The smoke clears over the burning plains of Gaugamela. {boss_name}'s elemental matrix shatters into residual embers.\n"
+                f"Alexander steps over the fused glass ground, raising his Runic Sarissa high towards the heavens..."
+            )
+            print(f"\n🗣️  {ConsoleColor.GOLD}{hero.name} steps forward and TAUNTS the fallen Emperor:{ConsoleColor.RESET}")
+            StorylineNarrator.print_cinematic(f'   "{hero.taunt_text}"', delay=0.05)
+            
+        elif hero.character_id == "HEPHAESTION_MAGE":
+            StorylineNarrator.print_cinematic(
+                f"The chronological barriers close. With the Persian frontline frozen in stasis, the secondary force secures the perimeter.\n"
+                f"Hephaestion lowers his gauntlet, adjusting the chronometer configurations."
+            )
+            print(f"\n🗣️  {ConsoleColor.GOLD}{hero.name} cold-heartedly glances down at {boss_name}:{ConsoleColor.RESET}")
+            StorylineNarrator.print_cinematic(f'   "{hero.taunt_text}"', delay=0.05)
+            
+        print("-" * 80)
+        print(ConsoleColor.PURPLE + "=== END OF CHAPTER EXPANSION NARRATIVE ===" + ConsoleColor.RESET + "\n")
+
+class UltimateStorylineRPG:
+    def __init__(self):
+        self.platform = "UNIVERSAL"
+        
+        # Character Rosters Available for Chapter 1
+        self.roster = {
+            "1": HeroMage("Alexander the Arch-Mage", "Macedonian Legions", 800, 300, 65, "ALEXANDER_MAIN", 
+                          "You commanded the sun and the desert, Darius, but even cosmic fire bows before the unbreakable precision of my Phalanx Network! Asia is mine!"),
+            "2": HeroMage("Hephaestion Time-Weaver", "Chronomancy Vanguard", 650, 450, 50, "HEPHAESTION_MAGE", 
+                          "Your empire was built on centuries of tradition, yet it took me less than a second to turn your armies into dust in the wind.")
+        }
+        
+        self.player = None
+        self.enemy = HeroMage("Darius Emperor of Embers", "Persian Elementals", 900, 350, 70, "DARIUS_BOSS", "")
+        
+        # 3-Sector Combat Map
+        self.grid = {
+            "Vanguard Left":   {"player": None, "enemy": None, "mod": 1.0},
+            "Imperial Center": {"player": None, "enemy": None, "mod": 2.0},
+            "Vanguard Right":  {"player": None, "enemy": None, "mod": 1.0}
+        }
+        
+        self.vault = {
+            "1": ItemArtifact("1", "Mini Quantum Battery", 150, 0, 150, 0, "QUANTUM_FLOW", "Restores +35 additional Mana per turn segment."),
+            "2": ItemArtifact("2", "Scroll of Gilgamesh", 200, 100, 0, 45, "LIFESTEAL", "Grants 35% damage tracking lifesteal conversion to life pool.")
+        }
+        self.turn = 1
+
+    def select_character_profile(self):
+        print("🎭 SELECT YOUR COMMANDING MAGE FOR THIS CHAPTER COMPILATION:")
+        for k, h in self.roster.items():
+            print(f" [{k}] {h.name} | HP: {h.max_hp} | MP: {h.max_mana} | ATK: {h.base_atk}")
+        
+        choice = input("Enter Character ID (1-2): ").strip()
+        self.player = self.roster.get(choice, self.roster["1"])
+        print(f"\n🎮 Character Synchronized: {ConsoleColor.GREEN}{self.player.name}{ConsoleColor.RESET} locked into tactical slot.")
+
+    def render_hud(self):
+        print("\n" + ConsoleColor.CYAN + "═" * 90 + ConsoleColor.RESET)
+        print(f" 🌀 WARS OF THE MAGI-KING | CONSOLE DISTRIBUTION | ARCHITECTURE: GILBERT ALGORDO")
+        print(ConsoleColor.CYAN + "═" * 90 + ConsoleColor.RESET)
+        print(f" 👤 PLAYER: {ConsoleColor.GOLD}{self.player.name:<25}{ConsoleColor.RESET} | HP: {ConsoleColor.GREEN}{self.player.hp}/{self.player.max_hp}{ConsoleColor.RESET} | MP: {ConsoleColor.CYAN}{self.player.mana}/{self.player.max_mana}{ConsoleColor.RESET} | Gold: {ConsoleColor.GOLD}{self.player.gold}G{ConsoleColor.RESET}")
+        print(f" 🎒 Active Artifacts: {', '.join([i.name for i in self.player.inventory.values()]) if self.player.inventory else 'None'}")
+        print("-" * 90)
+        for sector, data in self.grid.items():
+            p_unit = f"HP:{data['player']['hp']}" if data['player'] else "[ EMPTY ]"
+            e_unit = f"HP:{data['enemy']['hp']}" if data['enemy'] else "[ EMPTY ]"
+            print(f"    🗺️  {sector:<18} (x{data['mod']:.1f}) :: Friendly: {p_unit:<12} vs Enemy: {e_unit:<12}")
+        print("-" * 90)
+        print(f" 👹 BOSS:   {ConsoleColor.RED}{self.enemy.name:<25}{ConsoleColor.RESET} | HP: {self.enemy.hp}/{self.enemy.max_hp}")
+        print(ConsoleColor.CYAN + "═" * 90 + ConsoleColor.RESET + "\n")
+
+    def run_command_loop(self):
+        # Apply item passive logic updates
+        mp_regen = 45
+        if "1" in self.player.inventory: mp_regen += 35
+        self.player.mana = min(self.player.max_mana, self.player.mana + mp_regen)
+        
+        self.render_hud()
+        print("⌨️ ACTION PARAMS: [1] Manifest Combat Unit | [2] Visit Marketplace Store | [3] Fire Special Ultimate | [4] End Turn")
+        action = input("Select Execution: ").strip()
+        
+        if action == "1":
+            self.summon_formation()
+        elif action == "2":
+            self.access_store()
+        elif action == "3":
+            if self.player.mana >= 80:
+                self.player.mana -= 80
+                dmg = 150
+                self.enemy.hp -= dmg
+                print(f"🔮 Ultimate Casted! Directly impacted {self.enemy.name} for {dmg} absolute spell damage.")
+            else:
+                print("❌ Insufficient Arcane Energies.")
+
+    def summon_formation(self):
+        lane = input("Choose tactical sector slot (Vanguard Left, Imperial Center, Vanguard Right): ").strip()
+        if lane in self.grid and self.grid[lane]["player"] is None:
+            if self.player.mana >= 40:
+                self.player.mana -= 40
+                self.grid[lane]["player"] = {"hp": 200, "atk": 40}
+                print(f"✅ Unit materialized securely inside {lane}.")
+            else:
+                print("❌ Out of mana reserves.")
+
+    def access_store(self):
+        print(f"\n🏪 VAULT LEDGER DATA:")
+        for k, v in self.vault.items():
+            print(f" [{k}] {v.name} ({v.cost}G) -> {v.desc}")
+        buy = input("Purchase selection index: ").strip()
+        if buy in self.vault and self.player.gold >= self.vault[buy].cost:
+            self.player.gold -= self.vault[buy].cost
+            self.player.equip_item(self.vault[buy])
+            print(f"🛍️ Equipped {self.vault[buy].name} successfully.")
+
+    def resolve_grid_clashes(self):
+        print("\n⚔️ PROCESSING TURN RESOLUTIONS...")
+        for sector, data in self.grid.items():
+            p = data["player"]
+            e = data["enemy"]
+            mod = data["mod"]
+            
+            if p and e:
+                e["hp"] -= int(p["atk"] * mod)
+                p["hp"] -= int(e["atk"] * mod)
+                if p["hp"] <= 0: data["player"] = None
+                if e["hp"] <= 0: 
+                    data["enemy"] = None
+                    self.player.gold += 100
+            elif p and not e:
+                dmg = int(p["atk"] * mod)
+                if "2" in self.player.inventory:
+                    self.player.hp = min(self.player.max_hp, self.player.hp + int(dmg * 0.35))
+                self.enemy.hp -= dmg
+                print(f"🔥 Grid penetration in {sector}! Struck boss for {dmg} damage points.")
+            elif e and not p:
+                self.player.hp -= int(e["atk"] * mod)
+
+    def trigger_enemy_ai(self):
+        empty = [l for l in self.grid if self.grid[l]["enemy"] is None]
+        if empty:
+            self.grid[random.choice(empty)]["enemy"] = {"hp": 150, "atk": 35}
+
+    def boot_sequence(self):
+        print("🎮 LOADING CROSS-PLATFORM KERNEL ARCHITECTURE...")
+        self.select_character_profile()
+        
+        while self.player.is_alive() and self.enemy.is_alive():
+            self.run_command_loop()
+            if self.enemy.hp <= 0: break
+            self.trigger_enemy_ai()
+            self.resolve_grid_clashes()
+            self.turn += 1
+            
+        if self.player.is_alive() and self.enemy.hp <= 0:
+            print("\n" + ConsoleColor.GREEN + "🏆 CHAPTER COMPLETION VERIFIED: BOSS ELIMINATED! 🏆" + ConsoleColor.RESET)
+            StorylineNarrator.trigger_post_chapter_epilogue(self.player, self.enemy.name)
+        else:
+            print("\n💀 GAME OVER: Commander life signal completely dropped out of reality matrix.")
+
+if __name__ == "__main__":
+    game_instance = UltimateStorylineRPG()
+    game_instance.boot_sequence()
+
