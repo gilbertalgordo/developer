@@ -991,3 +991,303 @@ class AdvancedExpansionEngine:
 if __name__ == "__main__":
     simulation = AdvancedExpansionEngine()
     simulation.execute_core()
+
+
+
+import random
+import time
+import sys
+import json
+
+# ==============================================================================
+# AUTHOR: GILBERT ALGORDO
+# ENGINE: ARCANE TACTICAL CONSOLE ENGINE (ATCE v4.0 - CROSS-PLATFORM EDITION)
+# TARGET SYSTEMS: XBOX SERIES X|S, PLAYSTATION 5, NINTENDO SWITCH, PC
+# ==============================================================================
+
+class ConsoleColor:
+    CYAN = '\033[96m'
+    GOLD = '\033[93m'
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    PURPLE = '\033[95m'
+    BOLD = '\033[1m'
+    RESET = '\033[0m'
+
+class ConsoleInputAdapter:
+    """Normalizes console controller inputs to text interfaces."""
+    @staticmethod
+    def get_action_map(console_type="UNIVERSAL"):
+        mappings = {
+            "PLAYSTATION": {"CONFIRM": "❌ (Cross)", "CANCEL": "⭕ (Circle)", "SPECIAL": "🔺 (Triangle)", "STORE": "🔲 (Square)"},
+            "XBOX": {"CONFIRM": "🟢 (A)", "CANCEL": "🔴 (B)", "SPECIAL": "🟡 (Y)", "STORE": "🔵 (X)"},
+            "SWITCH": {"CONFIRM": "🔴 (A)", "CANCEL": "🔵 (B)", "SPECIAL": "🟢 (X)", "STORE": "🟡 (Y)"},
+            "UNIVERSAL": {"CONFIRM": "[1]", "CANCEL": "[2]", "SPECIAL": "[3]", "STORE": "[4]"}
+        }
+        return mappings.get(console_type, mappings["UNIVERSAL"])
+
+class ItemArtifact:
+    def __init__(self, item_id, name, cost, hp, mp, atk, passive, desc):
+        self.item_id = item_id
+        self.name = name
+        self.cost = cost
+        self.hp_bonus = hp
+        self.mp_bonus = mp
+        self.atk_bonus = atk
+        self.passive = passive  # "QUANTUM_FLOW", "LIFESTEAL", "TITAN_IMMUNITY"
+        self.desc = desc
+
+class HeroMage:
+    def __init__(self, name, faction, hp, mana, atk):
+        self.name = name
+        self.faction = faction
+        self.max_hp = hp
+        self.hp = hp
+        self.max_mana = mana
+        self.mana = mana
+        self.base_atk = atk
+        self.gold = 200
+        self.inventory = {}
+        self.cooldowns = {"SPECIAL_1": 0, "SPECIAL_2": 0}
+        self.status_effects = []
+
+    @property
+    def total_attack(self):
+        bonus = sum(item.atk_bonus for item in self.inventory.values())
+        return self.base_atk + bonus
+
+    def equip_item(self, item):
+        self.inventory[item.item_id] = item
+        self.max_hp += item.hp_bonus
+        self.hp += item.hp_bonus
+        self.max_mana += item.mp_bonus
+        self.mana += item.mp_bonus
+
+class UltimateConsoleRPG:
+    def __init__(self):
+        # Select target platform profiling
+        self.platform = "UNIVERSAL"
+        self.btn = ConsoleInputAdapter.get_action_map(self.platform)
+        
+        # Instantiate Actors
+        self.player = HeroMage("Alexander the Arch-Mage", "Macedonian Sorcerous Legions", 750, 250, 55)
+        self.enemy = HeroMage("Darius the Ember Emperor", "Persian Elemental Host", 800, 300, 60)
+        
+        # Grid Architecture: 3-Way Tactical Front Lines
+        self.grid = {
+            "Left Flank":  {"player": None, "enemy": None, "mod": 1.0},
+            "Center Gates": {"player": None, "enemy": None, "mod": 1.75},
+            "Right Flank": {"player": None, "enemy": None, "mod": 1.0}
+        }
+        
+        # Game Store Manifest
+        self.vault = {
+            "1": ItemArtifact("1", "Mini Quantum Battery", 120, 0, 100, 0, "QUANTUM_FLOW", "Regenerates an extra +25 MP per turn sequence."),
+            "2": ItemArtifact("2", "Scroll of Gilgamesh", 150, 50, 0, 35, "LIFESTEAL", "Converts 30% of physical layout damage to HP."),
+            "3": ItemArtifact("3", "Aegis of the Sun", 180, 200, 0, 10, "TITAN_IMMUNITY", "Prevents lethal damage limits once per simulation.")
+        }
+        self.turn = 1
+
+    def render_console_ui(self):
+        print("\n" + ConsoleColor.CYAN + "═" * 100 + ConsoleColor.RESET)
+        print(f" {ConsoleColor.BOLD}WARS OF THE MAGI-KING v4.0 | PLATFORM: [{self.platform}] | DESIGN BY GILBERT ALGORDO{ConsoleColor.RESET}")
+        print(ConsoleColor.CYAN + "═" * 100 + ConsoleColor.RESET)
+        
+        # Player Dashboard
+        gear_loaded = ", ".join([i.name for i in self.player.inventory.values()]) if self.player.inventory else "Empty Slots"
+        print(f" ⚔️  {ConsoleColor.GOLD}{self.player.name:<26}{ConsoleColor.RESET} | HP: {ConsoleColor.GREEN}{self.player.hp}/{self.player.max_hp}{ConsoleColor.RESET} | MP: {ConsoleColor.CYAN}{self.player.mana}/{self.player.max_mana}{ConsoleColor.RESET} | Treasury: {ConsoleColor.GOLD}{self.player.gold}G{ConsoleColor.RESET}")
+        print(f"    [EQUIPPED]: {gear_loaded}")
+        print(f"    [COOLDOWNS]: Overload: {self.player.cooldowns['SPECIAL_1']} Turns | Rift: {self.player.cooldowns['SPECIAL_2']} Turns")
+        print("-" * 100)
+        
+        # Battlefield Matrix
+        print(f" {'TACTICAL ENGINE MATRIX RESOLUTION':^100}")
+        print("-" * 100)
+        for sector, data in self.grid.items():
+            p_unit = f"HP:{data['player']['hp']} A:{data['player']['atk']}" if data['player'] else "[ VACANT ]"
+            e_unit = f"HP:{data['enemy']['hp']} A:{data['enemy']['atk']}" if data['enemy'] else "[ VACANT ]"
+            print(f"    📍 {sector:<15} (x{data['mod']:.2f})  =>  Player: {ConsoleColor.GREEN}{p_unit:<18}{ConsoleColor.RESET} vs  Enemy: {ConsoleColor.RED}{e_unit:<18}{ConsoleColor.RESET}")
+        print("-" * 100)
+        
+        # Enemy Boss Dashboard
+        print(f" 👹 {ConsoleColor.RED}{self.enemy.name:<26}{ConsoleColor.RESET} | HP: {self.enemy.hp}/{self.enemy.max_hp} | MP: {self.enemy.mana}/{self.enemy.max_mana}")
+        print(ConsoleColor.CYAN + "═" * 100 + ConsoleColor.RESET + "\n")
+
+    def execute_store_subroutine(self):
+        print(f"🏪 --- ARCANE VAULT STORAGE INTERFACE --- (Balance: {self.player.gold} Gold)")
+        for k, v in self.vault.items():
+            print(f"   [{k}] {v.name:<25} Price: {v.cost}G | Stats: +{v.hp_bonus}HP / +{v.mp_bonus}MP / +{v.atk_bonus}ATK\n         └─ Passive Matrix: {v.desc}")
+        print("   [4] Return to Tactical Combat Screen")
+        
+        req = input("\nSelect Artifact Index: ").strip()
+        if req in self.vault:
+            artifact = self.vault[req]
+            if artifact.item_id in self.player.inventory:
+                print("❌ Hardware Collision: Artifact already written to systemic inventory.")
+            elif self.player.gold >= artifact.cost:
+                self.player.gold -= artifact.cost
+                self.player.equip_item(artifact)
+                print(f"✅ Success! {artifact.name} deployed to inventory node arrays.")
+            else:
+                print("❌ Error: Insufficient funds to verify ledger.")
+
+    def run_command_phase(self):
+        # Update cooldown indexes
+        for cd in self.player.cooldowns:
+            if self.player.cooldowns[cd] > 0:
+                self.player.cooldowns[cd] -= 1
+                
+        # Check Item Passives: Mini Quantum Battery
+        mp_gain = 40
+        if "1" in self.player.inventory:
+            mp_gain += 25
+        self.player.mana = min(self.player.max_mana, self.player.mana + mp_gain)
+        
+        self.render_console_ui()
+        
+        print("🎮 MAIN COMMAND ARRAY INTERFACE:")
+        print(f" {self.btn['CONFIRM']} Manifest Legionnaire Unit")
+        print(f" {self.btn['CANCEL']} Access Arcane Vault Store")
+        print(f" {self.btn['SPECIAL']} Trigger Command Special Ability")
+        print(f" {self.btn['STORE']} End Command Phase / Channels Ley-lines")
+        
+        cmd = input("\nPress mapped button code: ").strip()
+        if cmd == "1":
+            self.summon_subroutine()
+        elif cmd == "2":
+            self.execute_store_subroutine()
+        elif cmd == "3":
+            self.trigger_ability_subroutine()
+        else:
+            print("🛡️ Channeling planetary ley-lines. Tactical focus stabilized.")
+
+    def summon_subroutine(self):
+        print("\n[Legion Class Arrays] 1: Phalanx Shield-Mage (Cost 45 MP) | 2: Companion Spellcaster (Cost 30 MP)")
+        sel = input("Choose profile: ").strip()
+        target = input("Target Field Sector (Left Flank, Center Gates, Right Flank): ").strip()
+        
+        if target not in self.grid or self.grid[target]["player"] is not None:
+            print("❌ Allocation Error: Invalid position parameters or node is blocked.")
+            return
+            
+        cost = 45 if sel == "1" else 30
+        if self.player.mana >= cost:
+            self.player.mana -= cost
+            hp = 180 if sel == "1" else 100
+            atk = 40 if sel == "1" else 25
+            self.grid[target]["player"] = {"hp": hp, "atk": atk}
+            print(f"✨ Teleported tactical unit formation cleanly into [{target}].")
+        else:
+            print("❌ Allocation Error: Mana capacity depleted.")
+
+    def trigger_ability_subroutine(self):
+        print("\n✨ CHARACTER SPECIAL ABILITIES:")
+        print(f" [1] Lightning of Ammon (Cost: 75 MP) - Deals 120 absolute damage across global grids. Cooldown: 3 Turns.")
+        print(f" [2] Bucephalus Space-Time Rift (Cost: 50 MP) - Decimates the Center Gates position instantly. Cooldown: 4 Turns.")
+        
+        choice = input("Execute Ability selection: ").strip()
+        if choice == "1":
+            if self.player.cooldowns["SPECIAL_1"] == 0 and self.player.mana >= 75:
+                self.player.mana -= 75
+                self.enemy.hp -= 120
+                self.player.cooldowns["SPECIAL_1"] = 3
+                print("⚡ Alexander casts Lightning of Ammon! Heavenly columns arc down onto Darius!")
+            else:
+                print("❌ Operation Failed: Power charging or insufficient mana limits.")
+        elif choice == "2":
+            if self.player.cooldowns["SPECIAL_2"] == 0 and self.player.mana >= 50:
+                self.player.mana -= 50
+                self.grid["Center Gates"]["enemy"] = None
+                self.player.cooldowns["SPECIAL_2"] = 4
+                print("🌌 Bucephalus rips open local space-time! The enemy presence at Center Gates vanishes!")
+            else:
+                print("❌ Operation Failed: System in cool-down loop phase.")
+
+    def run_enemy_ai_matrix(self):
+        self.enemy.mana = min(self.enemy.max_mana, self.enemy.mana + 45)
+        
+        # Simple systemic store routing for AI boss
+        if self.enemy.gold >= 150 and "2" not in self.enemy.inventory:
+            self.enemy.equip_item(self.vault["2"])
+            self.enemy.gold -= 150
+            
+        # Spawn deployment tracking
+        vacant = [s for s in self.grid if self.grid[s]["enemy"] is None]
+        if vacant and self.enemy.mana >= 40:
+            dest = random.choice(vacant)
+            self.enemy.mana -= 40
+            self.grid[dest]["enemy"] = {"hp": 140, "atk": 30}
+
+    def compute_combat_resolution(self):
+        print("\n⚔️ SYSTEM CALCULATION: SIMULATING MATRIX FRONT CONFLICT...")
+        time.sleep(0.8)
+        
+        for sector, data in self.grid.items():
+            p = data["player"]
+            e = data["enemy"]
+            mod = data["mod"]
+            
+            if p and e:
+                raw_p_dmg = int(p["atk"] * mod)
+                raw_e_dmg = int(e["atk"] * mod)
+                
+                e["hp"] -= raw_p_dmg
+                p["hp"] -= raw_e_dmg
+                print(f"    💥 Collision at [{sector}]: Units trading {raw_p_dmg} and {raw_e_dmg} raw damage profiles.")
+                
+                if p["hp"] <= 0: data["player"] = None
+                if e["hp"] <= 0: 
+                    data["enemy"] = None
+                    self.player.gold += 75  # Financial drop reward
+            elif p and not e:
+                dmg = int(p["atk"] * mod)
+                # Scroll of Gilgamesh Passive Check: Lifesteal Implementation
+                if "2" in self.player.inventory:
+                    steal = int(dmg * 0.30)
+                    self.player.hp = min(self.player.max_hp, self.player.hp + steal)
+                    print(f"    🩸 Lifesteal Protocol: Converted +{steal} HP back to Alexander's life-pool.")
+                self.enemy.hp -= dmg
+                print(f"    🏰 [{sector}] Uncontested! Macedonian legionnaires assault Emperor Darius directly for {dmg} damage!")
+            elif e and not p:
+                dmg = int(e["atk"] * mod)
+                self.player.hp -= dmg
+                print(f"    💥 Breakthrough at [{sector}]! Persian magic arrays slam into Alexander for {dmg} damage!")
+
+    def select_console_profile(self):
+        print("🎮 CHOOSE CONSOLE HARDWARE CONTROLLER PROFILE:")
+        print(" [1] PlayStation 5 DualSense")
+        print(" [2] Xbox Wireless Controller")
+        print(" [3] Nintendo Switch Joy-Con")
+        print(" [4] Universal Dev Keyboard Layout")
+        pf = input("Select System: ").strip()
+        if pf == "1": self.platform = "PLAYSTATION"
+        elif pf == "2": self.platform = "XBOX"
+        elif pf == "3": self.platform = "SWITCH"
+        else: self.platform = "UNIVERSAL"
+        self.btn = ConsoleInputAdapter.get_action_map(self.platform)
+
+    def startup_engine(self):
+        self.select_console_profile()
+        print("\n🚀 CONFIGURING HARDWARE ARCHITECTURE INTEGRATION STACKS...")
+        time.sleep(1)
+        
+        while self.player.is_alive() and self.enemy.is_alive():
+            self.run_command_phase()
+            if not self.enemy.is_alive(): break
+            
+            self.run_enemy_ai_matrix()
+            self.compute_combat_resolution()
+            
+            self.turn += 1
+            input("\nPress mapped [CONFIRM] key bound to continue...")
+
+        print("\n" + "═" * 100)
+        if self.player.is_alive():
+            print(f"🏆 {ConsoleColor.GOLD}CONGRATULATIONS: ALEXANDER THE ARCH-MAGE UNIFIES THE EMPIRE THROUGH SUPREME WIZARDRY!{ConsoleColor.RESET}")
+        else:
+            print(f"💀 {ConsoleColor.RED}GAME OVER: ALEXANDER'S SOUL-CORE DISSOLVES. PERSIA CLAIMS ABSOLUTE SUPREMACY.{ConsoleColor.RESET}")
+        print("═" * 100)
+
+if __name__ == "__main__":
+    game_executable = UltimateConsoleRPG()
+    game_executable.startup_engine()
