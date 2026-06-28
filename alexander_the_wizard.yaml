@@ -708,3 +708,286 @@ class AdvancedBattleEngine:
 if __name__ == "__main__":
     game = AdvancedBattleEngine()
     game.execute_game_loop()
+
+
+
+import random
+import time
+import sys
+
+# ==============================================================================
+# AUTHOR: GILBERT ALGORDO
+# ENGINE: ARCANE TACTICAL ENGINE (ATE v3.5 - KAIZEN SPEC)
+# SYSTEM: EQUIPMENT INVENTORY, CHARACTER ABILITIES, AND THE STORE SYSTEM
+# ==============================================================================
+
+class HUDColor:
+    CYAN = '\033[96m'
+    GOLD = '\033[93m'
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    PURPLE = '\033[95m'
+    RESET = '\033[0m'
+
+class TextFX:
+    @staticmethod
+    def print_stream(text, delay=0.01):
+        for char in text:
+            sys.stdout.write(char)
+            sys.stdout.flush()
+            time.sleep(delay)
+        print()
+
+class Item:
+    def __init__(self, name, cost, hp_bonus, mp_bonus, atk_bonus, passive_effect, desc):
+        self.name = name
+        self.cost = cost
+        self.hp_bonus = hp_bonus
+        self.mp_bonus = mp_bonus
+        self.atk_bonus = atk_bonus
+        self.passive_effect = passive_effect  # "QUANTUM_FLOW", "LIFESTEAL", "IMMUNITY"
+        self.desc = desc
+
+class Combatant:
+    def __init__(self, name, faction, hp, mana, base_atk):
+        self.name = name
+        self.faction = faction
+        self.max_hp = hp
+        self.hp = hp
+        self.max_mana = mana
+        self.mana = mana
+        self.base_atk = base_atk
+        self.gold = 150
+        self.inventory = []
+        self.ability_cooldown = 0
+        self.status = "NORMAL"
+
+    @property
+    def attack_power(self):
+        bonus = sum(item.atk_bonus for item in self.inventory)
+        return self.base_atk + bonus
+
+    def apply_item_stats(self, item):
+        self.max_hp += item.hp_bonus
+        self.hp += item.hp_bonus
+        self.max_mana += item.mp_bonus
+        self.mana += item.mp_bonus
+        self.inventory.append(item)
+
+    def is_alive(self):
+        return self.hp > 0
+
+class AdvancedExpansionEngine:
+    def __init__(self):
+        # Initialize Hero and Nemesis
+        self.player = Combatant("Alexander the Arch-Mage", "Macedonian Ley-Lines", 600, 200, 45)
+        self.enemy = Combatant("Darius Emperor of Embers", "Persian Elementals", 650, 250, 50)
+        
+        # Grid/Lane Architecture
+        self.lanes = {
+            "Flank-Left":  {"player_unit": None, "enemy_unit": None, "multiplier": 1.0},
+            "Vanguard":    {"player_unit": None, "enemy_unit": None, "multiplier": 1.5},
+            "Flank-Right": {"player_unit": None, "enemy_unit": None, "multiplier": 1.0}
+        }
+        
+        # Store Items Registry
+        self.store = {
+            "1": Item("Mini Quantum Battery", 100, 0, 80, 0, "QUANTUM_FLOW", "Passive: Extends maximum mana pool and grants +15 MP recovery per turn."),
+            "2": Item("Scythian Harvester", 120, 50, 0, 25, "LIFESTEAL", "Passive: Attacks restore 25% of damage dealt back as Health."),
+            "3": Item("Aegis Titanium Plating", 140, 150, 0, 10, "IMMUNITY", "Passive: Grants total immunity to debuffs like STUN and BURN.")
+        }
+        
+        self.turn = 1
+
+    def draw_kaizen_hud(self):
+        print("\n" + HUDColor.CYAN + "=" * 90 + HUDColor.RESET)
+        print(f" 🌀 GAUGAMELA ENGINE ARCHITECTURE | DESIGNED BY GILBERT ALGORDO | TURN {self.turn}")
+        print(HUDColor.CYAN + "=" * 90 + HUDColor.RESET)
+        
+        # Player Metadata Panel
+        p_items = ", ".join([i.name for i in self.player.inventory]) if self.player.inventory else "None"
+        print(f" 👤 {HUDColor.GOLD}{self.player.name:<28}{HUDColor.RESET} | HP: {HUDColor.GREEN}{self.player.hp}/{self.player.max_hp}{HUDColor.RESET} | MP: {HUDColor.CYAN}{self.player.mana}/{self.player.max_mana}{HUDColor.RESET} | Gold: {HUDColor.GOLD}{self.player.gold}G{HUDColor.RESET}")
+        print(f" 🎒 Gear: [{p_items}] | Cooldown: {self.player.ability_cooldown} Turns")
+        print("-" * 90)
+        
+        # Tactical Lane Configuration Display
+        print(f" {'BATTLEFIELD MATRIX':^90}")
+        print("-" * 90)
+        for lane, data in self.lanes.items():
+            p_str = f"HP: {data['player_unit']['hp']} | ATK: {data['player_unit']['atk']}" if data['player_unit'] else "[ VACANT ]"
+            e_str = f"HP: {data['enemy_unit']['hp']} | ATK: {data['enemy_unit']['atk']}" if data['enemy_unit'] else "[ VACANT ]"
+            print(f" 🗺️  {lane:<12} (x{data['multiplier']}) :: Player: {HUDColor.GREEN}{p_str:<22}{HUDColor.RESET} vs Enemy: {HUDColor.RED}{e_str:<22}{HUDColor.RESET}")
+        print("-" * 90)
+        
+        # Enemy Metadata Panel
+        e_items = ", ".join([i.name for i in self.enemy.inventory]) if self.enemy.inventory else "None"
+        print(f" 👹 {HUDColor.RED}{self.enemy.name:<28}{HUDColor.RESET} | HP: {self.enemy.hp}/{self.enemy.max_hp} | MP: {self.enemy.mana}/{self.enemy.max_mana}")
+        print(f" 🎒 Gear: [{e_items}]")
+        print(HUDColor.CYAN + "=" * 90 + HUDColor.RESET + "\n")
+
+    def run_store_phase(self):
+        print(f"🏪 --- ARCANE VAULT MARKETPLACE --- (Current Balance: {self.player.gold} Gold)")
+        for key, item in self.store.items():
+            print(f" [{key}] {item.name:<23} Cost: {item.cost}G | Bonus: +{item.hp_bonus}HP / +{item.mp_bonus}MP / +{item.atk_bonus}ATK\n     └─ Effect: {item.desc}")
+        print(" [4] Skip/Exit Vault")
+        
+        choice = input("\nEnter transaction code (1-4): ").strip()
+        if choice in self.store:
+            target_item = self.store[choice]
+            if self.player.gold >= target_item.cost:
+                self.player.gold -= target_item.cost
+                self.player.apply_item_stats(target_item)
+                TextFX.print_stream(f"🛍️ Successfully purchased and locked [{target_item.name}] into inventory sockets!")
+            else:
+                print("❌ Transaction declined: Insufficient Gold Drachmas.")
+        else:
+            print(" Leaving store phase. Heading to combat lanes.")
+
+    def use_special_ability(self):
+        if self.player.ability_cooldown > 0:
+            print(f"❌ Ability charging! Requires {self.player.ability_cooldown} more turns.")
+            return False
+            
+        print(f"\n⚡ SELECT ACTIVE SPECIAL ABILITY:")
+        print(" [1] Ammon Runic Overload (Cost: 60 MP) - Overcharges current lanes, dealing 80 spell damage directly.")
+        print(" [2] Bucephalus Quantum Rift (Cost: 40 MP) - Instantly clear an enemy position on any flank lane.")
+        
+        sub_choice = input("Execute Ability Code: ").strip()
+        if sub_choice == "1" and self.player.mana >= 60:
+            self.player.mana -= 60
+            self.enemy.hp -= 80
+            self.player.ability_cooldown = 3
+            TextFX.print_stream("⚡ Alexander unleashes Ammon Runic Overload! Celestial plasma shears through opposing ranks!")
+            return True
+        elif sub_choice == "2" and self.player.mana >= 40:
+            target_lane = input("Choose lane to rift (Flank-Left / Flank-Right): ").strip()
+            if target_lane in ["Flank-Left", "Flank-Right"] and self.lanes[target_lane]["enemy_unit"]:
+                self.lanes[target_lane]["enemy_unit"] = None
+                self.player.mana -= 40
+                self.player.ability_cooldown = 4
+                TextFX.print_stream(f"🌌 Bucephalus shifts through dimensions, destroying everything in {target_lane}!")
+                return True
+            else:
+                print("❌ Target verification failed or lane is vacant.")
+        return False
+
+    def play_turn_sequence(self):
+        # Item passive checks: Mini Quantum Battery implementation
+        mana_regen = 35
+        if any(item.passive_effect == "QUANTUM_FLOW" for item in self.player.inventory):
+            mana_regen += 15
+            
+        self.player.mana = min(self.player.max_mana, self.player.mana + mana_regen)
+        if self.player.ability_cooldown > 0:
+            self.player.ability_cooldown -= 1
+            
+        self.draw_kaizen_hud()
+        
+        print("--- PHASE ACTIONS ---")
+        print(" [1] Enter Arcane Vault (Buy Items)")
+        print(" [2] Cast Unit Manifestation (Summon to Lane)")
+        print(" [3] Trigger Character Special Ability")
+        print(" [4] Direct Attack / Skip Command Phase")
+        
+        action = input("\nExecute Protocol: ").strip()
+        if action == "1":
+            self.run_store_phase()
+        elif action == "2":
+            self.spawn_unit_sequence()
+        elif action == "3":
+            if not self.use_special_ability():
+                print("Action defaulted back to tactical wait state.")
+        else:
+            TextFX.print_stream("🛡️ Holding tactical position, channelling surrounding matrix lines.")
+
+    def spawn_unit_sequence(self):
+        print("\n[Summon Classes] 1: Ley-Line Vanguard (Cost 40 MP) | 2: Hypaspist Arcanist (Cost 25 MP)")
+        u_type = input("Select classification: ").strip()
+        lane = input("Select lane destination (Flank-Left, Vanguard, Flank-Right): ").strip()
+        
+        if lane not in self.lanes or self.lanes[lane]["player_unit"] is not None:
+            print("❌ Allocation failed: Destination invalid or occupied.")
+            return
+            
+        cost = 40 if u_type == "1" else 25
+        if self.player.mana >= cost:
+            self.player.mana -= cost
+            hp = 150 if u_type == "1" else 90
+            atk = 35 if u_type == "1" else 20
+            self.lanes[lane]["player_unit"] = {"hp": hp, "atk": atk}
+            print(f"✨ Manifested tactical unit successfully into {lane}.")
+        else:
+            print("❌ Extraction failure: Critical mana deficiency.")
+
+    def process_ai_logic(self):
+        self.enemy.mana = min(self.enemy.max_mana, self.enemy.mana + 40)
+        
+        # Simple systemic store purchasing rules for Enemy AI
+        if self.enemy.gold >= 120 and not self.enemy.inventory:
+            self.enemy.apply_item_stats(self.store["2"])
+            self.enemy.gold -= 120
+            
+        # Spawn random unit defenses
+        vacant_lanes = [l for l in self.lanes if self.lanes[l]["enemy_unit"] is None]
+        if vacant_lanes and self.enemy.mana >= 35:
+            target = random.choice(vacant_lanes)
+            self.enemy.mana -= 35
+            self.lanes[target]["enemy_unit"] = {"hp": 110, "atk": 25}
+
+    def evaluate_combat_grid(self):
+        print("\n⚔️ PROCESSING ALL TACTICAL GRID LANES...")
+        time.sleep(0.5)
+        
+        for lane, data in self.lanes.items():
+            p = data["player_unit"]
+            e = data["enemy_unit"]
+            mult = data["multiplier"]
+            
+            if p and e:
+                # Calculations with lane modifier multipliers
+                e["hp"] -= int(p["atk"] * mult)
+                p["hp"] -= int(e["atk"] * mult)
+                print(f" -> Collision in {lane}! Player unit deals {int(p['atk']*mult)} | Enemy unit strikes back for {int(e['atk']*mult)}.")
+                
+                if p["hp"] <= 0: data["player_unit"] = None
+                if e["hp"] <= 0: 
+                    data["enemy_unit"] = None
+                    self.player.gold += 60  # Gold reward bounty
+            elif p and not e:
+                dmg = int(p["atk"] * mult)
+                # Scriptor item traits check: Lifesteal application
+                if any(i.passive_effect == "LIFESTEAL" for i in self.player.inventory):
+                    heal = int(dmg * 0.25)
+                    self.player.hp = min(self.player.max_hp, self.player.hp + heal)
+                    print(f"🩸 Lifesteal active: Absorbed +{heal} HP from base strike!")
+                self.enemy.hp -= dmg
+                TextFX.print_stream(f"🏰 {lane} uncontested! Player unit breaches frontline and shocks Darius for {dmg} damage!")
+            elif e and not p:
+                dmg = int(e["atk"] * mult)
+                self.player.hp -= dmg
+                TextFX.print_stream(f"💥 Enemy breakthrough in {lane}! Raw arcane magic impacts Alexander for {dmg} damage!")
+
+    def execute_core(self):
+        TextFX.print_stream("🚀 INITIALIZING ADVANCED EXPANSION PROTOCOLS [GILBERT ALGORDO VERSION 3.5]...")
+        time.sleep(1)
+        
+        while self.player.is_alive() and self.enemy.is_alive():
+            self.play_turn_sequence()
+            if not self.enemy.is_alive(): break
+            
+            self.process_ai_logic()
+            self.evaluate_combat_grid()
+            
+            self.turn += 1
+            input("\nPress [Enter] to compute state array configurations for next turn...")
+
+        print("\n" + "=" * 90)
+        if self.player.is_alive():
+            print("🏆 SIMULATION COMPLETE: ALEXANDER SECURES UNCONTESTED MAGICAL HEGEMONY!")
+        else:
+            print("💀 SIMULATION TERMINATED: MACEDONIAN LEY-LINES SHATTERED INTO AMBIENT ENERGY.")
+        print("=" * 90)
+
+if __name__ == "__main__":
+    simulation = AdvancedExpansionEngine()
+    simulation.execute_core()
