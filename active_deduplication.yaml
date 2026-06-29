@@ -1,0 +1,281 @@
+import hashlib
+from PIL import Image
+import imagehash  # pip install ImageHash
+
+class ActiveEntryDecliner:
+    def __init__(self, text_threshold=0.85, visual_threshold=5):
+        # In production, back these with a fast database like Redis or PostgreSQL
+        self.registered_code_hashes = set()
+        self.registered_media_hashes = []
+        
+        # Sensitivity configurations
+        self.text_threshold = text_threshold  # Cosine similarity or ratio threshold
+        self.visual_threshold = visual_threshold  # Hamming distance (lower = more similar, 0 = identical)
+
+    def process_registration_code(self, code_string: str) -> dict:
+        """
+        Validates unique strings, codes, or registration IDs.
+        Uses a SHA-256 hash lookup for O(1) exact match execution.
+        """
+        clean_code = code_string.strip().lower()
+        code_hash = hashlib.sha256(clean_code.encode('utf-8')).hexdigest()
+        
+        if code_hash in self.registered_code_hashes:
+            return {"status": "DECLINED", "reason": "Duplicate registration code or token detected."}
+        
+        # Accept and store
+        self.registered_code_hashes.add(code_hash)
+        return {"status": "ACCEPTED", "message": "Code registered successfully."}
+
+    def process_media(self, image_path: str) -> dict:
+        """
+        Extracts a perceptual hash from an image or video frame.
+        Compares it against existing media using Hamming Distance.
+        """
+        try:
+            with Image.open(image_path) as img:
+                # pHash analyzes structural frequency rather than raw pixels
+                current_hash = imagehash.phash(img)
+        except Exception as e:
+            return {"status": "ERROR", "reason": f"Invalid media file: {str(e)}"}
+
+        # Compare against previously registered media hashes
+        for stored_hash in self.registered_media_hashes:
+            # Hamming distance calculates the number of bits that differ
+            distance = current_hash - stored_hash
+            
+            if distance <= self.visual_threshold:
+                return {
+                    "status": "DECLINED", 
+                    "reason": f"Highly similar visual asset already exists (Distance: {distance})."
+                }
+
+        # Accept and store
+        self.registered_media_hashes.append(current_hash)
+        return {"status": "ACCEPTED", "message": "Media asset approved and stored."}
+
+
+
+
+import os
+import hashlib
+import asyncio
+from typing import Dict, Any, List, Union
+import torch
+from PIL import Image
+import imagehash
+from transformers import ViTImageProcessor, ViTModel
+
+# Configuration Constants
+TEXT_THRESHOLD = 0.98
+VISUAL_HAMMING_THRESHOLD = 4  # Strictness for pHash (0-64)
+VECTOR_SIMILARITY_THRESHOLD = 0.92  # Cosine similarity for neural network vectors
+
+class AdvancedEntryDecliner:
+    def __init__(self):
+        print("Initializing Advanced AI Entry Decliner Engines...")
+        # Load Open-Source Vision Transformer for deep semantic similarity
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.processor = ViTImageProcessor.from_pretrained("google/vit-base-patch16-224")
+        self.model = ViTModel.from_pretrained("google/vit-base-patch16-224").to(self.device)
+        self.model.eval()
+
+        # Mock In-Memory Databases (Replace with Redis & Qdrant/Milvus in production)
+        self.code_bloom_mock = set()
+        self.phash_registry = []  # List of imagehash.ImageHash objects
+        self.vector_registry = []  # List of torch.Tensor embeddings
+
+    def hash_string(self, text: str) -> str:
+        """Generates a deterministic signature for strict alphanumeric checks."""
+        return hashlib.sha256(text.strip().lower().encode('utf-8')).hexdigest()
+
+    async def decline_duplicate_code(self, code: str) -> Dict[str, Any]:
+        """Validates alphanumeric records dynamically."""
+        signature = self.hash_string(code)
+        
+        if signature in self.code_bloom_mock:
+            return {"status": "DECLINED", "reason": "Duplicate registration signature identifier detected."}
+        
+        self.code_bloom_mock.add(signature)
+        return {"status": "ACCEPTED", "message": "Code cleared uniquely."}
+
+    def _extract_features(self, pil_image: Image.Image) -> torch.Tensor:
+        """Extracts dense feature vectors using ViT."""
+        inputs = self.processor(images=pil_image, return_tensors="pt").to(self.device)
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+        # Use pooler output (global representation of the image)
+        return outputs.pooler_output.squeeze(0)
+
+    async def decline_duplicate_media(self, file_path: str, is_video: bool = False) -> Dict[str, Any]:
+        """
+        Evaluates visual submissions using dual-layered validation:
+        1. Structural checks (Perceptual Hashing)
+        2. Semantic deep-learning validation (Vision Transformer Vectors)
+        """
+        try:
+            if is_video:
+                # Video handling: Extract the middle frame as a keyframe proxy
+                # In production, use 'decord' or 'ffmpeg' to sample multiple frames fast
+                import cv2
+                cap = cv2.VideoCapture(file_path)
+                frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_count // 2)
+                ret, frame = cap.read()
+                cap.release()
+                if not ret:
+                    raise ValueError("Could not extract frame from video target.")
+                color_converted = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                pil_img = Image.fromarray(color_converted)
+            else:
+                pil_img = Image.open(file_path).convert('RGB')
+        except Exception as e:
+            return {"status": "ERROR", "reason": f"File parsing failure: {str(e)}"}
+
+        # --- LAYER 1: Fast Perceptual Hash Screening (Catches direct re-saves/crops) ---
+        current_phash = imagehash.phash(pil_img)
+        for registered_phash in self.phash_registry:
+            if (current_phash - registered_phash) <= VISUAL_HAMMING_THRESHOLD:
+                return {"status": "DECLINED", "reason": "Structural media match detected via perceptual hashing."}
+
+        # --- LAYER 2: Neural Vector Evaluation (Catches high-level visual plagiarism) ---
+        current_embedding = self._extract_features(pil_img)
+        
+        for registered_embedding in self.vector_registry:
+            # Compute cosine similarity
+            similarity = torch.nn.functional.cosine_similarity(
+                current_embedding.unsqueeze(0), 
+                registered_embedding.unsqueeze(0)
+            ).item()
+            
+            if similarity >= VECTOR_SIMILARITY_THRESHOLD:
+                return {
+                    "status": "DECLINED", 
+                    "reason": f"AI Engine flag: High visual confidence match ({similarity:.2%})."
+                }
+
+        # Commit novel assets to system registry
+        self.phash_registry.append(current_phash)
+        self.vector_registry.append(current_embedding)
+        return {"status": "ACCEPTED", "message": "Media structurally distinct. Entry permitted."}
+
+# --- Execution Example ---
+async def main():
+    decliner = AdvancedEntryDecliner()
+    
+    # Text validation test
+    print(await decliner.decline_duplicate_code("REG-CODE-998A"))
+    print(await decliner.decline_duplicate_code("REG-CODE-998A"))  # Re-entry should fail
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+import os
+import cv2
+import torch
+import hashlib
+import asyncio
+from PIL import Image
+import imagehash
+from typing import Dict, Any, Union
+from transformers import AutoImageProcessor, AutoModel
+
+# Threshold Configurations
+HAMMING_ICON_THRESHOLD = 2     # dHash tolerance for tiny icons/logos (0-64)
+HAMMING_MEDIA_THRESHOLD = 4    # pHash tolerance for high-res photos
+EMBEDDING_SIMILARITY = 0.94     # Neural Network Cosine similarity threshold
+
+class UnifiedActiveEntryDecliner:
+    def __init__(self):
+        print("[Initializing Active AI Gates] Loading vision encoders...")
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        
+        # Using a highly efficient open-source vision backbone (ResNet50 or ViT)
+        self.processor = AutoImageProcessor.from_pretrained("microsoft/resnet-50")
+        self.encoder = AutoModel.from_pretrained("microsoft/resnet-50").to(self.device)
+        self.encoder.eval()
+
+        # Production in-memory registries (Replace with Redis / Vector DB clusters)
+        self.code_registry = set()
+        self.icon_dhash_registry = []
+        self.photo_phash_registry = []
+        self.neural_vector_registry = []
+
+    def _get_string_signature(self, entry: str) -> str:
+        """Returns a deterministic token signature for O(1) matching."""
+        return hashlib.sha256(entry.strip().lower().encode('utf-8')).hexdigest()
+
+    async def evaluate_code_or_registration(self, clean_string: str) -> Dict[str, Any]:
+        """Intercepts duplicate alphanumeric text entries and registration codes."""
+        signature = self._get_string_signature(clean_string)
+        if signature in self.code_registry:
+            return {"status": "DECLINED", "reason": "Exact duplicate code or registration token detected."}
+        
+        self.code_registry.add(signature)
+        return {"status": "ACCEPTED", "message": "Code signature authenticated uniquely."}
+
+    def _extract_neural_vector(self, pil_image: Image.Image) -> torch.Tensor:
+        """Extracts dense structural embeddings from high-resolution content."""
+        inputs = self.processor(images=pil_image, return_tensors="pt").to(self.device)
+        with torch.no_grad():
+            outputs = self.encoder(**inputs)
+        # Global pooling over spatial dimensions
+        return torch.flatten(outputs.pooler_output, start_dim=1).squeeze(0)
+
+    async def evaluate_visual_entry(self, file_path: str, is_icon: bool = False, is_video: bool = False) -> Dict[str, Any]:
+        """
+        Processes icons, images, and video assets down separate verification lanes.
+        - Icons utilize dHash (Difference Hashing) for geometric gradient matching.
+        - Photos use structural pHash + Deep Neural Embeddings to prevent plagiarism.
+        """
+        try:
+            if is_video:
+                # Video keyframe proxy picker
+                cap = cv2.VideoCapture(file_path)
+                total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                cap.set(cv2.CAP_PROP_POS_FRAMES, total_frames // 2) # Target middle frame
+                success, frame = cap.read()
+                cap.release()
+                if not success:
+                    raise ValueError("Target video stream corrupt or unreadable.")
+                pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            else:
+                pil_img = Image.open(file_path).convert('RGB')
+        except Exception as e:
+            return {"status": "ERROR", "reason": f"Asset execution error: {str(e)}"}
+
+        # --- PATHWAY A: SMALL IMAGE ICONS / BRAND LOGOS ---
+        if is_icon:
+            # dHash tracking tracks horizontal and vertical gradients (Perfect for geometric icons)
+            current_dhash = imagehash.dhash(pil_img)
+            for stored_dhash in self.icon_dhash_registry:
+                if (current_dhash - stored_dhash) <= HAMMING_ICON_THRESHOLD:
+                    return {"status": "DECLINED", "reason": f"Icon structure matches historical index (Distance: {current_dhash - stored_dhash})."}
+            
+            self.icon_dhash_registry.append(current_dhash)
+            return {"status": "ACCEPTED", "message": "Icon graphic accepted into registry."}
+
+        # --- PATHWAY B: STANDARD PHOTOS / FULL-LENGTH VIDEOS ---
+        # 1. Quick Structural Scan (pHash)
+        current_phash = imagehash.phash(pil_img)
+        for stored_phash in self.photo_phash_registry:
+            if (current_phash - stored_phash) <= HAMMING_MEDIA_THRESHOLD:
+                return {"status": "DECLINED", "reason": "Structural asset clone caught via Perceptual Hashing."}
+
+        # 2. Deep Deep-Learning Feature Check (ResNet Vector Match)
+        current_vector = self._extract_neural_vector(pil_img)
+        for stored_vector in self.neural_vector_registry:
+            similarity = torch.nn.functional.cosine_similarity(
+                current_vector.unsqueeze(0), 
+                stored_vector.unsqueeze(0)
+            ).item()
+            
+            if similarity >= EMBEDDING_SIMILARITY:
+                return {"status": "DECLINED", "reason": f"AI Engine Match: High visual confidence duplication ({similarity:.2%})."}
+
+        # Keep records if valid
+        self.photo_phash_registry.append(current_phash)
+        self.neural_vector_registry.append(current_vector)
+        return {"status": "ACCEPTED", "message": "Media asset unique. Entry granted."}
