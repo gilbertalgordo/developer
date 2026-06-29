@@ -1,0 +1,72 @@
+from fastapi import FastAPI
+from sentence_transformers import SentenceTransformer
+import pinecone
+
+app = FastAPI()
+model = SentenceTransformer('all-MiniLM-L6-v2')
+# Initialize vector database
+index = pinecone.Index("netflix-content")
+
+@app.get("/recommend")
+async def get_recommendations(query: str):
+    # Convert user query to vector
+    query_vector = model.encode(query).tolist()
+    # Search for similar content
+    results = index.query(vector=query_vector, top_k=5, include_metadata=True)
+    return {"recommendations": results['matches']}
+
+
+
+// components/MovieGallery.jsx
+import { useEffect, useState } from 'react';
+
+export default function MovieGallery({ searchQuery }) {
+  const [movies, setMovies] = useState([]);
+
+  useEffect(() => {
+    fetch(`/api/recommend?query=${searchQuery}`)
+      .then(res => res.json())
+      .then(data => setMovies(data.recommendations));
+  }, [searchQuery]);
+
+  return (
+    <div className="grid grid-cols-5 gap-4">
+      {movies.map(movie => (
+        <div key={movie.id} className="movie-card">
+          <img src={movie.metadata.thumbnail} alt={movie.metadata.title} />
+          <h3>{movie.metadata.title}</h3>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+
+
+
+# Ad-Insertion Agent Logic
+import asyncio
+from typing import Dict
+
+class AdOrchestrator:
+    def __init__(self):
+        self.latency_buffer = 0.5  # Seconds for synchronization
+
+    async def analyze_scene(self, frame_metadata: Dict):
+        # AI logic to detect scene changes or "natural" content pauses
+        if frame_metadata['is_fade_to_black'] or frame_metadata['is_scene_transition']:
+            return True
+        return False
+
+    async def trigger_ad_event(self, timestamp: float):
+        print(f"Syncing ad insertion at {timestamp} with {self.latency_buffer}ms buffer.")
+        # Logic to inject ad stream dynamically
+        await self.inject_ad_content()
+
+# Implementation in a streaming loop
+async def stream_processor(frame_stream):
+    orchestrator = AdOrchestrator()
+    async for frame in frame_stream:
+        is_break = await orchestrator.analyze_scene(frame)
+        if is_break:
+            await orchestrator.trigger_ad_event(frame['timestamp'])
