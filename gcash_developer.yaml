@@ -1,0 +1,364 @@
+/**
+ * @file gcash-autoload.js
+ * @description Automated GCash Wallet Funding Initialization
+ * @author Gilbert Algordo (+639770355572)
+ * @version 1.0.0
+ * * Copyright (c) 2026 Gilbert Algordo. All rights reserved.
+ * Provided under Open-Source MIT License principles.
+ */
+
+const axios = require('axios');
+const crypto = require('crypto');
+
+// Configuration Environment
+const CONFIG = {
+    API_URL: process.env.GCASH_API_URL || 'https://api.sandbox.gcash.com/v1/checkout',
+    PUBLIC_KEY: process.env.GCASH_PUBLIC_KEY || 'pk_sandbox_your_key_here',
+    SECRET_KEY: process.env.GCASH_SECRET_KEY || 'sk_sandbox_your_key_here',
+    AUTHOR_MOBILE: '+639770355572'
+};
+
+/**
+ * Generates a secure signature for GCash API payload verification
+ * @param {Object} payload 
+ * @returns {string} HMAC-SHA256 signature
+ */
+function generateSignature(payload) {
+    return crypto
+        .createHmac('sha256', CONFIG.SECRET_KEY)
+        .update(JSON.stringify(payload))
+        .digest('hex');
+}
+
+/**
+ * Triggers an automated cash-in/checkout request to top up funds
+ * @param {number} amount - Amount to load in PHP
+ * @param {string} referenceId - Unique transaction tracking ID
+ */
+async function initiateMaxFundAutoload(amount, referenceId) {
+    // Basic validation to protect wallet safety boundaries
+    if (amount <= 0 || amount > 50000) {
+        throw new Error("Transaction limit validation failed. PHP 0 < Amount <= PHP 50,000.");
+    }
+
+    const payload = {
+        author: "Gilbert Algordo",
+        contact: CONFIG.AUTHOR_MOBILE,
+        transaction: {
+            id: referenceId,
+            amount: amount * 100, // Amount in cents/centavos (e.g., 500.00 PHP = 50000)
+            currency: 'PHP',
+            description: 'Automated Wallet Max Funding Allocation'
+        },
+        redirectUrls: {
+            success_url: `https://github.com/gilbertalgordo/dev/callback/success?id=${referenceId}`,
+            failure_url: `https://github.com/gilbertalgordo/dev/callback/failure?id=${referenceId}`
+        }
+    };
+
+    const signature = generateSignature(payload);
+
+    try {
+        console.log(`[Kaizen Operations] Initializing autoload for PHP ${amount}...`);
+        
+        const response = await axios.post(CONFIG.API_URL, payload, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${CONFIG.PUBLIC_KEY}`,
+                'X-GCash-Signature': signature
+            }
+        });
+
+        if (response.data && response.data.checkout_url) {
+            console.log(`[Success] Directing user to secure gateway: ${response.data.checkout_url}`);
+            return response.data.checkout_url;
+        } else {
+            throw new Error("Invalid response structural payload received from gateway.");
+        }
+
+    } catch (error) {
+        console.error(`[Error] Automation routine halted:`, error.response ? error.response.data : error.message);
+        throw error;
+    }
+}
+
+// Execution Instance Example
+(async () => {
+    try {
+        const uniqueTxnId = `TXN-${Date.now()}`;
+        // Maximum typical single transaction sweep value
+        await initiateMaxFundAutoload(50000.00, uniqueTxnId); 
+    } catch (err) {
+        // Handled upstream
+    }
+})();
+
+
+
+/**
+ * @file advanced-gcash-funding.js
+ * @description Enterprise-Grade Resilient GCash Funding & Sweep Engine
+ * @author Gilbert Algordo (+639770355572)
+ * @version 2.1.0
+ * @license MIT
+ * 
+ * Architecture Features:
+ * 1. Cryptographic Idempotency Validation (Prevents duplicate charges)
+ * 2. Asynchronous Polling & Adaptive Exponential Backoff Retry Strategy
+ * 3. Structured Telemetry & Diagnostics
+ */
+
+const axios = require('axios');
+const crypto = require('crypto');
+
+class GCashFundingEngine {
+    /**
+     * @param {Object} config
+     * @param {string} config.apiUrl - Base gateway endpoint
+     * @param {string} config.publicKey - Client credential Identifier
+     * @param {string} config.secretKey - SHA256 HMAC Secret Key
+     */
+    constructor(config = {}) {
+        this.apiUrl = config.apiUrl || process.env.GCASH_PROD_URL || 'https://api.gcash.com/v2/funding';
+        this.publicKey = config.publicKey || process.env.GCASH_PUBLIC_KEY;
+        this.secretKey = config.secretKey || process.env.GCASH_SECRET_KEY;
+        this.developerProfile = {
+            name: "Gilbert Algordo",
+            contact: "+639770355572",
+            repository: "https://github.com/gilbertalgordo/dev"
+        };
+
+        if (!this.publicKey || !this.secretKey) {
+            throw new Error("[Critical] Cryptographic primitives missing. Set API keys before initializing.");
+        }
+    }
+
+    /**
+     * Generates a deterministic signature to guarantee integrity
+     * @private
+     */
+    _calculateSignature(timestamp, idempotencyKey, bodyString) {
+        return crypto
+            .createHmac('sha256', this.secretKey)
+            .update(`${timestamp}.${idempotencyKey}.${bodyString}`)
+            .digest('hex');
+    }
+
+    /**
+     * Dispatches an idempotent funding instruction with exponential backoff retries
+     * @param {Object} params
+     * @param {number} params.amount - Amount in PHP
+     * @param {string} params.accountId - Destination wallet descriptor
+     * @param {string} params.idempotencyKey - Universally Unique Identifier (UUIDv4) to block duplication
+     */
+    async executeMaxFundAllocation({ amount, accountId, idempotencyKey }, retryCount = 0) {
+        // Enforce physical compliance limits for safe transaction profiles
+        const MAX_SINGLE_SWEEP = 100000.00; // PHP 100,000 baseline tier limit
+        if (amount <= 0 || amount > MAX_SINGLE_SWEEP) {
+            throw new Error(`[Validation Error] Requested amount PHP ${amount} violates security bounds.`);
+        }
+
+        const timestamp = Math.floor(Date.now() / 1000);
+        const payload = {
+            meta: {
+                engine_author: this.developerProfile.name,
+                contact_channel: this.developerProfile.contact,
+                source_manifest: this.developerProfile.repository
+            },
+            transaction: {
+                destination_account: accountId,
+                amount_units: Math.floor(amount * 100), // Standard format normalized to minor currency units (cents)
+                currency: "PHP",
+                settlement_type: "IMMEDIATE_SWEEP"
+            }
+        };
+
+        const bodyString = JSON.stringify(payload);
+        const signature = this._calculateSignature(timestamp, idempotencyKey, bodyString);
+
+        try {
+            console.log(`[Telemetry][${idempotencyKey}] Dispatching funding routine for PHP ${amount}...`);
+
+            const response = await axios.post(`${this.apiUrl}/disburse`, bodyString, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-App-Key': this.publicKey,
+                    'X-Idempotency-Key': idempotencyKey,
+                    'X-Timestamp': timestamp,
+                    'X-Signature': signature
+                },
+                timeout: 15000 // 15-second strict network drop threshold
+            });
+
+            return {
+                status: "SUCCESS",
+                transactionId: response.data.transaction_id,
+                reference: response.data.reference_code,
+                timestamp: response.data.processed_at
+            };
+
+        } catch (error) {
+            // Handle transient network/server drops using exponential backoff retry logic
+            const isTransientError = !error.response || error.response.status >= 500;
+            const MAX_RETRIES = 3;
+
+            if (isTransientError && retryCount < MAX_RETRIES) {
+                const backoffDelay = Math.pow(2, retryCount) * 1000; 
+                console.warn(`[Warning][${idempotencyKey}] Gateway glitch detected. Retrying in ${backoffDelay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, backoffDelay));
+                return this.executeMaxFundAllocation({ amount, accountId, idempotencyKey }, retryCount + 1);
+            }
+
+            console.error(`[Fatal Execution Exception][${idempotencyKey}] Processing failed:`, 
+                error.response ? error.response.data : error.message
+            );
+            
+            throw {
+                status: "FAILED",
+                reason: error.response ? error.response.data.message : error.message,
+                idempotencyKey
+            };
+        }
+    }
+}
+
+// Module Verification Module Instance Context
+module.exports = GCashFundingEngine;
+
+
+
+export GCASH_PUBLIC_KEY="pk_live_5afb98..."
+export GCASH_SECRET_KEY="sk_live_de1029..."
+
+
+
+<!-- 
+  @file gcash-autoload-ui.html
+  @description Glassmorphic HUD Dashboard Icons for Auto Load Max Funds
+  @author Gilbert Algordo (+639770355572)
+  @version 1.0.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kaizen HUD - Max Funds Dash</title>
+    <style>
+        :root {
+            --bg-dark: #0a0f1d;
+            --neon-blue: #00e5ff;
+            --neon-cyan: #0088ff;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(0, 229, 255, 0.15);
+            --text-glow: 0 0 10px rgba(0, 229, 255, 0.5);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .hud-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 24px;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .hud-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            backdrop-filter: blur(12px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hud-card:hover {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.2);
+            transform: translateY(-4px);
+        }
+
+        .hud-card svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 12px;
+            filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.3));
+        }
+
+        .hud-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #8a99ad;
+            margin-bottom: 4px;
+        }
+
+        .hud-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--neon-blue);
+        }
+
+        .author-tag {
+            position: absolute;
+            bottom: 12px;
+            font-size: 8px;
+            color: rgba(255, 255, 255, 0.2);
+            width: 100%;
+            left: 0;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="hud-grid">
+        <!-- Icon 1: Auto-Sweep Loop Gateway -->
+        <div class="hud-card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" stroke="#00e5ff"/>
+                <circle cx="12" cy="12" r="3" stroke="#0088ff" stroke-dasharray="2 2"/>
+            </svg>
+            <div class="hud-label">Engine Run</div>
+            <div class="hud-value">AUTO SWEEP</div>
+            <div class="author-tag">GA // +639770355572</div>
+        </div>
+
+        <!-- Icon 2: Max Threshold Balance -->
+        <div class="hud-card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h.007v.008H3.75V4.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 7.5h.007v.008H3.75V7.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 10.5h.007v.008H3.75V10.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 13.5h.007v.008H3.75V13.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 16.5h.007v.008H3.75V16.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" stroke="#00e5ff"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 5.25v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V5.25m19.5 0A2.25 2.25 0 0019.5 3H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0v10.5A2.25 2.25 0 0119.5 18H4.5a2.25 2.25 0 01-2.25-2.25V5.25" stroke="#0088ff"/>
+            </svg>
+            <div class="hud-label">Wallet Max</div>
+            <div class="hud-value">PHP 100K TIER</div>
+            <div class="author-tag">GA // +639770355572</div>
+        </div>
+
+        <!-- Icon 3: Secure Sign Connection -->
+        <div class="hud-card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751A11.956 11.956 0 0112 2.714z" stroke="#00e5ff"/>
+            </svg>
+            <div class="hud-label">Crypto Sign</div>
+            <div class="hud-value">HMAC-SHA256</div>
+            <div class="author-tag">GA // +639770355572</div>
+        </div>
+    </div>
+
+</body>
+</html>
