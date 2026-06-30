@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<style>
+  body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: sans-serif;
+  }
+
+  .glass-container {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    width: 400px;
+  }
+
+  .search-wrapper {
+    position: relative;
+    display: flex;
+    gap: 10px;
+  }
+
+  input {
+    flex-grow: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  /* Dropdown Settings Menu */
+  .dropdown {
+    position: relative;
+    display: inline-block;
+  }
+
+  .dropdown-content {
+    display: none;
+    position: absolute;
+    background: rgba(255, 255, 255, 0.9);
+    min-width: 160px;
+    box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+    border-radius: 8px;
+    margin-top: 5px;
+    padding: 10px;
+  }
+
+  .dropdown:hover .dropdown-content {
+    display: block;
+  }
+</style>
+</head>
+<body>
+
+<div class="glass-container">
+  <div class="search-wrapper">
+    <input type="text" placeholder="Search...">
+    <div class="dropdown">
+      <button>⚙️</button>
+      <div class="dropdown-content">
+        <p>Settings</p>
+        <p>History</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<style>
+  :root {
+    --glass: rgba(255, 255, 255, 0.15);
+    --glass-border: rgba(255, 255, 255, 0.3);
+  }
+
+  body {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Segoe UI', sans-serif;
+    color: white;
+  }
+
+  .glass-card {
+    background: var(--glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 20px;
+    width: 450px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+
+  .search-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  input {
+    flex-grow: 1;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
+    padding: 12px;
+    border-radius: 10px;
+    color: white;
+    outline: none;
+  }
+
+  .settings-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    color: white;
+  }
+
+  .dropdown-menu {
+    display: none;
+    position: absolute;
+    background: rgba(30, 30, 45, 0.9);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    margin-top: 10px;
+    padding: 10px;
+    width: 150px;
+  }
+
+  .dropdown-menu.show { display: block; }
+</style>
+</head>
+<body>
+
+<div class="glass-card">
+  <div class="search-row">
+    <input type="text" placeholder="Search...">
+    <button class="settings-btn" id="settingsTrigger">⚙️</button>
+  </div>
+  <div class="dropdown-menu" id="settingsMenu">
+    <p>Safe Search: On</p>
+    <p>Dark Mode: Active</p>
+  </div>
+</div>
+
+<script>
+  const trigger = document.getElementById('settingsTrigger');
+  const menu = document.getElementById('settingsMenu');
+
+  trigger.addEventListener('click', () => {
+    menu.classList.toggle('show');
+  });
+
+  // Close when clicking outside
+  window.addEventListener('click', (e) => {
+    if (!trigger.contains(e.target)) menu.classList.remove('show');
+  });
+</script>
+
+</body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<style>
+  :root {
+    --glass: rgba(255, 255, 255, 0.15);
+    --glass-border: rgba(255, 255, 255, 0.3);
+  }
+
+  body {
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Segoe UI', sans-serif;
+  }
+
+  .glass-card {
+    background: var(--glass);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--glass-border);
+    border-radius: 25px;
+    padding: 15px;
+    width: 500px;
+  }
+
+  .search-wrapper {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
+    border-radius: 15px;
+    padding: 10px;
+  }
+
+  input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: white;
+    padding: 5px 10px;
+    width: 100%;
+  }
+
+  .icon {
+    width: 24px;
+    height: 24px;
+    stroke: white;
+    stroke-width: 2;
+    fill: none;
+    cursor: pointer;
+  }
+
+  .dropdown {
+    position: relative;
+    margin-left: 10px;
+  }
+
+  .dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 40px;
+    right: 0;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    padding: 10px;
+    color: white;
+    min-width: 120px;
+  }
+
+  .dropdown-menu.show { display: block; }
+</style>
+</head>
+<body>
+
+<div class="glass-card">
+  <div class="search-wrapper">
+    <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    
+    <input type="text" placeholder="Search...">
+    
+    <div class="dropdown">
+      <svg class="icon" id="settingsTrigger" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <div class="dropdown-menu" id="settingsMenu">
+        <div>Account</div>
+        <div>Preferences</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('settingsTrigger').addEventListener('click', () => {
+    document.getElementById('settingsMenu').classList.toggle('show');
+  });
+</script>
+
+</body>
+</html>
