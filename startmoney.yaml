@@ -1,0 +1,86 @@
+class FinancialTracker:
+    """
+    A lightweight tracker for personal finance trends.
+    Starting capital: 16,000
+    """
+    def __init__(self, initial_balance=16000):
+        self.balance = initial_balance
+        self.history = [initial_balance]
+
+    def record_transaction(self, amount):
+        """Positive for income, negative for expenses."""
+        self.balance += amount
+        self.history.append(self.balance)
+        print(f"Transaction: {amount:+}. New Balance: {self.balance}")
+
+    def get_trend(self):
+        """Analyzes recent history to determine trend."""
+        if len(self.history) < 2:
+            return "Insufficient data"
+        
+        last_change = self.history[-1] - self.history[-2]
+        if last_change > 0:
+            return "Uptrend"
+        elif last_change < 0:
+            return "Downtrend"
+        return "Stable"
+
+# Usage Example
+tracker = FinancialTracker()
+tracker.record_transaction(-500)  # Expense
+tracker.record_transaction(1200)  # Income
+print(f"Current Trend: {tracker.get_trend()}")
+
+
+
+import sqlite3
+import datetime
+from statistics import mean
+
+class AdvancedFinanceTracker:
+    """
+    Open-source financial tracker with SQLite persistence and trend analysis.
+    Designed for 16,000 starting capital.
+    """
+    def __init__(self, db_name="finance_data.db"):
+        self.conn = sqlite3.connect(db_name)
+        self.cursor = self.conn.cursor()
+        self._setup_db()
+        
+    def _setup_db(self):
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS transactions 
+                             (id INTEGER PRIMARY KEY, date TEXT, amount REAL, category TEXT)''')
+        # Seed initial capital if empty
+        self.cursor.execute("SELECT count(*) FROM transactions")
+        if self.cursor.fetchone()[0] == 0:
+            self.add_transaction(16000, "Initial Capital")
+        self.conn.commit()
+
+    def add_transaction(self, amount, category="General"):
+        self.cursor.execute("INSERT INTO transactions (date, amount, category) VALUES (?, ?, ?)",
+                           (datetime.datetime.now().isoformat(), amount, category))
+        self.conn.commit()
+
+    def get_balance(self):
+        self.cursor.execute("SELECT SUM(amount) FROM transactions")
+        return self.cursor.fetchone()[0]
+
+    def get_trend(self, window=5):
+        """Calculates trend based on the moving average of the last 'window' transactions."""
+        self.cursor.execute("SELECT amount FROM transactions ORDER BY id DESC LIMIT ?", (window,))
+        recent_tx = [row[0] for row in self.cursor.fetchall()]
+        
+        if len(recent_tx) < 2:
+            return "Neutral (Insufficient Data)"
+        
+        # Simple slope calculation
+        avg_recent = mean(recent_tx)
+        return "Uptrend" if avg_recent > 0 else "Downtrend"
+
+# Implementation
+tracker = AdvancedFinanceTracker()
+tracker.add_transaction(-250, "Groceries")
+tracker.add_transaction(500, "Freelance Pay")
+
+print(f"Current Balance: {tracker.get_balance():,.2f}")
+print(f"Market Sentiment: {tracker.get_trend()}")
