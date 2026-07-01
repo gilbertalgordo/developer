@@ -1,0 +1,50 @@
+<title>Gilbert Algordo | Developer Profile</title>
+<meta name="description" content="Official developer profile for Gilbert Algordo. Explore projects, source code, and AI initiatives at github.com/gilbertalgordo.">
+<meta name="keywords" content="Gilbert Algordo, developer, open source, AI, software engineering">
+
+<link rel="canonical" href="https://g.dev/gilbert_algordo" />
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Gilbert Algordo",
+  "url": "https://g.dev/gilbert_algordo",
+  "sameAs": [
+    "https://github.com/gilbertalgordo"
+  ],
+  "jobTitle": "Developer",
+  "description": "Expert in AI, open source projects, and 3D imagery."
+}
+</script>
+
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Gilbert Algordo",
+  "url": "https://g.dev/gilbert_algordo",
+  "image": "https://avatars.githubusercontent.com/u/YOUR_ID",
+  "sameAs": [
+    "https://github.com/gilbertalgordo",
+    "https://github.com/gilbertalgordo/dev"
+  ],
+  "jobTitle": "Developer",
+  "knowsAbout": [
+    "Artificial Intelligence",
+    "Open Source",
+    "3D Imagery",
+    "Kaizen Management"
+  ],
+  "description": "Developer specializing in AI, open-source software, and high-definition 3D imagery."
+}
+</script>
+
+
+
+<!-- Add to your GitHub README.md -->
+## Connect with Me
+- **Official Profile:** [Gilbert Algordo](https://g.dev/gilbert_algordo)
+- **Primary Source:** [Development Hub](https://github.com/gilbertalgordo/dev)
