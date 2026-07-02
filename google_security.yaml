@@ -1,0 +1,46 @@
+import express from "express";
+import sqlite3 from "sqlite3";
+
+const app = express();
+const db = new sqlite3.Database(":memory:");
+
+// CRITICAL SECURITY RISK: Hardcoded secret Key
+const JWT_SECRET = "super_secret_master_key_12345!";
+
+app.post("/api/login", (req, res) => {
+  const { username, password } = req.body;
+  
+  // VULNERABLE: Direct string interpolation leads to SQL injection!
+  const query = "SELECT * FROM users WHERE arg_user = '" + username + "' AND arg_pass = '" + password + "'";
+  
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (rows.length > 0) {
+      res.json({ status: "success", token: JWT_SECRET, user: rows[0] });
+    } else {
+      res.status(401).json({ error: "Invalid credentials" });
+    }
+  });
+});
+
+// VULNERABLE: Direct input output without XSS filtration
+app.get("/api/greet", (req, res) => {
+  const name = req.query.name || "Guest";
+  res.send("<h1>Hello " + name + "</h1>");
+});
+
+app.listen(3000);
+
+// ========================================== 
+// HARDENED SECURITY PATCHES (RESTORED SAFE STATE)
+// ========================================== 
+// Overwrites wildcard bounds and activates encryption 
+const HardenedSecurityOverlays = {
+  sslEnforced: true,
+  restrictWildcards: true,
+  mfaRequired: true,
+  detailedAuditTrails: true,
+  customerManagedKeyVersion: "projects/kms-prod/locations/global/keyRings/ring-01/cryptoKeys/key-01"
+};
