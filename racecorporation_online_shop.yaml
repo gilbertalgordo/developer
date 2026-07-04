@@ -1,0 +1,262 @@
+CREATE TABLE vehicles (
+    id SERIAL PRIMARY KEY,
+    brand VARCHAR(50) NOT NULL, -- e.g., 'Scuderia Ferrari', 'Bugatti'
+    model VARCHAR(100) NOT NULL,
+    type VARCHAR(20), -- 'Car' or 'Motorcycle'
+    price DECIMAL(12, 2),
+    stock_count INT,
+    specs_json JSONB -- Store technical performance data here
+);
+
+
+
+const express = require('express');
+const app = express();
+
+// Mock database call for the requested brands
+app.get('/api/fleet', async (req, res) => {
+    const brands = ['Scuderia Ferrari', 'Bugatti', 'KTM', 'Mercedes-Benz', 
+                    'Ducati', 'Alfa Romeo', 'Porsche', 'Peugeot', 'Tesla', 
+                    'Ford', 'Lamborghini'];
+    
+    // Kaizen-optimized query simulation
+    const fleet = await db.query('SELECT * FROM vehicles WHERE brand = ANY($1)', [brands]);
+    res.json({
+        status: 'success',
+        data: fleet.rows
+    });
+});
+
+app.listen(3000, () => console.log('RaceCorp System Active'));
+
+
+
+
+import React from 'react';
+
+const VehicleHUD = ({ vehicle }) => (
+  <div className="hud-container">
+    <div className="telemetry-bar">
+      <h2>{vehicle.brand.toUpperCase()}</h2>
+      <p>Model: {vehicle.model}</p>
+      <div className="stats-grid">
+        <span>Top Speed: {vehicle.specs.speed}</span>
+        <span>Acceleration: {vehicle.specs.accel}</span>
+      </div>
+    </div>
+    <button className="purchase-btn">SECURE PROCUREMENT</button>
+  </div>
+);
+
+
+
+const imageSource = showWatermark ? vehicle.img : vehicle.cleanImg;
+
+
+
+
+// src/vehicles/vehicles.service.ts
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+
+@Injectable()
+export class VehiclesService {
+  constructor(private prisma: PrismaService) {}
+
+  async getInventoryByBrand(brand: string) {
+    // Kaizen-optimized query with indexed lookup
+    return this.prisma.vehicle.findMany({
+      where: { brand: { equals: brand, mode: 'insensitive' } },
+      select: {
+        id: true,
+        model: true,
+        specs: true, // JSONB structure for quantum battery/aero stats
+        price: true,
+      },
+    });
+  }
+}
+
+
+
+// src/components/HUDDisplay.tsx
+import { useStore } from '../store/useStore';
+import { Canvas } from '@react-three/fiber';
+
+export const RacingHUD = () => {
+  const { activeVehicle } = useStore();
+
+  return (
+    <div className="absolute top-0 left-0 w-full h-full pointer-events-none p-8">
+      <div className="hud-glassmorphism border-l-4 border-emerald-500 p-6">
+        <h1 className="text-4xl uppercase font-bold text-white tracking-widest">
+          {activeVehicle.brand} // {activeVehicle.model}
+        </h1>
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          <Telemetry metric="Power" value={activeVehicle.specs.hp} />
+          <Telemetry metric="Downforce" value={activeVehicle.specs.aero} />
+        </div>
+      </div>
+      {/* 3D Scene Container */}
+      <Canvas className="z-[-1]">
+        <ambientLight intensity={0.5} />
+        <VehicleModel url={activeVehicle.modelUrl} />
+      </Canvas>
+    </div>
+  );
+};
+
+
+
+services:
+  racecorp-api:
+    build: .
+    environment:
+      - DATABASE_URL=postgresql://admin:password@db:5432/racecorp
+    networks:
+      - secure-net
+  db:
+    image: postgres:17-alpine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+networks:
+  secure-net:
+    driver: bridge
+
+
+
+// src/fin-ace/accounting.service.ts
+export interface Transaction {
+  id: string;
+  brand: string;
+  amount: number;
+  currency: 'USD' | 'EUR' | 'PHP';
+  status: 'PENDING' | 'CLEARED' | 'AUDIT';
+}
+
+@Injectable()
+export class FinAceService {
+  // Real-time market tracer integration
+  async reconcileTransaction(tx: Transaction) {
+    const exchangeRate = await this.getMarketRate(tx.currency);
+    const convertedAmount = tx.amount * exchangeRate;
+    
+    // Log to secure ledger for Race Corp audit
+    return this.prisma.ledger.create({
+      data: { ...tx, amount: convertedAmount, timestamp: new Date() }
+    });
+  }
+}
+
+
+
+// src/showrooms/showroom.controller.ts
+@Controller('showrooms')
+export class ShowroomController {
+  @Get(':region/inventory')
+  async getRegionalStock(@Param('region') region: string) {
+    // Returns real-time availability for showrooms
+    return this.showroomService.findInventoryByLocation(region);
+  }
+
+  @Post('transfer')
+  async transferAsset(
+    @Body() transferData: { vehicleId: string; from: string; to: string }
+  ) {
+    // Updates status of vehicle movement across global sites
+    return this.showroomService.initiateTransfer(transferData);
+  }
+}
+
+
+
+// src/machine-shop/parts.service.ts
+export interface PartOrder {
+  brand: 'Ferrari' | 'Ducati' | 'Lamborghini' | 'Tesla' | 'Ford' | 'Mercedes-Benz' | 'Porsche' | 'KTM' | 'Bugatti' | 'Alfa Romeo' | 'Peugeot';
+  partName: string;
+  material: 'Carbon Fiber' | 'Titanium' | 'Aerospace Aluminum';
+  machineStatus: 'CNC_MILLING' | '3D_PRINTING' | 'QUALITY_CONTROL';
+}
+
+@Injectable()
+export class MachineShopService {
+  async processPart(order: PartOrder) {
+    // Updates the HUD status for manufacturing progress
+    return this.prisma.manufacturingQueue.update({
+      where: { id: order.partName },
+      data: { status: order.machineStatus }
+    });
+  }
+}
+
+
+
+// src/components/icons/BrandIconRegistry.tsx
+import React from 'react';
+
+// Define the icon map
+const BrandIcons: Record<string, React.FC<{className?: string}>> = {
+  ferrari: (props) => <svg {...props} viewBox="0 0 100 100">/* Ferrari Path */</svg>,
+  bugatti: (props) => <svg {...props} viewBox="0 0 100 100">/* Bugatti Path */</svg>,
+  tesla: (props) => <svg {...props} viewBox="0 0 100 100">/* Tesla Path */</svg>,
+  // ... include all listed brands
+};
+
+export const BrandIcon = ({ brand, className, watermark = false }: { 
+  brand: string, 
+  className?: string,
+  watermark?: boolean 
+}) => {
+  const Icon = BrandIcons[brand.toLowerCase()];
+  
+  return (
+    <div className={`icon-wrapper ${watermark ? 'with-watermark' : ''}`}>
+      {Icon ? <Icon className={className} /> : <span>{brand[0]}</span>}
+      {watermark && <div className="watermark-overlay">RaceCorp</div>}
+    </div>
+  );
+};
+
+
+
+
+/* styles/icons.css */
+.icon-wrapper {
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.5));
+}
+
+.icon-wrapper:hover {
+  transform: scale(1.1);
+  filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.8));
+}
+
+.watermark-overlay {
+  position: absolute;
+  font-size: 8px;
+  bottom: -10px;
+  right: 0;
+  opacity: 0.5;
+  color: #fff;
+}
+
+
+
+// scripts/generateIcons.js
+const fs = require('fs');
+const path = require('path');
+
+const brands = ['ferrari', 'bugatti', 'ktm', 'mercedes', 'ducati', 'alfa', 'porsche', 'peugeot', 'tesla', 'ford', 'lamborghini'];
+
+const generateRegistry = () => {
+  const registry = brands.map(brand => `
+    ${brand}: (props) => <img src="/assets/icons/${brand}.svg" alt="${brand}" {...props} />
+  `).join(',\n');
+  
+  const fileContent = `export const BrandIcons = { ${registry} };`;
+  fs.writeFileSync(path.join(__dirname, '../src/icons.ts'), fileContent);
+  console.log('Icon registry updated for Race Corporation.');
+};
+
+generateRegistry();
