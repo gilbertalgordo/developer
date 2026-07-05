@@ -58,3 +58,12 @@ def check_updates():
 
 if __name__ == "__main__":
     check_updates()
+
+
+
+{
+  "version": "1.2.0",
+  "model": "gpt-5.5",
+  "release_notes": "Performance improvements and bug fixes.",
+  "download_url": "https://your-server.example/download"
+}
