@@ -1,0 +1,81 @@
+# Redirect all HTTP traffic (port 80) from unauthenticated users to the portal
+iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j DNAT --to-destination 192.168.1.1:80
+
+
+
+import qrcode
+
+# Format: WIFI:S:<SSID>;T:<WPA|WEP|nopass>;P:<PASSWORD>;;
+ssid = "MyOfficeWifi"
+password = "supersecretpassword"
+data = f"WIFI:S:{ssid};T:WPA;P:{password};;"
+
+img = qrcode.make(data)
+img.save("wifi_connect.png")
+
+
+
+#include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
+
+void setup() {
+    Serial.begin(115200);
+    WiFiManager wm;
+
+    // Advanced: Add custom styling to the portal to match your branding
+    wm.setCustomHeadElement("<style>body{background-color:#000; color:#0f0;} input{background:#333; color:#fff;}</style>");
+    
+    // Advanced: Force the portal to start even if credentials exist (e.g., on a button press)
+    // wm.resetSettings(); 
+
+    // Auto-connect with timeout: Portal closes after 3 minutes if no input
+    wm.setConfigPortalTimeout(180);
+
+    if (!wm.autoConnect("RaceCorp_Config", "password123")) {
+        Serial.println("Failed to connect, restarting...");
+        ESP.restart();
+    }
+    
+    Serial.println("Connected to local network!");
+}
+
+
+
+val suggestion = WifiNetworkSuggestion.Builder()
+    .setSsid("Target_Network_SSID")
+    .setWpa2Passphrase("password")
+    .setIsAppInteractionRequired(false) // Allows for smoother automation
+    .build()
+
+val wifiManager = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
+val status = wifiManager.addNetworkSuggestions(listOf(suggestion))
+
+if (status == WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS) {
+    // System will now attempt to connect when in range
+}
+
+
+
+
+<svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Wi-Fi Signal -->
+  <path d="M12 20V20.01M8.5 16.5C9.78125 15.2188 11.4531 14.5 12 14.5C12.5469 14.5 14.2188 15.2188 15.5 16.5M5.5 13.5C8.03125 10.9688 11.375 10.5 12 10.5C12.625 10.5 15.9688 10.9688 18.5 13.5" 
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Automation Modifier (Sparkle) -->
+  <path d="M18 5L19 7L21 8L19 9L18 11L17 9L15 8L17 7L18 5Z" 
+        fill="currentColor" stroke="currentColor" stroke-width="0.5"/>
+  
+  <title>Automatic Wi-Fi Configuration</title>
+</svg>
+
+
+
+.hud-icon-container {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+    display: inline-block;
+    color: #00ffcc; /* Your HUD accent color */
+}
