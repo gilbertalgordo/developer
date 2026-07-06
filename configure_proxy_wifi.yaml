@@ -1,0 +1,76 @@
+function FindProxyForURL(url, host) {
+    // Bypass proxy for local network and specific domains
+    if (isPlainHostName(host) || 
+        dnsDomainIs(host, ".local") || 
+        dnsDomainIs(host, ".yourcompany.com")) {
+        return "DIRECT";
+    }
+
+    // Use a primary proxy, fallback to secondary, or go direct
+    return "PROXY proxy.example.com:8080; PROXY backup.example.com:8080; DIRECT";
+}
+
+
+
+
+# Sets the AutoConfigURL to a specific PAC file
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v AutoConfigURL /t REG_SZ /d "http://yourserver.com/proxy.pac" /f
+
+
+
+function FindProxyForURL(url, host) {
+    // 1. PERFORMANCE: Bypass proxy for simple/local hostnames
+    if (isPlainHostName(host) || dnsDomainIs(host, ".local")) {
+        return "DIRECT";
+    }
+
+    // 2. PERFORMANCE: Bypass for internal/intranet domains
+    if (dnsDomainIs(host, ".racecorp.com") || dnsDomainIs(host, ".internal")) {
+        return "DIRECT";
+    }
+
+    // 3. SECURITY/SPECIFICITY: Force specific proxy for sensitive traffic
+    if (shExpMatch(host, "*.finance.gov") || shExpMatch(host, "*.bank.com")) {
+        return "PROXY secure-gateway.racecorp.com:8080";
+    }
+
+    // 4. LOAD BALANCING & FAILOVER: 
+    // Try primary, then secondary, then fallback to DIRECT if all fail
+    return "PROXY primary-proxy.racecorp.com:8080; PROXY backup-proxy.racecorp.com:8080; DIRECT";
+}
+
+
+
+
+
+<!-- Proxy Auto-Config Icon: Symbolizing path-routing and network logic -->
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect x="10" y="10" width="80" height="80" rx="15" fill="#1a1a1a" stroke="#00d4ff" stroke-width="2" filter="url(#glow)"/>
+  <path d="M30 50 L50 30 L70 50 M50 30 L50 70" fill="none" stroke="#00d4ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="50" cy="50" r="10" fill="none" stroke="#ffffff" stroke-width="4"/>
+</svg>
+
+<!-- Network Configuration HUD Icon: Symbolizing automated Wi-Fi connectivity -->
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <path d="M20 60 A40 40 0 0 1 80 60" fill="none" stroke="#00d4ff" stroke-width="8" stroke-linecap="round"/>
+  <path d="M30 50 A28 28 0 0 1 70 50" fill="none" stroke="#00d4ff" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="50" cy="75" r="8" fill="#ffffff"/>
+  <line x1="50" y1="20" x2="50" y2="40" stroke="#00d4ff" stroke-width="4"/>
+</svg>
+
+
+
+#!/bin/bash
+# Automate adding the "Certified CEO" watermark to icons
+for icon in icons/*.svg; do
+    sed -i '/<\/svg>/i <text x="5" y="95" font-family="Arial" font-size="8" fill="#555">CERTIFIED CEO</text>' "$icon"
+done
