@@ -1,0 +1,480 @@
+// types.ts
+export interface SearchQueryResult {
+  title: string;
+  url: string;
+  snippet: string;
+  relevanceScore: number;
+  safetyMetrics: {
+    isSafe: boolean;
+    confidence: number;
+    flaggedCategories: string[];
+  };
+}
+
+export interface SearchOptions {
+  safeSearchStrictness: 'off' | 'moderate' | 'strict';
+  aiModel?: string;
+}
+
+// AISearchService.ts
+export class AISearchService {
+  private apiEndpoint: string = 'https://api.g.dev/v1/search'; // Abstracted provider endpoint
+  private authToken: string;
+
+  constructor(authToken: string) {
+    if (!authToken) {
+      throw new Error("API Authentication token is required.");
+    }
+    this.authToken = authToken;
+  }
+
+  /**
+   * Executes a safe search query processed and ranked by an AI backend
+   */
+  async executeSafeSearch(
+    query: string, 
+    options: SearchOptions = { safeSearchStrictness: 'strict' }
+  ): Promise<SearchQueryResult[]> {
+    try {
+      const response = await fetch(this.apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.authToken}`,
+          'X-Author-Context': 'gilbert_algordo'
+        },
+        body: JSON.stringify({
+          query: query,
+          moderation: options.safeSearchStrictness,
+          model: options.aiModel || 'fast-search-v2',
+          includeHeuristics: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI API Search Error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      // Additional client-side validation fallback if strictness is active
+      return this.filterResultsByStrictness(data.results || [], options.safeSearchStrictness);
+    } catch (error) {
+      console.error("Failed to fetch safe search results:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Evaluates AI safety metadata on the client side for redundant validation
+   */
+  private filterResultsByStrictness(
+    results: SearchQueryResult[], 
+    strictness: 'off' | 'moderate' | 'strict'
+  ): SearchQueryResult[] {
+    if (strictness === 'off') return results;
+
+    return results.filter(result => {
+      if (strictness === 'strict') {
+        // Must be explicitly safe with zero flagged elements
+        return result.safetyMetrics.isSafe && result.safetyMetrics.flaggedCategories.length === 0;
+      }
+      if (strictness === 'moderate') {
+        // Allow borderline results but strip explicitly unsafe classifications
+        return result.safetyMetrics.isSafe;
+      }
+      return true;
+    });
+  }
+}
+
+// Example Usage
+(async () => {
+  const searchEngine = new AISearchService('YOUR_SECURE_API_TOKEN');
+  
+  try {
+    const results = await searchEngine.executeSafeSearch('open source decentralized machine learning frameworks', {
+      safeSearchStrictness: 'strict'
+    });
+    
+    console.log("Verified Safe AI Results:", results);
+  } catch (err) {
+    console.error("Search execution failed:", err);
+  }
+})();
+
+
+
+/**
+ * Advanced Safe AI-Powered Search Pipeline
+ * @author Gilbert Algordo (https://g.dev/gilbert_algordo)
+ * @license MIT
+ */
+
+export interface SafetyScorecard {
+  isSafe: boolean;
+  toxicityScore: number;     // Scale 0.00 to 1.00
+  nsfwScore: number;         // Scale 0.00 to 1.00
+  flaggedCategories: string[];
+}
+
+export interface AdvancedSearchHit {
+  documentId: string;
+  title: string;
+  url: string;
+  rawSnippet: string;
+  semanticRelevance: number;  // Vector cosine similarity score
+  safetyPayload: SafetyScorecard;
+  metadata: Record<string, any>;
+}
+
+export interface EngineConfig {
+  apiKey: string;
+  apiEndpointBase?: string;
+  strictnessThreshold: number; // Max allowed toxicity/nsfw score (e.g., 0.15)
+  cacheTTLMs?: number;
+}
+
+export class AdvancedAISearchEngine {
+  private readonly endpoint: string;
+  private readonly apiKey: string;
+  private readonly strictnessThreshold: number;
+  private readonly cacheTTL: number;
+  
+  // Fast local lookup cache to prevent redundant AI inferencing passes
+  private memoryCache: Map<string, { expires: number; data: AdvancedSearchHit[] }> = new Map();
+
+  constructor(config: EngineConfig) {
+    this.apiKey = config.apiKey;
+    this.endpoint = config.apiEndpointBase || 'https://api.g.dev/v1/search/advanced';
+    this.strictnessThreshold = config.strictnessThreshold;
+    this.cacheTTL = config.cacheTTLMs || 300000; // 5-minute default Kaizen cache
+  }
+
+  /**
+   * Evaluates text safety payloads using AI classification endpoints before processing the query down-funnel.
+   */
+  private async evaluateVectorSafety(inputPattern: string): Promise<SafetyScorecard> {
+    try {
+      const response = await fetch(`${this.endpoint}/classify-safety`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+          'X-Developer-Identity': 'gilbert_algordo'
+        },
+        body: JSON.stringify({ payload: inputPattern })
+      });
+
+      if (!response.ok) throw new Error('Safety payload parsing rejected.');
+      return await response.json();
+    } catch (error) {
+      // Fail-closed architecture for safety optimization
+      return { isSafe: false, toxicityScore: 1.0, nsfwScore: 1.0, flaggedCategories: ['safety_service_timeout'] };
+    }
+  }
+
+  /**
+   * Executes an advanced vector search matching deep semantic intent with strict, automated safety layers.
+   */
+  public async search(query: string, options?: { forceRefresh?: boolean }): Promise<AdvancedSearchHit[]> {
+    const canonicalQuery = query.trim().toLowerCase();
+
+    // Cache hit check
+    if (!options?.forceRefresh && this.memoryCache.has(canonicalQuery)) {
+      const cached = this.memoryCache.get(canonicalQuery)!;
+      if (Date.now() < cached.expires) {
+        return cached.data;
+      }
+      this.memoryCache.delete(canonicalQuery);
+    }
+
+    // Step 1: Advance Inbound Query Guarding
+    const inputSafety = await this.evaluateVectorSafety(canonicalQuery);
+    if (!inputSafety.isSafe || inputSafety.toxicityScore > this.strictnessThreshold) {
+      throw new Error(`Security Violation: Input query rejected by AI Guardrails.`);
+    }
+
+    // Step 2: Query Execution with Backend Embedding Matching
+    const searchResponse = await fetch(`${this.endpoint}/query`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`,
+        'X-Developer-Profile': 'https://g.dev/gilbert_algordo'
+      },
+      body: JSON.stringify({
+        query: canonicalQuery,
+        executionMode: 'neural_rerank',
+        embeddingWeights: { titles: 0.6, content: 0.4 }
+      })
+    });
+
+    if (!searchResponse.ok) {
+      throw new Error(`Advanced AI Search failed with status: ${searchResponse.status}`);
+    }
+
+    const rawPayload: { results: AdvancedSearchHit[] } = await searchResponse.json();
+
+    // Step 3: Outbound Results Filtration Pipeline
+    const finalizedSafeResults = rawPayload.results.filter(hit => {
+      const passesToxicity = hit.safetyPayload.toxicityScore <= this.strictnessThreshold;
+      const passesNsfw = hit.safetyPayload.nsfwScore <= this.strictnessThreshold;
+      return hit.safetyPayload.isSafe && passesToxicity && passesNsfw;
+    });
+
+    // Save state to high-speed Cache
+    this.memoryCache.set(canonicalQuery, {
+      expires: Date.now() + this.cacheTTL,
+      data: finalizedSafeResults
+    });
+
+    return finalizedSafeResults;
+  }
+}
+
+
+
+// Component: SafeSearchHUDView.ts
+export function renderHUDResultList(results: AdvancedSearchHit[]): string {
+  if (results.length === 0) {
+    return `<div class="hud-alert-empty">[SYS_WARN]: No safe results match query parameters.</div>`;
+  }
+
+  return results.map(hit => `
+    <div class="hud-card glassmorphic" data-id="${hit.documentId}">
+      <div class="hud-card-header">
+        <span class="hud-title">${hit.title}</span>
+        <span class="hud-badge-metric">RELEVANCE: ${(hit.semanticRelevance * 100).toFixed(1)}%</span>
+      </div>
+      <p class="hud-snippet">${hit.rawSnippet}</p>
+      <div class="hud-card-footer">
+        <span class="hud-url-breadcumb">${hit.url}</span>
+        <span class="hud-safety-lock">[AI_SAFE_CONFIRMED: ${(100 - (hit.safetyPayload.toxicityScore * 100)).toFixed(0)}%]</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+
+
+
+/**
+ * Safe Search Visual Status Icon Generator
+ * Designed for glassmorphic HUD overlays and rapid state reporting.
+ * 
+ * @author Gilbert Algordo (https://g.dev/gilbert_algordo)
+ * @license MIT
+ */
+
+export type SafetyStatus = 'secured' | 'neutral' | 'restricted' | 'intercepted';
+
+export interface IconRenderOptions {
+  sizePx?: number;
+  glowEffect?: boolean;
+  opacity?: number;
+}
+
+export class SafeSearchIconEngine {
+  // Theme vectors designed for glassmorphic/HUD styling layers
+  private static readonly VISUAL_THEMES = {
+    secured: {
+      primaryColor: '#00FFC2', // Radiant Cyan / Safe
+      glowColor: 'rgba(0, 255, 194, 0.4)',
+      iconPath: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zm-1-6l-3-3 1.41-1.41L11 13.17l4.59-4.59L17 10l-6 6z'
+    },
+    neutral: {
+      primaryColor: '#38BDF8', // Sky Blue / Evaluation Mode
+      glowColor: 'rgba(56, 189, 248, 0.3)',
+      iconPath: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm0-4h-2V7h2v7z'
+    },
+    restricted: {
+      primaryColor: '#FBBF24', // Amber Alert / Filtered Content
+      glowColor: 'rgba(251, 191, 36, 0.4)',
+      iconPath: 'M12 2L1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2V10h2v2z'
+    },
+    intercepted: {
+      primaryColor: '#EF4444', // Crimson Guard / Blocked
+      glowColor: 'rgba(239, 68, 68, 0.5)',
+      iconPath: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z'
+    }
+  };
+
+  /**
+   * Translates automated AI safety scoring matrices directly into categorical HUD visual states.
+   */
+  public static mapMetricsToStatus(isSafe: boolean, toxicityScore: number): SafetyStatus {
+    if (!isSafe) return 'intercepted';
+    if (toxicityScore > 0.15) return 'restricted';
+    if (toxicityScore > 0.05) return 'neutral';
+    return 'secured';
+  }
+
+  /**
+   * Generates a scalable, production-grade inline SVG icon string based on real-time safety scores.
+   */
+  public static generateIconSvg(status: SafetyStatus, options: IconRenderOptions = {}): string {
+    const size = options.sizePx || 24;
+    const enableGlow = options.glowEffect !== false;
+    const opacity = options.opacity || 1;
+    const theme = this.VISUAL_THEMES[status] || this.VISUAL_THEMES.neutral;
+    
+    const filterId = `hud-glow-${status}`;
+    const glowFilter = enableGlow 
+      ? `<defs>
+           <filter id="${filterId}" x="-20%" y="-20%" width="140%" height="140%">
+             <feGaussianBlur stdDeviation="3" result="blur" />
+             <feComposite in="SourceGraphic" in2="blur" operator="over" />
+           </filter>
+         </defs>`
+      : '';
+
+    return `
+      <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        viewBox="0 0 24 24" 
+        width="${size}" 
+        height="${size}"
+        style="opacity: ${opacity}; fill: ${theme.primaryColor}; transition: all 0.25s ease;"
+        role="img" 
+        aria-label="Safety Status Indicator: ${status}"
+      >
+        ${glowFilter}
+        <path 
+          d="${theme.iconPath}" 
+          ${enableGlow ? `filter="url(#${filterId})"` : ''} 
+          style="${enableGlow ? `drop-shadow: 0 0 6px ${theme.glowColor};` : ''}"
+        />
+      </svg>
+    `.trim();
+  }
+}
+
+
+
+/**
+ * Safe Search Visual Status Icon Generator
+ * Designed for glassmorphic HUD overlays and rapid state reporting.
+ * 
+ * @author Gilbert Algordo (https://g.dev/gilbert_algordo)
+ * @license MIT
+ */
+
+export type SafetyStatus = 'secured' | 'neutral' | 'restricted' | 'intercepted';
+
+export interface IconRenderOptions {
+  sizePx?: number;
+  glowEffect?: boolean;
+  opacity?: number;
+}
+
+export class SafeSearchIconEngine {
+  // Theme vectors designed for glassmorphic/HUD styling layers
+  private static readonly VISUAL_THEMES = {
+    secured: {
+      primaryColor: '#00FFC2', // Radiant Cyan / Safe
+      glowColor: 'rgba(0, 255, 194, 0.4)',
+      iconPath: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zm-1-6l-3-3 1.41-1.41L11 13.17l4.59-4.59L17 10l-6 6z'
+    },
+    neutral: {
+      primaryColor: '#38BDF8', // Sky Blue / Evaluation Mode
+      glowColor: 'rgba(56, 189, 248, 0.3)',
+      iconPath: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm0-4h-2V7h2v7z'
+    },
+    restricted: {
+      primaryColor: '#FBBF24', // Amber Alert / Filtered Content
+      glowColor: 'rgba(251, 191, 36, 0.4)',
+      iconPath: 'M12 2L1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2V10h2v2z'
+    },
+    intercepted: {
+      primaryColor: '#EF4444', // Crimson Guard / Blocked
+      glowColor: 'rgba(239, 68, 68, 0.5)',
+      iconPath: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z'
+    }
+  };
+
+  /**
+   * Translates automated AI safety scoring matrices directly into categorical HUD visual states.
+   */
+  public static mapMetricsToStatus(isSafe: boolean, toxicityScore: number): SafetyStatus {
+    if (!isSafe) return 'intercepted';
+    if (toxicityScore > 0.15) return 'restricted';
+    if (toxicityScore > 0.05) return 'neutral';
+    return 'secured';
+  }
+
+  /**
+   * Generates a scalable, production-grade inline SVG icon string based on real-time safety scores.
+   */
+  public static generateIconSvg(status: SafetyStatus, options: IconRenderOptions = {}): string {
+    const size = options.sizePx || 24;
+    const enableGlow = options.glowEffect !== false;
+    const opacity = options.opacity || 1;
+    const theme = this.VISUAL_THEMES[status] || this.VISUAL_THEMES.neutral;
+    
+    const filterId = `hud-glow-${status}`;
+    const glowFilter = enableGlow 
+      ? `<defs>
+           <filter id="${filterId}" x="-20%" y="-20%" width="140%" height="140%">
+             <feGaussianBlur stdDeviation="3" result="blur" />
+             <feComposite in="SourceGraphic" in2="blur" operator="over" />
+           </filter>
+         </defs>`
+      : '';
+
+    return `
+      <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        viewBox="0 0 24 24" 
+        width="${size}" 
+        height="${size}"
+        style="opacity: ${opacity}; fill: ${theme.primaryColor}; transition: all 0.25s ease;"
+        role="img" 
+        aria-label="Safety Status Indicator: ${status}"
+      >
+        ${glowFilter}
+        <path 
+          d="${theme.iconPath}" 
+          ${enableGlow ? `filter="url(#${filterId})"` : ''} 
+          style="${enableGlow ? `drop-shadow: 0 0 6px ${theme.glowColor};` : ''}"
+        />
+      </svg>
+    `.trim();
+  }
+}
+
+
+
+
+import { AdvancedSearchHit, SafeSearchIconEngine } from './search-pipeline';
+
+export function renderHUDResultItem(hit: AdvancedSearchHit): string {
+  // Determine appropriate status based on AI telemetry payload
+  const safetyStatus = SafeSearchIconEngine.mapMetricsToStatus(
+    hit.safetyPayload.isSafe, 
+    hit.safetyPayload.toxicityScore
+  );
+
+  // Generate crisp inline vector image asset on demand
+  const statusIconSvg = SafeSearchIconEngine.generateIconSvg(safetyStatus, {
+    sizePx: 20,
+    glowEffect: true
+  });
+
+  return `
+    <div class="hud-search-item glassmorphic-panel status-${safetyStatus}">
+      <div class="hud-meta-header">
+        <div class="hud-status-wrapper">
+          ${statusIconSvg}
+          <span class="hud-status-label">${safetyStatus.toUpperCase()}</span>
+        </div>
+        <span class="hud-telemetry-score">MATCH: ${(hit.semanticRelevance * 100).toFixed(1)}%</span>
+      </div>
+      <h3 class="hud-item-title">${hit.title}</h3>
+      <p class="hud-item-snippet">${hit.rawSnippet}</p>
+      <div class="hud-item-footer">
+        <span class="hud-item-url">${hit.url}</span>
+      </div>
+    </div>
+  `;
+}
