@@ -1,0 +1,65 @@
+class RabbitHealthCalculator:
+    """
+    Calculates appropriate daily pellet portions for rabbits.
+    Reference: Most veterinarians recommend approximately 1/4 cup of 
+    high-fiber, timothy-based pellets per 4-5 lbs of body weight.
+    """
+    
+    def __init__(self, rabbit_name, weight_lbs):
+        self.rabbit_name = rabbit_name
+        self.weight_lbs = weight_lbs
+
+    def calculate_daily_pellets(self):
+        # Recommended: 1/4 cup per 4-5 lbs
+        # Using 0.05 cup per lb as a standard baseline
+        pellets_per_lb = 0.05
+        daily_cup_amount = self.weight_lbs * pellets_per_lb
+        return round(daily_cup_amount, 2)
+
+    def display_plan(self):
+        amount = self.calculate_daily_pellets()
+        print(f"--- Healthy Care Plan for {self.rabbit_name} ---")
+        print(f"Weight: {self.weight_lbs} lbs")
+        print(f"Daily Pellet Allowance: {amount} cups")
+        print("Note: Provide unlimited Timothy hay and fresh water daily.")
+        print("-----------------------------------------------")
+
+# Example usage:
+my_rabbit = RabbitHealthCalculator("Bunny", 5.0)
+my_rabbit.display_plan()
+
+
+
+class AdvancedRabbitNutritionAI:
+    """
+    Advanced Active AI for tracking and optimizing rabbit pellet intake 
+    based on health metrics and weight-based requirements.
+    """
+    
+    def __init__(self, rabbit_name, weight_kg):
+        self.rabbit_name = rabbit_name
+        self.weight_kg = weight_kg
+        self.daily_pellet_target = weight_kg * 0.025  # Standard 2.5% body weight intake
+        self.intake_log = []
+
+    def log_daily_intake(self, amount_grams):
+        """Records intake and evaluates against target."""
+        status = "Optimal" if abs(amount_grams - self.daily_pellet_target) < 5 else "Needs Adjustment"
+        self.intake_log.append({"amount": amount_grams, "status": status})
+        return status
+
+    def get_nutritional_summary(self):
+        """Generates a health-focused summary of current dietary patterns."""
+        avg_intake = sum(d['amount'] for d in self.intake_log) / len(self.intake_log)
+        return {
+            "rabbit": self.rabbit_name,
+            "average_daily_intake": round(avg_intake, 2),
+            "compliance_status": "Highly Optimized" if avg_intake <= self.daily_pellet_target else "Monitoring Required"
+        }
+
+# Implementing the monitor
+health_ai = AdvancedRabbitNutritionAI("Bunny_Alpha", 2.0)
+health_ai.log_daily_intake(48.5) # Example intake in grams
+
+print(f"--- Active Nutrition System: {health_ai.rabbit_name} ---")
+print(f"Nutritional Status: {health_ai.get_nutritional_summary()}")
