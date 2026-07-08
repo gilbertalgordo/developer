@@ -1,0 +1,79 @@
+<activity android:name=".MainActivity" android:exported="true">
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.HOME" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.LAUNCHER" />
+    </intent-filter>
+</activity>
+
+
+
+fun checkForUpdates() {
+    val currentVersion = "1.0.0"
+    val remoteManifest = fetchRemoteJson("https://your-domain.com/update.json")
+    
+    if (remoteManifest.version > currentVersion) {
+        // Trigger download of new APK
+        downloadAndInstall(remoteManifest.downloadUrl)
+    }
+}
+
+
+
+class ThemeConfig {
+  final Color primaryColor;
+  final double borderRadius;
+  final String iconPack;
+
+  ThemeConfig({required this.primaryColor, this.borderRadius = 12.0, required this.iconPack});
+}
+
+
+
+@Immutable
+data class GeminiThemeTokens(
+    val primaryColor: Color,
+    val surfaceColor: Color,
+    val borderRadius: Dp,
+    val glassmorphismAlpha: Float
+)
+
+val LocalGeminiTokens = staticCompositionLocalOf { 
+    GeminiThemeTokens(Color.Blue, Color.Black, 12.dp, 0.8f) 
+}
+
+
+
+fun installApk(context: Context, apkFile: File) {
+    val packageInstaller = context.packageManager.packageInstaller
+    val params = PackageInstaller.SessionParams(
+        PackageInstaller.SessionParams.MODE_FULL_INSTALL
+    )
+    val sessionId = packageInstaller.createSession(params)
+    val session = packageInstaller.openSession(sessionId)
+    
+    // Stream APK bytes
+    val inputStream = apkFile.inputStream()
+    val outputStream = session.openWrite("package", 0, -1)
+    inputStream.copyTo(outputStream)
+    session.fsync(outputStream)
+    outputStream.close()
+    
+    // Commit installation
+    session.commit(IntentSender.getIntentSender(context, ...))
+}
+
+
+
+<activity android:name=".MainActivity" 
+          android:exported="true" 
+          android:launchMode="singleTask"
+          android:stateNotNeeded="true">
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.HOME" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.LAUNCHER" />
+    </intent-filter>
+</activity>
