@@ -1,0 +1,65 @@
+// Clear Fiberglass Acoustic Guitar Model
+// Parameters for a standard folk-style body
+$fn = 100;
+
+module guitar_body() {
+    // Main clear fiberglass shell
+    minkowski() {
+        hull() {
+            sphere(r=150); // Lower bout
+            translate([0, 150, 0]) sphere(r=120); // Upper bout
+        }
+        cylinder(r=10, h=80, center=true);
+    }
+}
+
+module neck() {
+    translate([0, 250, 0])
+    rotate([90, 0, 0])
+    cylinder(r=25, h=300);
+}
+
+// Render the assembly
+difference() {
+    union() {
+        guitar_body();
+        neck();
+    }
+    // Sound hole
+    translate([0, 100, 70])
+    cylinder(r=45, h=20);
+}
+
+
+
+// Clear Fiberglass Acoustic Guitar Model
+// Parameters for a standard folk-style body
+$fn = 100;
+
+module guitar_body() {
+    // Main clear fiberglass shell
+    minkowski() {
+        hull() {
+            sphere(r=150); // Lower bout
+            translate([0, 150, 0]) sphere(r=120); // Upper bout
+        }
+        cylinder(r=10, h=80, center=true);
+    }
+}
+
+module neck() {
+    translate([0, 250, 0])
+    rotate([90, 0, 0])
+    cylinder(r=25, h=300);
+}
+
+// Render the assembly
+difference() {
+    union() {
+        guitar_body();
+        neck();
+    }
+    // Sound hole
+    translate([0, 100, 70])
+    cylinder(r=45, h=20);
+}
