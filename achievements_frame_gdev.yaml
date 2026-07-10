@@ -1,0 +1,80 @@
+<!-- Simple HTML Structure -->
+<input type="file" id="upload" accept="image/*">
+<canvas id="profileCanvas" width="500" height="500"></canvas>
+<button id="download">Download Result</button>
+
+<script>
+const canvas = document.getElementById('profileCanvas');
+const ctx = canvas.getContext('2d');
+const frame = new Image();
+frame.src = 'path/to/your-achievement-badge.png'; // Your custom PNG
+
+document.getElementById('upload').addEventListener('change', (e) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const userImg = new Image();
+        userImg.onload = () => {
+            // Draw User Image
+            ctx.drawImage(userImg, 0, 0, 500, 500);
+            // Overlay Achievement Badge
+            ctx.drawImage(frame, 0, 0, 500, 500);
+        };
+        userImg.src = event.target.result;
+    };
+    reader.readAsDataURL(e.target.files[0]);
+});
+
+// Download Functionality
+document.getElementById('download').addEventListener('click', () => {
+    const link = document.createElement('a');
+    link.download = 'profile-with-achievement.png';
+    link.href = canvas.toDataURL();
+    link.click();
+});
+</script>
+
+
+
+
+class OverlayEngine {
+    constructor(canvasId) {
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas.getContext('2d');
+        this.userImg = null;
+        this.frameImg = new Image();
+        this.frameImg.src = 'assets/achievement-badge.png'; // Your g.dev badge
+    }
+
+    async loadUserImage(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                this.userImg = new Image();
+                this.userImg.onload = () => this.draw();
+                this.userImg.src = e.target.result;
+                resolve();
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    draw() {
+        if (!this.userImg) return;
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Draw User Image (Layer 1)
+        this.ctx.drawImage(this.userImg, 0, 0, this.canvas.width, this.canvas.height);
+        
+        // Draw Achievement Frame (Layer 2)
+        this.ctx.drawImage(this.frameImg, 0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    exportImage() {
+        // High-resolution export for social platforms
+        const dataURL = this.canvas.toDataURL('image/png', 1.0);
+        const link = document.createElement('a');
+        link.download = 'Gilbert_Algordo_Profile.png';
+        link.href = dataURL;
+        link.click();
+    }
+}
