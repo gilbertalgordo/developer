@@ -1,0 +1,522 @@
+"""
+AegisJointCommand: Advanced C2 and Financial Control Simulation Framework
+Designed for Joint Operations (Army, Air Force, Navy) with Integrated AI Advisory Layer.
+Licensed under the Apache License 2.0 (Open Source).
+"""
+
+import datetime
+import enum
+import logging
+import random
+import uuid
+from typing import Dict, List, Optional
+
+# Setup Logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("AegisJointCommand")
+
+# ==========================================
+# ENUMS AND CORE DATA STRUCTURES
+# ==========================================
+
+class OperationalStatus(enum.Enum):
+    DEFCON_5 = "Normal Readiness"
+    DEFCON_4 = "Increased Surveillance"
+    DEFCON_3 = "Force Readiness Upgraded"
+    DEFCON_2 = "High Readiness / Deployable"
+    DEFCON_1 = "Maximum Alert / Active Engagement"
+
+class BranchType(enum.Enum):
+    ARMY = "Army Command"
+    AIR_FORCE = "Air Force Command"
+    NAVY = "Navy Command"
+    JOINT = "Joint Chiefs Control"
+
+class AssetCondition(enum.Enum):
+    OPERATIONAL = "Green"
+    MAINTENANCE = "Amber"
+    COMPROMISED = "Red"
+
+class BudgetCategory(enum.Enum):
+    OPERATIONS = "Ops & Sustainment"
+    LOGISTICS = "Supply Chain & Transport"
+    R_AND_D = "Research & Next-Gen Tech"
+    PERSONNEL = "Payroll & Healthcare"
+    STRATEGIC_RESERVE = "Emergency Contingency"
+
+# ==========================================
+# MODULE: FINANCE CONTROLS
+# ==========================================
+
+class FinancialLedger:
+    """Manages secure allocation, auditing, and multi-branch transaction tracking."""
+    def __init__(self, initial_allocation: float):
+        self.total_budget = initial_allocation
+        self.allocations: Dict[BranchType, Dict[BudgetCategory, float]] = {
+            branch: {cat: 0.0 for cat in BudgetCategory} for branch in BranchType
+        }
+        self.transaction_history: List[Dict] = []
+
+    def allocate_funds(self, branch: BranchType, category: BudgetCategory, amount: float) -> bool:
+        current_allocated = sum(sum(cat.values()) for cat in self.allocations.values())
+        if current_allocated + amount > self.total_budget:
+            logger.error(f"[FINANCE] Allocation failed: Exceeds total budget constraint by ${current_allocated + amount - self.total_budget:,.2f}")
+            return False
+        
+        self.allocations[branch][category] += amount
+        self._record_transaction("ALLOCATION", branch, category, amount, "Initial branch budgeting")
+        return True
+
+    def execute_expenditure(self, branch: BranchType, category: BudgetCategory, amount: float, description: str) -> bool:
+        if self.allocations[branch][category] >= amount:
+            self.allocations[branch][category] -= amount
+            self._record_transaction("DEBIT", branch, category, amount, description)
+            return True
+        logger.warning(f"[FINANCE ALERT] Insufficient funds in {branch.value} -> {category.value} for: {description}")
+        return False
+
+    def get_branch_balance(self, branch: BranchType) -> float:
+        return sum(self.allocations[branch].values())
+
+    def _record_transaction(self, tx_type: str, branch: BranchType, category: BudgetCategory, amount: float, desc: str):
+        tx = {
+            "tx_id": str(uuid.uuid4())[:8],
+            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "type": tx_type,
+            "branch": branch.value,
+            "category": category.value,
+            "amount": amount,
+            "description": desc
+        }
+        self.transaction_history.append(tx)
+        logger.info(f"[LEDGER {tx['tx_id']}] {tx_type} | {branch.value} | {category.value} | ${amount:,.2f} | {desc}")
+
+
+# ==========================================
+# MODULE: COMMAND & CONTROL (C2) TELEMETRY
+# ==========================================
+
+class MilitaryAsset:
+    def __init__(self, asset_id: str, name: str, branch: BranchType, cost_per_hour: float):
+        self.asset_id = asset_id
+        self.name = name
+        self.branch = branch
+        self.cost_per_hour = cost_per_hour
+        self.condition = AssetCondition.OPERATIONAL
+        self.location = {"lat": 0.0, "lng": 0.0}
+        self.payload_capacity = 100.0
+        self.current_load = 0.0
+
+    def update_telemetry(self, lat: float, lng: float, condition: AssetCondition):
+        self.location = {"lat": lat, "lng": lng}
+        self.condition = condition
+
+
+class JointCommandCenter:
+    """Consolidated Command Center tracking Army, Navy, and Air Force deployments."""
+    def __init__(self, ledger: FinancialLedger):
+        self.ledger = ledger
+        self.defcon = OperationalStatus.DEFCON_5
+        self.assets: Dict[str, MilitaryAsset] = {}
+
+    def register_asset(self, asset: MilitaryAsset):
+        self.assets[asset.asset_id] = asset
+        logger.info(f"[C2 REGISTER] Added {asset.name} to {asset.branch.value} tracking matrix.")
+
+    def set_defcon_level(self, level: OperationalStatus):
+        self.defcon = level
+        logger.critical(f"[COMMAND] !!! COMMANDER NOTICE: FORCE STATUS ESCALATED TO {level.name} ({level.value}) !!!")
+
+    def deploy_force(self, asset_id: str, duration_hours: int, mission_desc: str) -> bool:
+        asset = self.assets.get(asset_id)
+        if not asset:
+            return False
+        
+        if asset.condition != AssetCondition.OPERATIONAL:
+            logger.warning(f"[DEPLOY REJECTED] {asset.name} is currently offline under condition: {asset.condition.name}")
+            return False
+
+        cost = asset.cost_per_hour * duration_hours
+        # Authorize against operational budget
+        if self.ledger.execute_expenditure(asset.branch, BudgetCategory.OPERATIONS, cost, f"Mission Deployment: {mission_desc}"):
+            logger.info(f"[DEPLOY SUCCESS] {asset.name} deployed for {duration_hours}h. Total operational debit: ${cost:,.2f}")
+            return True
+        return False
+
+
+# ==========================================
+# MODULE: ACTIVE AI ASSISTANT LAYER
+# ==========================================
+
+class ActiveAIAssistant:
+    """
+    Cognitive decision-support layer modeled to offer real-time risk assessment, 
+    predictive budget forecasting, and threat analytics.
+    """
+    def __init__(self, command_center: JointCommandCenter, ledger: FinancialLedger):
+        self.command = command_center
+        self.ledger = ledger
+        self.analyst_signature = "AI-ASSIST // ARCH-STRATEGIST"
+
+    def analyze_readiness_and_runway(self) -> dict:
+        """Evaluates remaining budget vs current operational burns."""
+        total_remaining = sum(self.ledger.get_branch_balance(b) for b in BranchType)
+        burn_rate_severity = "LOW"
+        
+        # Calculate asset degradation risk metrics
+        total_assets = len(self.command.assets)
+        compromised = sum(1 for a in self.command.assets.values() if a.condition == AssetCondition.COMPROMISED)
+        maintenance = sum(1 for a in self.command.assets.values() if a.condition == AssetCondition.MAINTENANCE)
+        
+        degradation_ratio = (compromised + maintenance) / total_assets if total_assets > 0 else 0.0
+        
+        if self.command.defcon in [OperationalStatus.DEFCON_2, OperationalStatus.DEFCON_1]:
+            burn_rate_severity = "CRITICAL"
+        elif degradation_ratio > 0.3:
+            burn_rate_severity = "MEDIUM"
+
+        insights = [
+            f"Current defense profile is set to {self.command.defcon.name}.",
+            f"Asset health matrix: {degradation_ratio*100:.1f}% of total inventory requires logistical attention.",
+            f"Total available operational capital across branches stands at ${total_remaining:,.2f}."
+        ]
+
+        if degradation_ratio > 0.25:
+            insights.append("ADVISORY: Recommend reallocating R&D budget into Operations/Logistics to address asset wear.")
+
+        return {
+            "signature": self.analyst_signature,
+            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "threat_burn_index": burn_rate_severity,
+            "insights": insights
+        }
+
+    def generate_strategic_briefing(self, author_name: str = "General Gilbert Algordo") -> str:
+        analysis = self.analyze_readiness_and_runway()
+        
+        briefing = [
+            f"=== NATIONAL SECURITY BRIEFING FOR {author_name.upper()} ===",
+            f"Generated: {analysis['timestamp']} | Status: SECURE",
+            f"Strategic Threat Assessment Index: [{analysis['threat_burn_index']}]",
+            "\n[AI ANALYTICAL INSIGHTS]:"
+        ]
+        for insight in analysis["insights"]:
+            briefing.append(f" - {insight}")
+            
+        briefing.append("\n=======================================================")
+        return "\n".join(briefing)
+
+
+# ==========================================
+# SIMULATION WORKLOAD EXECUTOR
+# ==========================================
+
+def run_system_simulation():
+    print("Initializing Aegis Joint Command Core and Ledger Matrix...\n")
+    
+    # 1. Initialize Financial Ledger with a $10 Billion aggregate budget
+    defense_ledger = FinancialLedger(initial_allocation=10_000_000_000.00)
+    
+    # Pre-allocate funds across branches
+    branches = [BranchType.ARMY, BranchType.AIR_FORCE, BranchType.NAVY]
+    for branch in branches:
+        defense_ledger.allocate_funds(branch, BudgetCategory.OPERATIONS, 1_500_000_000.00)
+        defense_ledger.allocate_funds(branch, BudgetCategory.LOGISTICS, 800_000_000.00)
+        defense_ledger.allocate_funds(branch, BudgetCategory.R_AND_D, 500_000_000.00)
+        defense_ledger.allocate_funds(branch, BudgetCategory.PERSONNEL, 500_000_000.00)
+
+    # 2. Instantiate Command Infrastructure
+    c2_center = JointCommandCenter(ledger=defense_ledger)
+    ai_assist = ActiveAIAssistant(command_center=c2_center, ledger=defense_ledger)
+
+    # 3. Provision Assets to the Grid
+    strike_carrier = MilitaryAsset("N-CVN78", "USS Gerald R. Ford", BranchType.NAVY, cost_per_hour=45000.0)
+    stealth_bomber = MilitaryAsset("AF-B2", "B-2 Spirit Stealth Bomber", BranchType.AIR_FORCE, cost_per_hour=30000.0)
+    armor_div = MilitaryAsset("A-1AD", "1st Armored Division Group", BranchType.ARMY, cost_per_hour=15000.0)
+
+    c2_center.register_asset(strike_carrier)
+    c2_center.register_asset(stealth_bomber)
+    c2_center.register_asset(armor_div)
+
+    print("\n--- Executing Simulated Strategic Movements ---")
+    
+    # Simulate dynamic operational telemetry and state changes
+    c2_center.set_defcon_level(OperationalStatus.DEFCON_3)
+    
+    # Deploy elements
+    c2_center.deploy_force("N-CVN78", duration_hours=72, mission_desc="Freedom of Navigation Patrol")
+    c2_center.deploy_force("AF-B2", duration_hours=12, mission_desc="Strategic Deterrence Sortie")
+    
+    # Simulate a field issue
+    stealth_bomber.update_telemetry(lat=37.7749, lng=-122.4194, condition=AssetCondition.MAINTENANCE)
+    
+    print("\n--- Pulling Real-Time AI Strategic Briefing ---")
+    # 4. Generate AI Assessment Output
+    briefing_report = ai_assist.generate_strategic_briefing(author_name="General Gilbert Algordo")
+    print(briefing_report)
+
+if __name__ == "__main__":
+    run_system_simulation()
+
+
+
+"""
+AegisJointCommand: Advanced C2 and Financial Control Simulation Framework
+Designed for Joint Operations (Army, Air Force, Navy) with Integrated AI Advisory Layer.
+Licensed under the Apache License 2.0 (Open Source).
+"""
+
+import datetime
+import enum
+import logging
+import random
+import uuid
+from typing import Dict, List, Optional
+
+# Setup Logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("AegisJointCommand")
+
+# ==========================================
+# ENUMS AND CORE DATA STRUCTURES
+# ==========================================
+
+class OperationalStatus(enum.Enum):
+    DEFCON_5 = "Normal Readiness"
+    DEFCON_4 = "Increased Surveillance"
+    DEFCON_3 = "Force Readiness Upgraded"
+    DEFCON_2 = "High Readiness / Deployable"
+    DEFCON_1 = "Maximum Alert / Active Engagement"
+
+class BranchType(enum.Enum):
+    ARMY = "Army Command"
+    AIR_FORCE = "Air Force Command"
+    NAVY = "Navy Command"
+    JOINT = "Joint Chiefs Control"
+
+class AssetCondition(enum.Enum):
+    OPERATIONAL = "Green"
+    MAINTENANCE = "Amber"
+    COMPROMISED = "Red"
+
+class BudgetCategory(enum.Enum):
+    OPERATIONS = "Ops & Sustainment"
+    LOGISTICS = "Supply Chain & Transport"
+    R_AND_D = "Research & Next-Gen Tech"
+    PERSONNEL = "Payroll & Healthcare"
+    STRATEGIC_RESERVE = "Emergency Contingency"
+
+# ==========================================
+# MODULE: FINANCE CONTROLS
+# ==========================================
+
+class FinancialLedger:
+    """Manages secure allocation, auditing, and multi-branch transaction tracking."""
+    def __init__(self, initial_allocation: float):
+        self.total_budget = initial_allocation
+        self.allocations: Dict[BranchType, Dict[BudgetCategory, float]] = {
+            branch: {cat: 0.0 for cat in BudgetCategory} for branch in BranchType
+        }
+        self.transaction_history: List[Dict] = []
+
+    def allocate_funds(self, branch: BranchType, category: BudgetCategory, amount: float) -> bool:
+        current_allocated = sum(sum(cat.values()) for cat in self.allocations.values())
+        if current_allocated + amount > self.total_budget:
+            logger.error(f"[FINANCE] Allocation failed: Exceeds total budget constraint by ${current_allocated + amount - self.total_budget:,.2f}")
+            return False
+        
+        self.allocations[branch][category] += amount
+        self._record_transaction("ALLOCATION", branch, category, amount, "Initial branch budgeting")
+        return True
+
+    def execute_expenditure(self, branch: BranchType, category: BudgetCategory, amount: float, description: str) -> bool:
+        if self.allocations[branch][category] >= amount:
+            self.allocations[branch][category] -= amount
+            self._record_transaction("DEBIT", branch, category, amount, description)
+            return True
+        logger.warning(f"[FINANCE ALERT] Insufficient funds in {branch.value} -> {category.value} for: {description}")
+        return False
+
+    def get_branch_balance(self, branch: BranchType) -> float:
+        return sum(self.allocations[branch].values())
+
+    def _record_transaction(self, tx_type: str, branch: BranchType, category: BudgetCategory, amount: float, desc: str):
+        tx = {
+            "tx_id": str(uuid.uuid4())[:8],
+            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "type": tx_type,
+            "branch": branch.value,
+            "category": category.value,
+            "amount": amount,
+            "description": desc
+        }
+        self.transaction_history.append(tx)
+        logger.info(f"[LEDGER {tx['tx_id']}] {tx_type} | {branch.value} | {category.value} | ${amount:,.2f} | {desc}")
+
+
+# ==========================================
+# MODULE: COMMAND & CONTROL (C2) TELEMETRY
+# ==========================================
+
+class MilitaryAsset:
+    def __init__(self, asset_id: str, name: str, branch: BranchType, cost_per_hour: float):
+        self.asset_id = asset_id
+        self.name = name
+        self.branch = branch
+        self.cost_per_hour = cost_per_hour
+        self.condition = AssetCondition.OPERATIONAL
+        self.location = {"lat": 0.0, "lng": 0.0}
+        self.payload_capacity = 100.0
+        self.current_load = 0.0
+
+    def update_telemetry(self, lat: float, lng: float, condition: AssetCondition):
+        self.location = {"lat": lat, "lng": lng}
+        self.condition = condition
+
+
+class JointCommandCenter:
+    """Consolidated Command Center tracking Army, Navy, and Air Force deployments."""
+    def __init__(self, ledger: FinancialLedger):
+        self.ledger = ledger
+        self.defcon = OperationalStatus.DEFCON_5
+        self.assets: Dict[str, MilitaryAsset] = {}
+
+    def register_asset(self, asset: MilitaryAsset):
+        self.assets[asset.asset_id] = asset
+        logger.info(f"[C2 REGISTER] Added {asset.name} to {asset.branch.value} tracking matrix.")
+
+    def set_defcon_level(self, level: OperationalStatus):
+        self.defcon = level
+        logger.critical(f"[COMMAND] !!! COMMANDER NOTICE: FORCE STATUS ESCALATED TO {level.name} ({level.value}) !!!")
+
+    def deploy_force(self, asset_id: str, duration_hours: int, mission_desc: str) -> bool:
+        asset = self.assets.get(asset_id)
+        if not asset:
+            return False
+        
+        if asset.condition != AssetCondition.OPERATIONAL:
+            logger.warning(f"[DEPLOY REJECTED] {asset.name} is currently offline under condition: {asset.condition.name}")
+            return False
+
+        cost = asset.cost_per_hour * duration_hours
+        # Authorize against operational budget
+        if self.ledger.execute_expenditure(asset.branch, BudgetCategory.OPERATIONS, cost, f"Mission Deployment: {mission_desc}"):
+            logger.info(f"[DEPLOY SUCCESS] {asset.name} deployed for {duration_hours}h. Total operational debit: ${cost:,.2f}")
+            return True
+        return False
+
+
+# ==========================================
+# MODULE: ACTIVE AI ASSISTANT LAYER
+# ==========================================
+
+class ActiveAIAssistant:
+    """
+    Cognitive decision-support layer modeled to offer real-time risk assessment, 
+    predictive budget forecasting, and threat analytics.
+    """
+    def __init__(self, command_center: JointCommandCenter, ledger: FinancialLedger):
+        self.command = command_center
+        self.ledger = ledger
+        self.analyst_signature = "AI-ASSIST // ARCH-STRATEGIST"
+
+    def analyze_readiness_and_runway(self) -> dict:
+        """Evaluates remaining budget vs current operational burns."""
+        total_remaining = sum(self.ledger.get_branch_balance(b) for b in BranchType)
+        burn_rate_severity = "LOW"
+        
+        # Calculate asset degradation risk metrics
+        total_assets = len(self.command.assets)
+        compromised = sum(1 for a in self.command.assets.values() if a.condition == AssetCondition.COMPROMISED)
+        maintenance = sum(1 for a in self.command.assets.values() if a.condition == AssetCondition.MAINTENANCE)
+        
+        degradation_ratio = (compromised + maintenance) / total_assets if total_assets > 0 else 0.0
+        
+        if self.command.defcon in [OperationalStatus.DEFCON_2, OperationalStatus.DEFCON_1]:
+            burn_rate_severity = "CRITICAL"
+        elif degradation_ratio > 0.3:
+            burn_rate_severity = "MEDIUM"
+
+        insights = [
+            f"Current defense profile is set to {self.command.defcon.name}.",
+            f"Asset health matrix: {degradation_ratio*100:.1f}% of total inventory requires logistical attention.",
+            f"Total available operational capital across branches stands at ${total_remaining:,.2f}."
+        ]
+
+        if degradation_ratio > 0.25:
+            insights.append("ADVISORY: Recommend reallocating R&D budget into Operations/Logistics to address asset wear.")
+
+        return {
+            "signature": self.analyst_signature,
+            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "threat_burn_index": burn_rate_severity,
+            "insights": insights
+        }
+
+    def generate_strategic_briefing(self, author_name: str = "General Gilbert Algordo") -> str:
+        analysis = self.analyze_readiness_and_runway()
+        
+        briefing = [
+            f"=== NATIONAL SECURITY BRIEFING FOR {author_name.upper()} ===",
+            f"Generated: {analysis['timestamp']} | Status: SECURE",
+            f"Strategic Threat Assessment Index: [{analysis['threat_burn_index']}]",
+            "\n[AI ANALYTICAL INSIGHTS]:"
+        ]
+        for insight in analysis["insights"]:
+            briefing.append(f" - {insight}")
+            
+        briefing.append("\n=======================================================")
+        return "\n".join(briefing)
+
+
+# ==========================================
+# SIMULATION WORKLOAD EXECUTOR
+# ==========================================
+
+def run_system_simulation():
+    print("Initializing Aegis Joint Command Core and Ledger Matrix...\n")
+    
+    # 1. Initialize Financial Ledger with a $10 Billion aggregate budget
+    defense_ledger = FinancialLedger(initial_allocation=10_000_000_000.00)
+    
+    # Pre-allocate funds across branches
+    branches = [BranchType.ARMY, BranchType.AIR_FORCE, BranchType.NAVY]
+    for branch in branches:
+        defense_ledger.allocate_funds(branch, BudgetCategory.OPERATIONS, 1_500_000_000.00)
+        defense_ledger.allocate_funds(branch, BudgetCategory.LOGISTICS, 800_000_000.00)
+        defense_ledger.allocate_funds(branch, BudgetCategory.R_AND_D, 500_000_000.00)
+        defense_ledger.allocate_funds(branch, BudgetCategory.PERSONNEL, 500_000_000.00)
+
+    # 2. Instantiate Command Infrastructure
+    c2_center = JointCommandCenter(ledger=defense_ledger)
+    ai_assist = ActiveAIAssistant(command_center=c2_center, ledger=defense_ledger)
+
+    # 3. Provision Assets to the Grid
+    strike_carrier = MilitaryAsset("N-CVN78", "USS Gerald R. Ford", BranchType.NAVY, cost_per_hour=45000.0)
+    stealth_bomber = MilitaryAsset("AF-B2", "B-2 Spirit Stealth Bomber", BranchType.AIR_FORCE, cost_per_hour=30000.0)
+    armor_div = MilitaryAsset("A-1AD", "1st Armored Division Group", BranchType.ARMY, cost_per_hour=15000.0)
+
+    c2_center.register_asset(strike_carrier)
+    c2_center.register_asset(stealth_bomber)
+    c2_center.register_asset(armor_div)
+
+    print("\n--- Executing Simulated Strategic Movements ---")
+    
+    # Simulate dynamic operational telemetry and state changes
+    c2_center.set_defcon_level(OperationalStatus.DEFCON_3)
+    
+    # Deploy elements
+    c2_center.deploy_force("N-CVN78", duration_hours=72, mission_desc="Freedom of Navigation Patrol")
+    c2_center.deploy_force("AF-B2", duration_hours=12, mission_desc="Strategic Deterrence Sortie")
+    
+    # Simulate a field issue
+    stealth_bomber.update_telemetry(lat=37.7749, lng=-122.4194, condition=AssetCondition.MAINTENANCE)
+    
+    print("\n--- Pulling Real-Time AI Strategic Briefing ---")
+    # 4. Generate AI Assessment Output
+    briefing_report = ai_assist.generate_strategic_briefing(author_name="General Gilbert Algordo")
+    print(briefing_report)
+
+if __name__ == "__main__":
+    run_system_simulation()
+
