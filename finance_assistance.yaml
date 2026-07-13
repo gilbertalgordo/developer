@@ -1,0 +1,390 @@
+"""
+Finance AI Active Assistance Engine
+Author: Gilbert Algordo (https://github.com/gilbertalgordo)
+License: MIT
+Description: An active financial agent that monitors real-time transactions, 
+             predicts budget overruns, and proactively flags anomalies.
+"""
+
+import os
+import json
+import logging
+from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional
+
+# Setup basic logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger("FinanceActiveAI")
+
+class FinanceAIEngine:
+    def __init__(self, user_id: str, monthly_budget: float, config: Optional[Dict[str, Any]] = None):
+        self.user_id = user_id
+        self.monthly_budget = monthly_budget
+        self.config = config or {}
+        self.transaction_history: List[Dict[str, Any]] = []
+        self.active_alerts: List[Dict[str, Any]] = []
+        
+        logger.info(f"Initialized Active Finance AI for User: {self.user_id}")
+
+    def ingest_transaction(self, amount: float, category: str, merchant: str) -> Dict[str, Any]:
+        """Ingests a real-time transaction and immediately triggers the active analysis pipeline."""
+        transaction = {
+            "transaction_id": f"tx_{int(datetime.utcnow().timestamp())}_{len(self.transaction_history)}",
+            "timestamp": datetime.utcnow().isoformat(),
+            "amount": amount,
+            "category": category,
+            "merchant": merchant
+        }
+        self.transaction_history.append(transaction)
+        logger.info(f"Ingested tx: {transaction['transaction_id']} | {merchant} | ${amount}")
+        
+        # Execute proactive checks immediately (Active Assistance)
+        self._run_active_checks(transaction)
+        return transaction
+
+    def _get_current_month_spend(self) -> float:
+        """Helper to calculate total spent in the current calendar month."""
+        current_month = datetime.utcnow().strftime("%Y-%m")
+        return sum(
+            tx["amount"] for tx in self.transaction_history 
+            if tx["timestamp"].startswith(current_month)
+        )
+
+    def _run_active_checks(self, recent_tx: Dict[str, Any]) -> None:
+        """Evaluates active triggers: velocity anomalies, budget ceilings, and predictive runs."""
+        current_spend = self._get_current_month_spend()
+        
+        # 1. Hard Budget Threshold Check
+        if current_spend > self.monthly_budget:
+            self._trigger_alert(
+                level="CRITICAL",
+                message=f"Budget breached! Total monthly spend ${current_spend:.2f} exceeds your limit of ${self.monthly_budget:.2f}."
+            )
+        elif current_spend > (self.monthly_budget * 0.85):
+            self._trigger_alert(
+                level="WARNING",
+                message=f"Approaching ceiling. You have used 85% of your monthly budget. Remaining: ${(self.monthly_budget - current_spend):.2f}"
+            )
+
+        # 2. Velocity / High-Frequency Spend Check
+        recent_window_txs = [
+            tx for tx in self.transaction_history 
+            if datetime.fromisoformat(tx["timestamp"]) > datetime.utcnow() - timedelta(hours=1)
+        ]
+        if len(recent_window_txs) >= 3 and sum(t["amount"] for t in recent_window_txs) > 200:
+            self._trigger_alert(
+                level="HIGH",
+                message=f"Active Guardrail: High frequency of transactions detected in the last hour ({len(recent_window_txs)} charges)."
+            )
+
+    def _trigger_alert(self, level: str, message: str) -> None:
+        """Logs and queues an active assistant alert notification for the user."""
+        alert = {
+            "alert_id": f"alert_{int(datetime.utcnow().timestamp())}",
+            "timestamp": datetime.utcnow().isoformat(),
+            "level": level,
+            "message": message,
+            "status": "UNREAD"
+        }
+        self.active_alerts.append(alert)
+        logger.warning(f"Active AI Alert [{level}]: {message}")
+
+    def generate_proactive_insights(self) -> str:
+        """
+        Simulates an LLM/Gemini system prompt to summarize financial health status 
+        and provide next-best-action guidance.
+        """
+        total_spend = self._get_current_month_spend()
+        burn_rate = total_spend / max(datetime.utcnow().day, 1)
+        projected_end_month = burn_rate * 30
+        
+        insight_payload = {
+            "user_id": self.user_id,
+            "current_spend": total_spend,
+            "monthly_budget": self.monthly_budget,
+            "projected_spend": projected_end_month,
+            "active_alerts_count": len([a for a in self.active_alerts if a["status"] == "UNREAD"])
+        }
+        
+        # Generates structured text mimicking generative AI active orchestration
+        if projected_end_month > self.monthly_budget:
+            status_msg = "⚠️ ACTION REQUIRED: Current velocity indicates you will overshoot your budget targets."
+        else:
+            status_msg = "✅ ON TRACK: Spending is healthy and stable relative to your current timeline."
+
+        return f"""
+====== Finance AI Active Insights ======
+Status: {status_msg}
+Current Spend: ${insight_payload['current_spend']:.2f} / ${insight_payload['monthly_budget']:.2f}
+Projected Month-End: ${insight_payload['projected_spend']:.2f}
+Unresolved Alerts: {insight_payload['active_alerts_count']}
+=========================================
+"""
+
+# --- Execution Example ---
+if __name__ == "__main__":
+    # Initialize engine for user with a $1500 monthly budget
+    ai_assistant = FinanceAIEngine(user_id="usr_algordo_99", monthly_budget=1500.00)
+    
+    # Simulate step-by-step transaction ingestion
+    ai_assistant.ingest_transaction(amount=45.50, category="Groceries", merchant="Supermarket")
+    ai_assistant.ingest_transaction(amount=12.00, category="Subscription", merchant="Streaming Service")
+    
+    # Simulate a rapid series of high-value transactions (Triggers Velocity Guardrail)
+    ai_assistant.ingest_transaction(amount=110.00, category="Electronics", merchant="Gadget Store")
+    ai_assistant.ingest_transaction(amount=85.00, category="Dining", merchant="Steakhouse")
+    ai_assistant.ingest_transaction(amount=50.00, category="Transport", merchant="RideShare")
+    
+    # Simulate budget breach transaction
+    ai_assistant.ingest_transaction(amount=1250.00, category="Travel", merchant="Airline Booking")
+
+    # Fetch active recommendations
+    print(ai_assistant.generate_proactive_insights())
+
+
+
+"""
+Active Financial Assistance AI Engine (Advanced Edition)
+Author: Gilbert Algordo (https://github.com/gilbertalgordo)
+License: Open Source / MIT
+Philosophy: Kaizen (Continuous Automated Financial Telemetry)
+"""
+
+import asyncio
+import json
+import logging
+import math
+from datetime import datetime, timedelta, timezone
+from typing import Dict, Any, List, Optional
+from dataclasses import dataclass, asdict
+
+# Configure production telemetry logging
+logging.basicConfig(level=logging.INFO, format="[HUD-TELEMETRY] %(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger("FinanceActiveAI")
+
+@dataclass
+class HUDMetric:
+    indicator: str
+    value: Any
+    status: str  # NOMINAL, WARNING, CRITICAL
+
+class ActiveFinanceEngine:
+    def __init__(self, user_id: str, monthly_budget: float, msqb_reserve: float = 500.0):
+        """
+        Initializes the Active Finance Agent.
+        :param msqb_reserve: Mimics a critical dynamic buffer/reserve floor (Quantum Battery Safety Analogy)
+        """
+        self.user_id = user_id
+        self.monthly_budget = monthly_budget
+        self.msqb_reserve = msqb_reserve
+        
+        # Real-time event streams
+        self.ledger: List[Dict[str, Any]] = []
+        self.active_alerts: List[Dict[str, Any]] = []
+        self.lock = asyncio.Lock()
+        
+        logger.info(f"Kaizen Core Initialized. Active Sentinel Online for user: {self.user_id}")
+
+    async def process_transaction_event(self, event: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Ingests real-time banking events concurrently and streams them through 
+        the proactive multi-tier evaluation pipeline.
+        """
+        async with self.lock:
+            tx_payload = {
+                "tx_id": event.get("tx_id", f"tx_{int(datetime.now(timezone.utc).timestamp())}"),
+                "timestamp": datetime.now(timezone.utc),
+                "amount": float(event["amount"]),
+                "category": event["category"],
+                "merchant": event["merchant"]
+            }
+            self.ledger.append(tx_payload)
+            
+        # Execute independent validation pipelines asynchronously
+        await asyncio.gather(
+            self._evaluate_budget_velocity(tx_payload),
+            self._evaluate_quantum_burn_rate(),
+            self._detect_anomaly_spike(tx_payload)
+        )
+        
+        return tx_payload
+
+    async def _evaluate_budget_velocity(self, current_tx: Dict[str, Any]):
+        """Evaluates immediate budget utilization scales."""
+        now = datetime.now(timezone.utc)
+        current_month_txs = [
+            tx for tx in self.ledger if tx["timestamp"].month == now.month and tx["timestamp"].year == now.year
+        ]
+        total_spent = sum(tx["amount"] for tx in current_month_txs)
+
+        if total_spent >= self.monthly_budget:
+            await self._dispatch_alert("CRITICAL", f"Budget ceiling completely breached. Overages: +${(total_spent - self.monthly_budget):.2f}")
+        elif total_spent > (self.monthly_budget * 0.85):
+            await self._dispatch_alert("WARNING", f"Budget optimization flag raised. 85% consumed. Available: ${(self.monthly_budget - total_spent):.2f}")
+
+    async def _evaluate_quantum_burn_rate(self):
+        """
+        Continuous runway estimation. Simulates mathematical burn modeling 
+        to project bankruptcy metrics before they actually happen.
+        """
+        now = datetime.now(timezone.utc)
+        current_month_txs = [
+            tx for tx in self.ledger if tx["timestamp"].month == now.month and tx["timestamp"].year == now.year
+        ]
+        if not current_month_txs:
+            return
+
+        total_spent = sum(tx["amount"] for tx in current_month_txs)
+        current_day = max(now.day, 1)
+        
+        # Superfast trajectory tracking 
+        daily_burn = total_spent / current_day
+        projected_spend = daily_burn * 30
+
+        if projected_spend > self.monthly_budget:
+            variance = projected_spend - self.monthly_budget
+            await self._dispatch_alert("HIGH", f"Proactive Runway Alert: Current trajectory predicts an overage of ${variance:.2f} by month-end.")
+
+    async def _detect_anomaly_spike(self, current_tx: Dict[str, Any]):
+        """Sliding-window high-frequency velocity assessment to detect immediate anomalies."""
+        time_window = datetime.now(timezone.utc) - timedelta(hours=1)
+        recent_txs = [tx for tx in self.ledger if tx["timestamp"] > time_window]
+        
+        if len(recent_txs) >= 3:
+            total_window_cost = sum(t["amount"] for t in recent_txs)
+            if total_window_cost > self.msqb_reserve:
+                await self._dispatch_alert("CRITICAL", f"Velocity Flag: Rapid transaction clusters detected. Multi-charge event total: ${total_window_cost:.2f}")
+
+    async def _dispatch_alert(self, severity: str, message: str):
+        alert = {
+            "alert_id": f"evt_{int(datetime.now(timezone.utc).timestamp())}_{severity.lower()}",
+            "severity": severity,
+            "message": message,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        self.active_alerts.append(alert)
+        logger.warning(f"[{severity}] Active Trigger Enforced -> {message}")
+
+    def render_hud_telemetry_payload(self) -> str:
+        """
+        Formats internal engine operational states into a scannable structure,
+        ideal for direct integration into Glassmorphic UI HUD components.
+        """
+        now = datetime.now(timezone.utc)
+        current_month_txs = [tx for tx in self.ledger if tx["timestamp"].month == now.month]
+        total_spent = sum(tx["amount"] for tx in current_month_txs)
+        
+        # Calculate systemic system load
+        budget_ratio = (total_spent / self.monthly_budget) * 100 if self.monthly_budget > 0 else 0
+        status_string = "SYSTEM_OPTIMAL" if budget_ratio < 80 else ("SYSTEM_WARNING" if budget_ratio < 100 else "SYSTEM_BREACHED")
+
+        hud_data = {
+            "author_metadata": {
+                "profile": "Gilbert Algordo",
+                "engine_build": "Active-AI-v2.6",
+                "philosophy": "Kaizen Framework"
+            },
+            "telemetry_state": {
+                "system_status": status_string,
+                "allocation_usage_pct": f"{budget_ratio:.1f}%",
+                "aggregate_spent": total_spent,
+                "global_limit": self.monthly_budget,
+                "unresolved_triggers": len(self.active_alerts)
+            },
+            "active_threat_matrix": self.active_alerts[-3:] # Yield last 3 critical active exceptions
+        }
+        return json.dumps(hud_data, indent=2)
+
+
+# --- Asynchronous Integration Driver ---
+async def main():
+    # Instantiate Active System with a $2000.00 limits configuration
+    agent = ActiveFinanceEngine(user_id="usr_algordo_dev", monthly_budget=2000.00)
+
+    print("\n--- BEGIN ACTIVE TELEMETRY INGESTION PIPELINE ---")
+    
+    # 1. Simulate micro-transactions
+    await agent.process_transaction_event({"amount": 120.00, "category": "Infrastructure", "merchant": "Cloud Host Provider"})
+    await agent.process_transaction_event({"amount": 45.00, "category": "Logistics", "merchant": "Fuel Transit"})
+    
+    # 2. Simulate an automated high-velocity cluster (Triggers parallel anomaly alarms)
+    await agent.process_transaction_event({"amount": 250.00, "category": "Hardware", "merchant": "Component Store"})
+    await agent.process_transaction_event({"amount": 300.00, "category": "Hardware", "merchant": "Optics Lab"})
+    
+    # 3. Final transaction causing a direct budget overset
+    await agent.process_transaction_event({"amount": 1500.00, "category": "Capital", "merchant": "Equipment Procurement"})
+
+    # Print out JSON metrics destined for the UI HUD view layer
+    print("\n======================= METRIC ENGINE HUD OUTPUT =======================")
+    print(agent.render_hud_telemetry_payload())
+    print("========================================================================")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="128" height="128">
+    <!-- Background Defs for Glow and Neon Gradients -->
+    <defs>
+        <linearGradient id="hudGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.8"/>
+            <stop offset="100%" stop-color="#7000FF" stop-opacity="0.8"/>
+        </linearGradient>
+        <filter id="neonBlur" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+    </defs>
+
+    <!-- Outer Telemetry Ring -->
+    <circle cx="50" cy="50" r="42" fill="none" stroke="url(#hudGlow)" stroke-width="1.5" stroke-dasharray="12 6 4 6" opacity="0.4"/>
+    
+    <!-- Active Scanning Orbit Ring -->
+    <circle cx="50" cy="50" r="34" fill="none" stroke="#00F0FF" stroke-width="1" stroke-dasharray="40 10" opacity="0.7">
+        <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="10s" repeatCount="indefinite"/>
+    </circle>
+
+    <!-- Core Quantum AI Node -->
+    <circle cx="50" cy="50" r="14" fill="url(#hudGlow)" filter="url(#neonBlur)"/>
+    <circle cx="50" cy="50" r="6" fill="#FFFFFF"/>
+
+    <!-- UI Crosshair HUD Elements -->
+    <path d="M 50 10 L 50 20 M 50 80 L 50 90 M 10 50 L 20 50 M 80 50 L 90 50" stroke="#00F0FF" stroke-width="2" stroke-linecap="round"/>
+    
+    <!-- Decorative Tech Target Corners -->
+    <path d="M 22 22 L 16 22 L 16 16" fill="none" stroke="#00F0FF" stroke-width="1.5"/>
+    <path d="M 78 22 L 84 22 L 84 16" fill="none" stroke="#00F0FF" stroke-width="1.5"/>
+    <path d="M 22 78 L 16 78 L 16 84" fill="none" stroke="#00F0FF" stroke-width="1.5"/>
+    <path d="M 78 78 L 84 78 L 84 84" fill="none" stroke="#00F0FF" stroke-width="1.5"/>
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="128" height="128">
+    <defs>
+        <linearGradient id="velocityGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#00FF87"/>
+            <stop offset="100%" stop-color="#60EFFF"/>
+        </linearGradient>
+    </defs>
+
+    <!-- Grid HUD Sub-layer -->
+    <path d="M 15 25 L 85 25 M 15 50 L 85 50 M 15 75 L 85 75" stroke="#FFFFFF" stroke-width="0.5" stroke-dasharray="2 4" opacity="0.15"/>
+    <path d="M 25 15 L 25 85 M 50 15 L 50 85 M 75 15 L 75 85" stroke="#FFFFFF" stroke-width="0.5" stroke-dasharray="2 4" opacity="0.15"/>
+
+    <!-- Predictive Trajectory Graph Line -->
+    <path d="M 15 80 Q 35 75 45 50 T 85 20" fill="none" stroke="url(#velocityGrad)" stroke-width="3" stroke-linecap="round"/>
+    
+    <!-- Forward AI Target Reticle -->
+    <circle cx="85" cy="20" r="5" fill="none" stroke="#00FF87" stroke-width="1.5"/>
+    <circle cx="85" cy="20" r="1.5" fill="#FFFFFF"/>
+
+    <!-- Dynamic Metric Bars (Sidebar Telemetry) -->
+    <rect x="15" y="40" width="4" height="25" rx="2" fill="#00FF87" opacity="0.6"/>
+    <rect x="23" y="30" width="4" height="35" rx="2" fill="#00FF87" opacity="0.8"/>
+    <rect x="31" y="48" width="4" height="17" rx="2" fill="#60EFFF"/>
+    
+    <!-- Outer Framing Bracket -->
+    <path d="M 10 30 L 10 15 L 25 15 M 90 70 L 90 85 L 75 85" fill="none" stroke="#60EFFF" stroke-width="1.5" opacity="0.7"/>
+</svg>
