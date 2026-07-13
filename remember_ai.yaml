@@ -1,0 +1,496 @@
+import sqlite3
+from datetime import datetime
+import json
+
+class ActiveAIMemory:
+    def __init__(self, db_path="ai_memory.db"):
+        """Initializes the persistent local database for tracking AI context."""
+        self.conn = sqlite3.connect(db_path)
+        self.cursor = self.conn.cursor()
+        self._create_tables()
+
+    def _create_tables(self):
+        """Creates tables for structured state memory and online history logs."""
+        # Table for explicit user selections or preferences
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS selections (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                updated_at TEXT
+            )
+        ''')
+        # Table for time-series logging of online activities / interactions
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS activity_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                activity_type TEXT,
+                description TEXT,
+                metadata TEXT,
+                timestamp TEXT
+            )
+        ''')
+        self.conn.commit()
+
+    def remember_selection(self, key: str, value: any):
+        """Saves or updates a permanent system state/user preference selection."""
+        serialized_val = json.dumps(value)
+        now = datetime.utcnow().isoformat()
+        self.cursor.execute('''
+            INSERT OR REPLACE INTO selections (key, value, updated_at)
+            VALUES (?, ?, ?)
+        ''', (key, serialized_val, now))
+        self.conn.commit()
+
+    def log_activity(self, activity_type: str, description: str, metadata: dict = None):
+        """Logs real-time online activities or session events chronologically."""
+        meta_str = json.dumps(metadata) if metadata else "{}"
+        now = datetime.utcnow().isoformat()
+        self.cursor.execute('''
+            INSERT INTO activity_log (activity_type, description, metadata, timestamp)
+            VALUES (?, ?, ?, ?)
+        ''', (activity_type, description, meta_str, now))
+        self.conn.commit()
+
+    def get_preference(self, key: str) -> any:
+        """Retrieves a specific stored preference or configuration selection."""
+        self.cursor.execute('SELECT value FROM selections WHERE key = ?', (key,))
+        row = self.cursor.fetchone()
+        return json.loads(row[0]) if row else None
+
+    def get_recent_context(self, limit: int = 5) -> list:
+        """Fetches the latest activities to feed straight into an LLM's context window."""
+        self.cursor.execute('''
+            SELECT activity_type, description, metadata, timestamp 
+            FROM activity_log 
+            ORDER BY timestamp DESC 
+            LIMIT ?
+        ''', (limit,))
+        rows = self.cursor.fetchall()
+        return [
+            {
+                "type": r[0],
+                "description": r[1],
+                "metadata": json.loads(r[2]),
+                "timestamp": r[3]
+            } for r in rows
+        ]
+
+    def close(self):
+        self.conn.close()
+
+# --- Example Usage ---
+if __name__ == "__main__":
+    # 1. Initialize Memory Engine
+    ai_brain = ActiveAIMemory(":memory:")  # Using temporary in-memory DB for demonstration
+
+    # 2. Record User Configuration Selections
+    ai_brain.remember_selection("preferred_theme", "dark_mode")
+    ai_brain.remember_selection("active_repositories", ["github.com/gilbertalgordo/dev"])
+
+    # 3. Stream/Log Online Activities dynamically
+    ai_brain.log_activity(
+        activity_type="repo_commit_check",
+        description="Scanned local commits for feature updates",
+        metadata={"repo": "dev", "branch": "main", "status": "synced"}
+    )
+    ai_brain.log_activity(
+        activity_type="web_navigation",
+        description="Accessed API documentation endpoint",
+        metadata={"url": "https://g.dev/gilbert_algordo", "duration_sec": 45}
+    )
+
+    # 4. Pull Active Context for the next prompt execution
+    print("--- Stored Selection ---")
+    print(f"Preferred Repositories: {ai_brain.get_preference('active_repositories')}")
+    
+    print("\n--- Recent Online Activity Context Window ---")
+    for event in ai_brain.get_recent_context():
+        print(f"[{event['timestamp']}] ({event['type']}) -> {event['description']}")
+
+
+
+import sqlite3
+import json
+import asyncio
+import math
+from datetime import datetime
+from typing import Dict, Any, List, Optional
+from collections import Counter
+
+class AdvancedActiveAIMemory:
+    def __init__(self, db_path: str = "active_ai_cognitive_vault.db"):
+        """
+        Initializes an advanced, thread-safe memory architecture featuring
+        state deduplication, semantic ranking, and automatic delta compression.
+        """
+        self.db_path = db_path
+        self._init_storage()
+        self.lock = asyncio.Lock()
+
+    def _init_storage(self):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            # Enforce write-ahead logging for high-throughput async activity streaming
+            cursor.execute("PRAGMA journal_mode=WAL;")
+            cursor.execute("PRAGMA synchronous=NORMAL;")
+            
+            # Explicit State Layer (User preferences, Environment, Tool configurations)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS active_selections (
+                    selection_key TEXT PRIMARY KEY,
+                    selection_value TEXT,
+                    version_checksum INTEGER DEFAULT 1,
+                    last_synchronized TEXT
+                )
+            ''')
+            
+            # Episodic Activity Layer (Streaming user actions, browsing telemetry, code state changes)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS telemetry_activities (
+                    activity_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_vector_sig TEXT, -- Space-separated tokenized signature for lightweight similarity matching
+                    activity_type TEXT,
+                    payload_description TEXT,
+                    system_metadata TEXT,
+                    importance_weight REAL DEFAULT 1.0,
+                    timestamp TEXT
+                )
+            ''')
+            
+            # Indexing for high-performance temporal lookups and specific activity queries
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_telemetry_time ON telemetry_activities(timestamp DESC);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_activity_type ON telemetry_activities(activity_type);")
+            conn.commit()
+
+    async def remember_selection(self, key: str, value: Any) -> int:
+        """
+        Upserts system states, verifying updates to avoid redundant writes.
+        Returns the updated version control checksum.
+        """
+        async with self.lock:
+            serialized_value = json.dumps(value, sort_keys=True)
+            timestamp = datetime.utcnow().isoformat()
+            
+            def _upsert():
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT selection_value, version_checksum FROM active_selections WHERE selection_key = ?", (key,))
+                    row = cursor.fetchone()
+                    
+                    if row:
+                        if row[0] == serialized_value:
+                            return row[1] # No change detected; preserve checksum
+                        new_version = row[1] + 1
+                    else:
+                        new_version = 1
+                        
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO active_selections (selection_key, selection_value, version_checksum, last_synchronized)
+                        VALUES (?, ?, ?, ?)
+                    ''', (key, serialized_value, new_version, timestamp))
+                    conn.commit()
+                    return new_version
+                    
+            return await asyncio.to_thread(_upsert)
+
+    async def log_activity(self, activity_type: str, description: str, metadata: Optional[Dict[str, Any]] = None, weight: float = 1.0):
+        """
+        Asynchronously streams active telemetry, generating a text signature for fallback semantic search.
+        """
+        async with self.lock:
+            meta_str = json.dumps(metadata or {}, sort_keys=True)
+            timestamp = datetime.utcnow().isoformat()
+            
+            # Generate clean semantic vector token string
+            signature_tokens = " ".join(set(description.lower().split() + activity_type.lower().split("_")))
+            
+            def _insert():
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute('''
+                        INSERT INTO telemetry_activities (event_vector_sig, activity_type, payload_description, system_metadata, importance_weight, timestamp)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (signature_tokens, activity_type, description, meta_str, weight, timestamp))
+                    conn.commit()
+            await asyncio.to_thread(_insert)
+
+    def _cosine_similarity_signature(self, query: str, target_sig: str) -> float:
+        """Calculates token-frequency cosine similarity score for memory filtering."""
+        q_words = query.lower().split()
+        t_words = target_sig.split()
+        if not q_words or not t_words: return 0.0
+        
+        q_count, t_count = Counter(q_words), Counter(t_words)
+        words = set(q_count.keys()) | set(t_count.keys())
+        
+        dot_product = sum(q_count.get(w, 0) * t_count.get(w, 0) for w in words)
+        mag_q = math.sqrt(sum(q_count[w]**2 for w in q_count))
+        mag_t = math.sqrt(sum(t_count[w]**2 for w in t_count))
+        
+        return dot_product / (mag_q * mag_t) if mag_q and mag_t else 0.0
+
+    async def query_semantic_context(self, focus_query: str, limit: int = 5, similarity_threshold: float = 0.1) -> List[Dict[str, Any]]:
+        """
+        Retrieves recent events matching contextual intent using tokenized cosine similarity rankings.
+        """
+        def _fetch():
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT event_vector_sig, activity_type, payload_description, system_metadata, importance_weight, timestamp FROM telemetry_activities ORDER BY timestamp DESC LIMIT 50")
+                return cursor.fetchall()
+
+        raw_events = await asyncio.to_thread(_fetch)
+        ranked_events = []
+        
+        for sig, act_type, desc, meta, weight, ts in raw_events:
+            score = self._cosine_similarity_signature(focus_query, sig) * weight
+            if score >= similarity_threshold:
+                ranked_events.append({
+                    "type": act_type,
+                    "description": desc,
+                    "metadata": json.loads(meta),
+                    "timestamp": ts,
+                    "relevance_score": round(score, 3)
+                })
+                
+        ranked_events.sort(key=lambda x: x["relevance_score"], reverse=True)
+        return ranked_events[:limit]
+
+    async def compress_context_window(self, threshold_days: float = 1.0):
+        """
+        Active compilation system: Consolidates micro-events into single historical rollups
+        to clear the LLM context window while maintaining perfect systemic continuity.
+        """
+        async with self.lock:
+            def _compile():
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.cursor()
+                    # Find historical telemetry items beyond target threshold window
+                    cursor.execute('''
+                        SELECT COUNT(*), activity_type 
+                        FROM telemetry_activities 
+                        WHERE strftime('%s', 'now') - strftime('%s', timestamp) > ?
+                        GROUP BY activity_type
+                    ''', (threshold_days * 86400,))
+                    
+                    summaries = cursor.fetchall()
+                    if not summaries:
+                        return "Context window fully optimized. No delta consolidation needed."
+                        
+                    for count, act_type in summaries:
+                        rollup_desc = f"Consolidated {count} background events of type: [{act_type}] to save token context window overhead."
+                        now = datetime.utcnow().isoformat()
+                        
+                        # Inject summary, wipe noisy records
+                        cursor.execute('''
+                            INSERT INTO telemetry_activities (event_vector_sig, activity_type, payload_description, system_metadata, importance_weight, timestamp)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        ''', ("consolidated system backup window compression optimization", f"COMPRESSED_{act_type}", rollup_desc, "{}", 0.5, now))
+                        
+                        cursor.execute('''
+                            DELETE FROM telemetry_activities 
+                            WHERE activity_type = ? AND strftime('%s', 'now') - strftime('%s', timestamp) > ?
+                        ''', (act_type, threshold_days * 86400))
+                    conn.commit()
+                    return f"Successfully optimized context window. Consolidated {len(summaries)} activity streams."
+                    
+            return await asyncio.to_thread(_compile)
+
+# --- Verification & Simulation Pipeline ---
+async def main():
+    # Initialize Engine in Memory-only sandbox simulation
+    memory_engine = AdvancedActiveAIMemory(":memory:")
+    
+    print("Executing Selection State Captures...")
+    await memory_engine.remember_selection("interface_configuration", {"hud_display": "glassmorphic", "refresh_hz": 120})
+    await memory_engine.remember_selection("open_source_preference", True)
+    v2_check = await memory_engine.remember_selection("open_source_preference", True) 
+    print(f"Verified State Versioning Lock System (Unchanged write yielded code version: {v2_check})")
+
+    print("\nStreaming Live Network Telemetry Activities...")
+    await memory_engine.log_activity("network_scanner", "Parsed production repository updates from open-source endpoints", {"target": "github.com/gilbertalgordo/dev"}, weight=1.5)
+    await memory_engine.log_activity("runtime_compiler", "Initiated compiler verification tests for active optimization models", {"engine": "kaizen_v4"})
+    await memory_engine.log_activity("ui_telemetry", "User selected custom dark canvas preference", {"layer": "hud_overlay"})
+
+    print("\nSimulating Real-time Semantic Memory Search Recall:")
+    matched_context = await memory_engine.query_semantic_context("repository models", limit=2)
+    for index, entry in enumerate(matched_context, 1):
+        print(f"  Match #{index} [Score: {entry['relevance_score']}]: {entry['description']} ({entry['timestamp']})")
+
+    print("\nExecuting Dynamic Context Compression Optimization Run...")
+    # Force compression cutoff simulation to 0 seconds to process everything instantly
+    comp_results = await memory_engine.compress_context_window(threshold_days=0.0)
+    print(f"Result: {comp_results}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+import React, { useState, useEffect } from 'react';
+import { Shield, Cpu, RefreshCw, Layers, Radio, Globe, CheckCircle } from 'lucide-react';
+
+// --- Types & Interfaces ---
+interface SelectionState {
+  key: string;
+  label: string;
+  value: string;
+  category: 'core' | 'dev' | 'ui';
+  timestamp: string;
+}
+
+interface ActivityLog {
+  id: string;
+  type: 'network' | 'compiler' | 'security';
+  title: string;
+  endpoint: string;
+  status: 'active' | 'synced' | 'optimized';
+  time: string;
+}
+
+export default function ActiveAIHUD() {
+  // Mock Data tracking the state of your Active AI Memory Engine
+  const [selections] = useState<SelectionState[]>([
+    { key: 'os_pref', label: 'Core Paradigm', value: 'Pure Open-Source', category: 'core', timestamp: '18:24:01' },
+    { key: 'dev_profile', label: 'Developer Root', value: 'github.com/gilbertalgordo/dev', category: 'dev', timestamp: '18:24:15' },
+    { key: 'ui_render', label: 'HUD Overlay Strategy', value: 'Glassmorphic 120Hz', category: 'ui', timestamp: '18:24:50' }
+  ]);
+
+  const [activities, setActivities] = useState<ActivityLog[]>([
+    { id: '1', type: 'network', title: 'Repository Sync', endpoint: 'github.com/gilbertalgordo', status: 'synced', time: 'Just Now' },
+    { id: '2', type: 'compiler', title: 'Kaizen Optimizations', endpoint: 'g.dev/gilbert_algordo', status: 'optimized', time: '2m ago' },
+    { id: '3', type: 'security', title: 'Anticensorship Sentry', endpoint: 'localhost:8080/vault', status: 'active', time: '5m ago' }
+  ]);
+
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Simulate real-time dynamic streaming activity updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsSyncing(true);
+      setTimeout(() => setIsSyncing(false), 800);
+      
+      setActivities(prev => [
+        {
+          id: Date.now().toString(),
+          type: Math.random() > 0.5 ? 'network' : 'compiler',
+          title: Math.random() > 0.5 ? 'Active Stream Intercept' : 'Memory Delta Flushed',
+          endpoint: 'racecorporation.com/telemetry',
+          status: 'active',
+          time: 'Just Now'
+        },
+        ...prev.slice(0, 2)
+      ]);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="w-full max-w-5xl bg-slate-950/80 border border-emerald-500/30 backdrop-blur-md rounded-xl p-6 text-slate-200 font-mono shadow-2xl shadow-emerald-950/40">
+      
+      {/* --- HUD HEADER CONTROL LAYER --- */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-emerald-500/20 pb-4 mb-6 gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <h1 className="text-xl font-bold tracking-wider text-emerald-400 uppercase">Active AI System Interface</h1>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">Cognitive Matrix Tracking & Online Activity Verification Pipeline</p>
+        </div>
+        
+        <div className="flex items-center gap-3 bg-slate-900/90 border border-slate-800 px-4 py-2 rounded-lg">
+          <RefreshCw className={`w-4 h-4 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
+          <div className="text-right">
+            <span className="text-[10px] block text-slate-500 uppercase font-semibold">Memory Engine</span>
+            <span className="text-xs font-bold text-emerald-400">WAL STATE: STABLE</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        {/* --- LEFT SECTION: REMEMBERED SELECTIONS --- */}
+        <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-4 text-emerald-400/90">
+            <Layers className="w-4 h-4" />
+            <h2 className="text-sm font-bold uppercase tracking-wide">Remembered Selections & Directives</h2>
+          </div>
+          
+          <div className="space-y-3">
+            {selections.map((item) => (
+              <div 
+                key={item.key} 
+                className="group relative flex items-center justify-between p-3 bg-slate-950 border border-slate-800 hover:border-emerald-500/30 transition-all duration-300 rounded-lg overflow-hidden"
+              >
+                {/* Visual anchor bar */}
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500/40 group-hover:bg-emerald-400 transition-colors" />
+                
+                <div className="pl-2">
+                  <span className="text-[10px] uppercase text-slate-500 tracking-wider block">{item.label}</span>
+                  <span className="text-sm text-slate-200 font-bold tracking-tight">{item.value}</span>
+                </div>
+                
+                <div className="text-right flex flex-col items-end gap-1">
+                  <span className="flex items-center gap-1 text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800/40 px-2 py-0.5 rounded">
+                    <CheckCircle className="w-3 h-3" /> VERIFIED
+                  </span>
+                  <span className="text-[9px] text-slate-600 font-sans">{item.timestamp}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* --- RIGHT SECTION: ONLINE ACTIVITIES TELEMETRY --- */}
+        <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-4 text-emerald-400/90">
+            <Radio className="w-4 h-4 animate-pulse" />
+            <h2 className="text-sm font-bold uppercase tracking-wide">Live Online Activity Stream</h2>
+          </div>
+
+          <div className="space-y-3">
+            {activities.map((act) => (
+              <div 
+                key={act.id} 
+                className="flex items-center justify-between p-3 bg-slate-950/60 border border-slate-900 rounded-lg hover:bg-slate-950 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {/* Dynamic Iconic Representation based on activity type */}
+                  <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg text-emerald-400">
+                    {act.type === 'network' && <Globe className="w-4 h-4" />}
+                    {act.type === 'compiler' && <Cpu className="w-4 h-4" />}
+                    {act.type === 'security' && <Shield className="w-4 h-4" />}
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-200 block">{act.title}</span>
+                    <span className="text-[11px] text-slate-400 truncate max-w-[180px] sm:max-w-xs block font-sans">{act.endpoint}</span>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <span className={`inline-block text-[10px] px-2 py-0.5 rounded font-sans border uppercase tracking-wider font-semibold ${
+                    act.status === 'active' ? 'bg-cyan-950/50 text-cyan-400 border-cyan-800/30' :
+                    act.status === 'synced' ? 'bg-emerald-950/50 text-emerald-400 border-emerald-800/30' :
+                    'bg-amber-950/50 text-amber-400 border-amber-800/30'
+                  }`}>
+                    {act.status}
+                  </span>
+                  <span className="text-[10px] text-slate-500 block mt-1 font-sans">{act.time}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+
+      {/* --- HUD FOOTER DATA COUNTER --- */}
+      <div className="mt-6 pt-4 border-t border-slate-900 flex justify-between items-center text-[11px] text-slate-500">
+        <div>ACTIVE REPOS: <span className="text-emerald-400 font-bold">github.com/gilbertalgordo/dev</span></div>
+        <div>ALGORITHM RATE: <span className="text-emerald-400">SUPERFAST KAIZEN v4</span></div>
+      </div>
+
+    </div>
+  );
+}
