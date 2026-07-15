@@ -1,0 +1,697 @@
+import React, { useState, useEffect } from 'react';
+import { Target, Shield, Zap, AlertTriangle, Crosshair, Cpu, HardDrive } from 'lucide-react';
+
+// --- TYPE DEFINITIONS ---
+interface ThreatVector {
+  id: string;
+  source: string;
+  distance: number; // in meters
+  threatLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  bearing: number; // degrees
+}
+
+interface SystemTelemetry {
+  powerGrid: number; // percentage
+  coreTemp: number; // °C
+  quantumSync: boolean;
+  gpsCoords: { lat: string; lng: string };
+}
+
+export default function TacticalHUD() {
+  // --- STATE MANAGEMENT ---
+  const [telemetry, setTelemetry] = useState<SystemTelemetry>({
+    powerGrid: 98.4,
+    coreTemp: 42.1,
+    quantumSync: true,
+    gpsCoords: { lat: "14°21'43\" N", lng: "121°03'05\" E" } // Calabarzon Sector
+  });
+
+  const [threats, setThreats] = useState<ThreatVector[]>([
+    { id: 'T-01', source: 'Ariel Recon Drone', distance: 2400, threatLevel: 'LOW', bearing: 42 },
+    { id: 'T-02', source: 'Heavy Armored Mech', distance: 850, threatLevel: 'HIGH', bearing: 184 },
+    { id: 'T-03', source: 'Unknown EW Jammer', distance: 150, threatLevel: 'CRITICAL', bearing: 290 }
+  ]);
+
+  const [weaponReady, setWeaponReady] = useState(true);
+
+  // --- KAIZEN SIMULATION LOOP (Continuous Updates) ---
+  useEffect(() => {
+    const activeUpdateLoop = setInterval(() => {
+      // Shift telemetry values dynamically
+      setTelemetry(prev => ({
+        ...prev,
+        powerGrid: Math.max(70, Number((prev.powerGrid - (Math.random() * 0.4) + (Math.random() * 0.3)).toFixed(1))),
+        coreTemp: Math.min(95, Number((prev.coreTemp + (Math.random() * 0.8) - (Math.random() * 0.6)).toFixed(1)))
+      }));
+
+      // Update threat distances and bearings dynamically
+      setThreats(prevThreats =>
+        prevThreats.map(threat => {
+          const distanceDelta = Math.floor(Math.random() * 80) - 50; // Approaching tendency
+          const newDistance = Math.max(0, threat.distance + distanceDelta);
+          const newBearing = (threat.bearing + Math.floor(Math.random() * 6) - 3 + 360) % 360;
+          
+          let threatLevel = threat.threatLevel;
+          if (newDistance < 300) threatLevel = 'CRITICAL';
+          else if (newDistance < 1000) threatLevel = 'HIGH';
+          else if (newDistance < 2000) threatLevel = 'MEDIUM';
+          else threatLevel = 'LOW';
+
+          return { ...threat, distance: newDistance, bearing: newBearing, threatLevel };
+        })
+      );
+    }, 800); // Superfast update speed
+
+    return () => clearInterval(activeUpdateLoop);
+  }, []);
+
+  // --- RENDERING AUXILIARY STYLING ---
+  const getThreatColor = (level: string) => {
+    switch (level) {
+      case 'CRITICAL': return 'text-red-500 border-red-500 bg-red-950/30 animate-pulse';
+      case 'HIGH': return 'text-orange-500 border-orange-500 bg-orange-950/20';
+      case 'MEDIUM': return 'text-yellow-500 border-yellow-500';
+      default: return 'text-emerald-500 border-emerald-500';
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-emerald-400 font-mono p-6 select-none relative overflow-hidden">
+      {/* Background Military Grid Overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#022c22_1px,transparent_1px),linear-gradient(to_bottom,#022c22_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-30 pointer-events-none" />
+
+      {/* HEADER: COMMAND STRIP */}
+      <header className="relative flex justify-between items-center border-b border-emerald-500/30 pb-4 mb-6">
+        <div>
+          <h1 className="text-xl font-black tracking-widest text-emerald-300">ACTIVE WARFARE SYSTEM v9.2.6</h1>
+          <p className="text-xs text-emerald-500/70">SECURE SHELL // ENCRYPTED NODE COMM_</p>
+        </div>
+        <div className="flex gap-6 text-right text-xs">
+          <div>
+            <div className="text-emerald-500/60 font-semibold">SECTOR GEO-LOCK</div>
+            <div className="font-bold text-emerald-300">{telemetry.gpsCoords.lat} / {telemetry.gpsCoords.lng}</div>
+          </div>
+          <div className="border-l border-emerald-500/30 pl-6">
+            <div className="text-emerald-500/60 font-semibold">QUANTUM SYNC</div>
+            <div className={`font-bold ${telemetry.quantumSync ? 'text-cyan-400' : 'text-red-500'}`}>
+              {telemetry.quantumSync ? 'CONNECTED [100%]' : 'DESYNCED'}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* MAIN HUD LAYOUT */}
+      <main className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10">
+        
+        {/* COLUMN 1: LIVE TELEMETRY & REACTOR STATS */}
+        <section className="bg-slate-900/60 border border-emerald-500/20 rounded-lg p-5 backdrop-blur-md">
+          <div className="flex items-center gap-2 mb-4 border-b border-emerald-500/20 pb-2">
+            <Cpu className="w-5 h-5 text-emerald-400" />
+            <h2 className="text-sm font-bold tracking-wider uppercase text-emerald-300">Reactor & Energy Grid</h2>
+          </div>
+
+          <div className="space-y-5">
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>SLIM QUANTUM CELL RESERVE</span>
+                <span className="font-bold text-emerald-300">{telemetry.powerGrid}%</span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-emerald-500/20">
+                <div 
+                  className="bg-emerald-400 h-full transition-all duration-300 ease-out" 
+                  style={{ width: `${telemetry.powerGrid}%` }} 
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>CORE TEMP LIMITERS</span>
+                <span className={`font-bold ${telemetry.coreTemp > 75 ? 'text-red-400' : 'text-emerald-300'}`}>
+                  {telemetry.coreTemp}°C
+                </span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-emerald-500/20">
+                <div 
+                  className={`h-full transition-all duration-300 ease-out ${telemetry.coreTemp > 75 ? 'bg-red-500' : 'bg-cyan-400'}`} 
+                  style={{ width: `${(telemetry.coreTemp / 120) * 100}%` }} 
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="bg-slate-950/80 border border-emerald-500/10 p-3 rounded text-center">
+                <div className="text-[10px] text-emerald-500/60">INTELLIGENT REGEN</div>
+                <div className="text-lg font-bold text-emerald-300">ACTIVE</div>
+              </div>
+              <div className="bg-slate-950/80 border border-emerald-500/10 p-3 rounded text-center">
+                <div className="text-[10px] text-emerald-500/60">KINETIC SHIELD</div>
+                <div className="text-lg font-bold text-cyan-400">92%</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* COLUMN 2: ACTIVE TACTICAL radar DISPLAY */}
+        <section className="bg-slate-900/60 border border-emerald-500/20 rounded-lg p-5 backdrop-blur-md flex flex-col justify-between min-h-[350px]">
+          <div className="flex items-center gap-2 mb-2 border-b border-emerald-500/20 pb-2">
+            <Crosshair className="w-5 h-5 text-emerald-400" />
+            <h2 className="text-sm font-bold tracking-wider uppercase text-emerald-300">Tactical Targeting Array</h2>
+          </div>
+
+          {/* Animated Target Reticle Container */}
+          <div className="flex-1 flex items-center justify-center relative my-4">
+            <div className="w-44 h-44 rounded-full border border-dashed border-emerald-500/40 flex items-center justify-center animate-[spin_20s_linear_infinite]">
+              <div className="w-32 h-32 rounded-full border border-emerald-500/20 flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full border border-double border-emerald-500/40" />
+              </div>
+            </div>
+            
+            {/* Target Locking Indicator */}
+            <div className="absolute flex flex-col items-center">
+              <Target className="w-10 h-10 text-emerald-400 animate-pulse" />
+              <span className="text-[10px] tracking-widest text-emerald-300 mt-2 font-black">AUTO-LOCK ENGAGED</span>
+            </div>
+          </div>
+
+          <button 
+            onClick={() => setWeaponReady(!weaponReady)}
+            className={`w-full py-3 font-bold text-sm tracking-wider uppercase border transition-all duration-200 ${
+              weaponReady 
+                ? 'bg-red-950/40 border-red-500 text-red-400 hover:bg-red-900/60' 
+                : 'bg-emerald-950/40 border-emerald-500 text-emerald-400 hover:bg-emerald-900/60'
+            }`}
+          >
+            {weaponReady ? '🚨 ARM CHARGE CANNON [KINETIC]' : 'ACTIVATE WEAPON CORE'}
+          </button>
+        </section>
+
+        {/* COLUMN 3: LIVE THREAT TRACKING VECTORS */}
+        <section className="bg-slate-900/60 border border-emerald-500/20 rounded-lg p-5 backdrop-blur-md">
+          <div className="flex items-center gap-2 mb-4 border-b border-emerald-500/20 pb-2">
+            <AlertTriangle className="w-5 h-5 text-emerald-400" />
+            <h2 className="text-sm font-bold tracking-wider uppercase text-emerald-300">Incoming Threat Vectors</h2>
+          </div>
+
+          <div className="space-y-3">
+            {threats.map((threat) => (
+              <div 
+                key={threat.id} 
+                className={`p-3 border rounded transition-all duration-300 ${getThreatColor(threat.threatLevel)}`}
+              >
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-bold">{threat.id} - {threat.source}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded border border-current font-black">
+                    {threat.threatLevel}
+                  </span>
+                </div>
+                <div className="flex justify-between text-[11px] opacity-80">
+                  <span>DISTANCE: <strong className="text-white">{threat.distance}m</strong></span>
+                  <span>BEARING: <strong className="text-white">{threat.bearing}°</strong></span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
+
+      {/* FOOTER STATS */}
+      <footer className="mt-6 flex justify-between items-center text-[10px] text-emerald-500/50 border-t border-emerald-500/20 pt-4">
+        <span>ACTIVE SYSTEM PROCESSES: 2,841//OK</span>
+        <span className="animate-pulse">● NETWORK LIVE_</span>
+      </footer>
+    </div>
+  );
+}
+
+
+
+
+npm install lucide-react
+
+
+
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Target, Shield, Zap, AlertTriangle, Crosshair, Cpu, RefreshCw, Radio } from 'lucide-react';
+
+// --- TYPE DEFINITIONS ---
+interface ThreatEntity {
+  id: string;
+  name: string;
+  x: number; // relative position X (-100 to 100)
+  y: number; // relative position Y (-100 to 100)
+  z: number; // Altitude/Depth (meters)
+  velocity: { dx: number; dy: number };
+  threatLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  signature: 'AERIAL' | 'GROUND' | 'ELECTRONIC';
+}
+
+interface HUDState {
+  systemPower: number;
+  shieldStrength: number;
+  cpuThermal: number;
+  weaponsArmed: boolean;
+  activeSector: string;
+}
+
+export default function ActiveWarfareHUD() {
+  // --- STATE ---
+  const [hud, setHud] = useState<HUDState>({
+    systemPower: 100.0,
+    shieldStrength: 100.0,
+    cpuThermal: 38.4,
+    weaponsArmed: false,
+    activeSector: "PH-R4-NCR"
+  });
+
+  const [entities, setEntities] = useState<ThreatEntity[]>([
+    { id: 'ENT-09', name: 'Hypersonic Glide Vector', x: 45, y: -80, z: 12500, velocity: { dx: -0.8, dy: 1.2 }, threatLevel: 'CRITICAL', signature: 'AERIAL' },
+    { id: 'ENT-22', name: 'SIGINT Electronic Jammer', x: -60, y: 30, z: 120, velocity: { dx: 0.2, dy: -0.1 }, threatLevel: 'HIGH', signature: 'ELECTRONIC' },
+    { id: 'ENT-74', name: 'Mechanized Armor Column', x: 15, y: 40, z: 0, velocity: { dx: -0.1, dy: -0.05 }, threatLevel: 'MEDIUM', signature: 'GROUND' }
+  ]);
+
+  const [radarSweepAngle, setRadarSweepAngle] = useState(0);
+  const simFrame = useRef<number>(0);
+
+  // --- DETERMINISTIC 60FPS SIMULATION TICK ---
+  useEffect(() => {
+    let lastTime = performance.now();
+
+    const updateSimulation = (time: number) => {
+      const delta = (time - lastTime) / 1000; // in seconds
+      lastTime = time;
+
+      // 1. Rotate radar sweep indicator
+      setRadarSweepAngle(prev => (prev + 90 * delta) % 360);
+
+      // 2. Compute advanced kinematics on threat entities
+      setEntities(prevEntities =>
+        prevEntities.map(entity => {
+          // Calculate new positions based on velocity vector
+          let nextX = entity.x + entity.velocity.dx * delta * 15;
+          let nextY = entity.y + entity.velocity.dy * delta * 15;
+
+          // Boundary bouncing to simulate patrol patterns within sector bounds
+          let nextDx = entity.velocity.dx;
+          let nextDy = entity.velocity.dy;
+          if (nextX > 90 || nextX < -90) nextDx = -nextDx;
+          if (nextY > 90 || nextY < -90) nextDy = -nextDy;
+
+          // Calculate direct Euclidean range from HUD origin (0, 0)
+          const range = Math.sqrt(nextX * nextX + nextY * nextY);
+          let level = entity.threatLevel;
+          if (range < 35) level = 'CRITICAL';
+          else if (range < 65) level = 'HIGH';
+          else if (range < 85) level = 'MEDIUM';
+          else level = 'LOW';
+
+          return {
+            ...entity,
+            x: Number(nextX.toFixed(2)),
+            y: Number(nextY.toFixed(2)),
+            velocity: { dx: nextDx, dy: nextDy },
+            threatLevel: level
+          };
+        })
+      );
+
+      // 3. Update environmental core metrics
+      setHud(prev => {
+        const tempFluctuation = (Math.random() - 0.5) * 0.4;
+        const powerDrain = prev.weaponsArmed ? 0.05 : 0.01;
+        return {
+          ...prev,
+          systemPower: Math.max(0, Number((prev.systemPower - powerDrain).toFixed(2))),
+          cpuThermal: Math.min(105, Math.max(30, Number((prev.cpuThermal + tempFluctuation).toFixed(2))))
+        };
+      });
+
+      simFrame.current = requestAnimationFrame(updateSimulation);
+    };
+
+    simFrame.current = requestAnimationFrame(updateSimulation);
+    return () => cancelAnimationFrame(simFrame.current);
+  }, []);
+
+  // --- ACTIONS ---
+  const handlePowerFlush = () => {
+    setHud(prev => ({
+      ...prev,
+      systemPower: 100.0,
+      cpuThermal: Math.max(35, prev.cpuThermal - 15)
+    }));
+  };
+
+  const toggleWeaponSystems = () => {
+    setHud(prev => ({ ...prev, weaponsArmed: !prev.weaponsArmed }));
+  };
+
+  // --- MEMOIZED CALCS ---
+  const criticalThreatCount = useMemo(() => {
+    return entities.filter(e => e.threatLevel === 'CRITICAL').length;
+  }, [entities]);
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-emerald-400 font-mono p-6 relative overflow-hidden select-none">
+      {/* HUD Scanner Grid Overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#064e3b_1px,transparent_1px),linear-gradient(to_bottom,#064e3b_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20 pointer-events-none" />
+
+      {/* TOP STATUS BAR */}
+      <header className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center border-b border-emerald-500/30 pb-4 mb-6 gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Radio className="w-5 h-5 text-emerald-400 animate-pulse" />
+            <span className="text-xs font-semibold tracking-widest text-emerald-500">TACTICAL BROADCAST NODE</span>
+          </div>
+          <h1 className="text-2xl font-black tracking-widest text-emerald-200">ACTIVE WARFARE CONTROL</h1>
+        </div>
+        
+        <div className="flex flex-wrap gap-4 text-xs">
+          <div className="bg-slate-900/80 border border-emerald-500/20 px-3 py-2 rounded">
+            <span className="text-emerald-500/60 block">COORDINATE MAPPING</span>
+            <span className="font-bold text-emerald-300">{hud.activeSector} // LIVE TRAFFIC</span>
+          </div>
+          <div className="bg-slate-900/80 border border-emerald-500/20 px-3 py-2 rounded">
+            <span className="text-emerald-500/60 block">CRITICAL THREATS</span>
+            <span className={`font-bold ${criticalThreatCount > 0 ? 'text-red-400 animate-pulse' : 'text-emerald-300'}`}>
+              {criticalThreatCount} DETECTED
+            </span>
+          </div>
+        </div>
+      </header>
+
+      {/* GRID INTERFACE */}
+      <div className="relative z-10 grid grid-cols-1 xl:grid-cols-4 gap-6">
+        
+        {/* PANEL 1: SYSTEM CONTROLS & DIAGNOSTICS */}
+        <section className="xl:col-span-1 bg-slate-900/70 border border-emerald-500/20 p-5 rounded-lg backdrop-blur-md flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-4 border-b border-emerald-500/20 pb-2">
+              <Cpu className="w-5 h-5 text-emerald-300" />
+              <h2 className="text-sm font-bold tracking-wider uppercase text-emerald-200">Power & Diagnostics</h2>
+            </div>
+
+            <div className="space-y-5">
+              {/* SLIM QUANTUM CELL RESERVE */}
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span>SLIM QUANTUM RESERVE</span>
+                  <span className="font-bold text-emerald-300">{hud.systemPower}%</span>
+                </div>
+                <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-emerald-500/30">
+                  <div 
+                    className="bg-emerald-400 h-full transition-all duration-100" 
+                    style={{ width: `${hud.systemPower}%` }} 
+                  />
+                </div>
+              </div>
+
+              {/* TEMPERATURE CORE */}
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span>THERMAL ENVELOPE</span>
+                  <span className={`font-bold ${hud.cpuThermal > 80 ? 'text-red-400' : 'text-emerald-300'}`}>
+                    {hud.cpuThermal} °C
+                  </span>
+                </div>
+                <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-emerald-500/30">
+                  <div 
+                    className={`h-full transition-all duration-100 ${hud.cpuThermal > 70 ? 'bg-red-500' : 'bg-cyan-400'}`} 
+                    style={{ width: `${Math.min(100, (hud.cpuThermal / 110) * 100)}%` }} 
+                  />
+                </div>
+              </div>
+
+              {/* CORE METRIC GRID */}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="bg-slate-950/80 border border-emerald-500/10 p-3 rounded">
+                  <span className="text-[10px] text-emerald-500/60 block uppercase">Regen Rate</span>
+                  <span className="text-sm font-bold text-emerald-300">3.4 kW/s</span>
+                </div>
+                <div className="bg-slate-950/80 border border-emerald-500/10 p-3 rounded">
+                  <span className="text-[10px] text-emerald-500/60 block uppercase">Signal Integrity</span>
+                  <span className="text-sm font-bold text-cyan-400">99.2%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-2">
+            <button 
+              onClick={handlePowerFlush}
+              className="w-full py-2.5 bg-emerald-950/40 border border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-900/30 text-emerald-300 text-xs font-bold tracking-wider rounded transition-all flex items-center justify-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" /> RECHARGE RESERVES
+            </button>
+            <button 
+              onClick={toggleWeaponSystems}
+              className={`w-full py-2.5 text-xs font-bold tracking-wider rounded border transition-all ${
+                hud.weaponsArmed 
+                  ? 'bg-red-950/60 border-red-500 text-red-400 hover:bg-red-900/40' 
+                  : 'bg-slate-950 border-emerald-500/40 text-emerald-400 hover:bg-emerald-950/40'
+              }`}
+            >
+              {hud.weaponsArmed ? '⚠️ DISARM KINETIC WEAPONS' : '⚔️ ARM WEAPON SYSTEMS'}
+            </button>
+          </div>
+        </section>
+
+        {/* PANEL 2: RADAR TRACKER AREA */}
+        <section className="xl:col-span-2 bg-slate-900/70 border border-emerald-500/20 p-5 rounded-lg backdrop-blur-md flex flex-col items-center">
+          <div className="w-full flex items-center justify-between border-b border-emerald-500/20 pb-2 mb-4">
+            <div className="flex items-center gap-2">
+              <Crosshair className="w-5 h-5 text-emerald-300" />
+              <h2 className="text-sm font-bold tracking-wider uppercase text-emerald-200">Active Spatial Array</h2>
+            </div>
+            <span className="text-xs text-emerald-500">RADIUS: 15,000m</span>
+          </div>
+
+          {/* Interactive Radar Map Canvas Simulation */}
+          <div className="relative w-80 h-80 md:w-96 md:h-96 rounded-full border border-emerald-500/30 bg-slate-950/90 overflow-hidden flex items-center justify-center shadow-2xl shadow-emerald-950/20">
+            {/* Concentric Radar Rings */}
+            <div className="absolute w-3/4 h-3/4 rounded-full border border-dashed border-emerald-500/20" />
+            <div className="absolute w-1/2 h-1/2 rounded-full border border-dashed border-emerald-500/10" />
+            <div className="absolute w-1/4 h-1/4 rounded-full border border-emerald-500/5" />
+            
+            {/* Axis Lines */}
+            <div className="absolute w-full h-[1px] bg-emerald-500/10" />
+            <div className="absolute h-full w-[1px] bg-emerald-500/10" />
+
+            {/* Sweep Beam */}
+            <div 
+              className="absolute inset-0 origin-center pointer-events-none"
+              style={{
+                transform: `rotate(${radarSweepAngle}deg)`,
+                background: `conic-gradient(from 0deg at 50% 50%, rgba(16, 185, 129, 0.15) 0deg, transparent 90deg)`
+              }}
+            />
+
+            {/* Render Simulated Entities on Radar Map */}
+            {entities.map(entity => {
+              // Map relative values (-100 to 100) to percentage boundary styling
+              const leftPercent = 50 + (entity.x / 2);
+              const topPercent = 50 + (entity.y / 2);
+              
+              return (
+                <div
+                  key={entity.id}
+                  className="absolute group cursor-pointer -translate-x-1/2 -translate-y-1/2 transition-all duration-300"
+                  style={{ left: `${leftPercent}%`, top: `${topPercent}%` }}
+                >
+                  <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
+                    entity.threatLevel === 'CRITICAL' ? 'bg-red-500 border-red-200 animate-ping' : 
+                    entity.threatLevel === 'HIGH' ? 'bg-orange-500 border-orange-200' : 'bg-emerald-500 border-emerald-200'
+                  }`} />
+                  
+                  {/* Miniature Hover Overlay */}
+                  <div className="hidden group-hover:block absolute left-5 top-0 bg-slate-900 border border-emerald-400 text-[10px] p-2 rounded shadow-xl whitespace-nowrap z-50">
+                    <p className="font-bold text-white">{entity.name}</p>
+                    <p>ID: {entity.id}</p>
+                    <p>LEVEL: {entity.threatLevel}</p>
+                    <p>ALT: {entity.z}m</p>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Center Origin Lock */}
+            <div className="absolute w-2 h-2 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+          </div>
+        </section>
+
+        {/* PANEL 3: VECTOR TRACKING FEED */}
+        <section className="xl:col-span-1 bg-slate-900/70 border border-emerald-500/20 p-5 rounded-lg backdrop-blur-md">
+          <div className="flex items-center gap-2 mb-4 border-b border-emerald-500/20 pb-2">
+            <AlertTriangle className="w-5 h-5 text-emerald-300" />
+            <h2 className="text-sm font-bold tracking-wider uppercase text-emerald-200">Threat Register</h2>
+          </div>
+
+          <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+            {entities.map((entity) => {
+              const directRange = Math.sqrt(entity.x * entity.x + entity.y * entity.y).toFixed(1);
+              
+              return (
+                <div 
+                  key={entity.id} 
+                  className={`p-3 border rounded transition-all duration-200 ${
+                    entity.threatLevel === 'CRITICAL' ? 'bg-red-950/20 border-red-500/80 text-red-400' :
+                    entity.threatLevel === 'HIGH' ? 'bg-orange-950/20 border-orange-500/60 text-orange-300' :
+                    'bg-slate-950 border-emerald-500/10 text-emerald-400'
+                  }`}
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-bold tracking-wider">{entity.id} : {entity.signature}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded border border-current font-black">
+                      {entity.threatLevel}
+                    </span>
+                  </div>
+                  <div className="text-[11px] opacity-80 space-y-0.5">
+                    <p className="font-semibold text-white truncate">{entity.name}</p>
+                    <p>SECTOR DISTANCE: <span className="font-bold">{directRange}km</span></p>
+                    <p>ALTITUDE TRACK: <span className="font-bold">{entity.z}m</span></p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+      </div>
+
+      {/* FOOTER */}
+      <footer className="mt-6 flex justify-between items-center text-[10px] text-emerald-500/40 border-t border-emerald-500/20 pt-4">
+        <span>ACTIVE PIPELINE CLOCK: {(performance.now() / 1000).toFixed(1)}s</span>
+        <span className="animate-pulse">● RADAR DUPLEX ACTIVE</span>
+      </footer>
+    </div>
+  );
+}
+
+
+
+
+
+npm install lucide-react
+
+
+
+
+/* Core styling for the icons */
+.aw-icon-container {
+  display: inline-flex;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #020617; /* Dark slate background */
+}
+
+.aw-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 185, 129, 0.05); /* Very faint emerald backdrop */
+  border: 1px solid rgba(16, 185, 129, 0.3); /* Subtle border */
+  border-radius: 8px;
+  position: relative;
+  transition: all 0.2s ease-in-out;
+}
+
+/* The 'Active' state modifier: enhances color and adds glow */
+.aw-icon.active {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(52, 211, 153, 1); /* Brighter emerald */
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.5); /* The primary glow */
+}
+
+/* Secondary glow element */
+.aw-icon.active::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 9px;
+  background: rgba(52, 211, 153, 0.2);
+  filter: blur(4px);
+  z-index: -1;
+}
+
+/* Styling the SVG paths inside the icon */
+.aw-icon svg {
+  width: 24px;
+  height: 24px;
+  stroke: rgba(110, 231, 183, 0.6); /* Default faint stroke */
+  fill: none;
+  stroke-width: 1.5;
+  transition: stroke 0.2s ease-in-out;
+}
+
+.aw-icon.active svg {
+  stroke: #ffffff; /* Active icons have white/near-white strokes */
+  filter: drop-shadow(0 0 2px rgba(52, 211, 153, 1)); /* Icon-specific glow */
+}
+
+
+
+
+<div class="aw-icon-container">
+  <!-- ICON 1: TARGET ACQUISITION (ACTIVE) -->
+  <div class="aw-icon active" title="Target Locked">
+    <!-- SVG goes here -->
+  </div>
+
+  <!-- ICON 2: KINETIC SHIELD (INACTIVE) -->
+  <div class="aw-icon" title="Shield Standby">
+    <!-- SVG goes here -->
+  </div>
+</div>
+
+
+
+<!-- Use inside .aw-icon -->
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M3 8V5C3 3.89543 3.89543 3 5 3H8" stroke-linecap="round"/>
+  <path d="M16 3H19C20.1046 3 21 3.89543 21 5V8" stroke-linecap="round"/>
+  <path d="M21 16V19C21 20.1046 20.1046 21 19 21H16" stroke-linecap="round"/>
+  <path d="M8 21H5C3.89543 21 3 20.1046 3 19V16" stroke-linecap="round"/>
+  <path d="M12 8V16M8 12H16" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+
+
+<!-- Use inside .aw-icon -->
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 2L20 6V12C20 17 16 20 12 22C8 20 4 17 4 12V6L12 2Z" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M12 7V13M9 10H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" opacity="0.7"/>
+  <path d="M12 18V18.01" stroke-linecap="round" stroke-width="2"/>
+</svg>
+
+
+
+
+<!-- Use inside .aw-icon -->
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 20C12.5523 20 13 19.5523 13 19C13 18.4477 12.5523 18 12 18C11.4477 18 11 18.4477 11 19C11 19.5523 11.4477 20 12 20Z" fill="currentColor" stroke="none"/>
+  <path d="M8.46447 15.4645C7.52671 14.5267 7 13.2514 7 12C7 10.7486 7.52671 9.47329 8.46447 8.53553" stroke-linecap="round"/>
+  <path d="M15.5355 15.4645C16.4733 14.5267 17 13.2514 17 12C17 10.7486 16.4733 9.47329 15.5355 8.53553" stroke-linecap="round"/>
+  <path d="M5.63604 18.364C4.1357 16.8636 3 14.545 3 12C3 9.45499 4.1357 7.13637 5.63604 5.63604" stroke-linecap="round"/>
+  <path d="M18.364 18.364C19.8643 16.8636 21 14.545 21 12C21 9.45499 19.8643 7.13637 18.364 5.63604" stroke-linecap="round"/>
+</svg>
+
+
+
+
+<!-- Use inside .aw-icon -->
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M6 8V18M12 5V18M18 11V18" stroke-linecap="round" stroke-width="2"/>
+  <path d="M3 20H21" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M9 13.5H15V6.5H18L12 2L6 6.5H9V13.5Z" stroke-width="1" opacity="0.6"/>
+</svg>
+
+
+
+<!-- Use inside .aw-icon -->
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M3 3L21 21" stroke-linecap="round" stroke-width="1.5"/>
+  <path d="M10.584 10.587C10.229 10.941 10 11.445 10 12C10 13.104 10.896 14 12 14C12.555 14 13.059 13.771 13.413 13.416" stroke-linecap="round"/>
+  <path d="M9.352 5.31C10.207 5.106 11.096 5 12 5C17.1 5 21.05 8.95 22 12C21.6 13.25 21 14.4 20.2 15.39M15.5 17.69C14.43 18.51 13.25 19 12 19C6.9 19 2.95 15.05 2 12C2.39 10.74 3 9.58 3.83 8.57" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
