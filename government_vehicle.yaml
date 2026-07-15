@@ -1,0 +1,641 @@
+-- Enums for tracking states
+CREATE TYPE vehicle_status AS ENUM ('available', 'dispatched', 'maintenance', 'decommissioned');
+CREATE TYPE dispatch_type AS ENUM ('regular_mission', 'emergency', 'administrative', 'official_travel');
+
+-- 1. Vehicles Inventory Table
+CREATE TABLE vehicles (
+    vehicle_id SERIAL PRIMARY KEY,
+    plate_number VARCHAR(15) UNIQUE NOT NULL,
+    model VARCHAR(50) NOT NULL,
+    brand VARCHAR(30) NOT NULL,
+    type VARCHAR(30) NOT NULL, -- e.g., Sedan, SUV, Patrol, Ambulance
+    current_odometer INT NOT NULL DEFAULT 0,
+    status vehicle_status DEFAULT 'available',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Vehicle Issuance Log Table
+CREATE TABLE vehicle_issuances (
+    issuance_id SERIAL PRIMARY KEY,
+    vehicle_id INT REFERENCES vehicles(vehicle_id),
+    driver_name VARCHAR(100) NOT NULL,
+    driver_license VARCHAR(30) NOT NULL,
+    purpose TEXT NOT NULL,
+    dispatch_type dispatch_type DEFAULT 'regular_mission',
+    destination VARCHAR(255) NOT NULL,
+    departure_time TIMESTAMP NOT NULL,
+    expected_return TIMESTAMP NOT NULL,
+    actual_return TIMESTAMP,
+    starting_odometer INT NOT NULL,
+    ending_odometer INT,
+    approved_by VARCHAR(100) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+-- 3. Fuel Stub / Voucher Table
+CREATE TABLE fuel_stubs (
+    stub_id SERIAL PRIMARY KEY,
+    issuance_id INT REFERENCES vehicle_issuances(issuance_id) ON DELETE CASCADE,
+    stub_number VARCHAR(50) UNIQUE NOT NULL, -- Format: FS-YYYYMMDD-XXXX
+    fuel_type VARCHAR(20) NOT NULL, -- Diesel / Gasoline
+    liters_allocated NUMERIC(6, 2) NOT NULL,
+    max_amount_allowed NUMERIC(10, 2),
+    issued_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    gas_station_partner VARCHAR(100) DEFAULT 'Authorized Government Fuel Depot'
+);
+
+
+
+
+import { Request, Response } from 'express';
+import { Pool } from 'pg'; // PostgreSQL Client
+import crypto from 'crypto';
+
+const pool = new Pool();
+
+interface IssuanceRequest {
+  vehicleId: number;
+  driverName: string;
+  driverLicense: string;
+  purpose: string;
+  dispatchType: 'regular_mission' | 'emergency' | 'administrative' | 'official_travel';
+  destination: string;
+  expectedReturn: string;
+  fuelType: string;
+  allocatedLiters: number;
+  approvedBy: string;
+}
+
+export const issueVehicleAndStub = async (req: Request, res: Response): Promise<void> => {
+  const client = await pool.connect();
+  
+  try {
+    const data: IssuanceRequest = req.body;
+    
+    // Start Transaction for atomic operations (Kaizen execution logic)
+    await client.query('BEGIN');
+
+    // 1. Check vehicle availability and grab current odometer
+    const vehicleCheck = await client.query(
+      'SELECT status, current_odometer FROM vehicles WHERE vehicle_id = $1 FOR UPDATE',
+      [data.vehicleId]
+    );
+
+    if (vehicleCheck.rows.length === 0) {
+      res.status(404).json({ success: false, error: 'Vehicle not found.' });
+      await client.query('ROLLBACK');
+      return;
+    }
+
+    const vehicle = vehicleCheck.rows[0];
+    if (vehicle.status !== 'available' && data.dispatchType !== 'emergency') {
+      res.status(400).json({ success: false, error: 'Vehicle is currently unavailable/dispatched.' });
+      await client.query('ROLLBACK');
+      return;
+    }
+
+    // 2. Insert Issuance Log Entry
+    const issuanceQuery = `
+      INSERT INTO vehicle_issuances 
+      (vehicle_id, driver_name, driver_license, purpose, dispatch_type, destination, departure_time, expected_return, starting_odometer, approved_by)
+      VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9)
+      RETURNING issuance_id;
+    `;
+    const issuanceValues = [
+      data.vehicleId,
+      data.driverName,
+      data.driverLicense,
+      data.purpose,
+      data.dispatchType,
+      data.destination,
+      data.expectedReturn,
+      vehicle.current_odometer,
+      data.approvedBy
+    ];
+    
+    const issuanceResult = await client.query(issuanceQuery, issuanceValues);
+    const newIssuanceId = issuanceResult.rows[0].issuance_id;
+
+    // 3. Generate Secure Fuel Stub Unique Identifier
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const randomHex = crypto.randomBytes(2).toString('hex').toUpperCase();
+    const uniqueStubNumber = `FS-${dateStr}-${newIssuanceId}${randomHex}`;
+
+    // 4. Insert Fuel Stub Record
+    const stubQuery = `
+      INSERT INTO fuel_stubs (issuance_id, stub_number, fuel_type, liters_allocated)
+      VALUES ($1, $2, $3, $4)
+      RETURNING stub_number, issued_date;
+    `;
+    const stubResult = await client.query(stubQuery, [newIssuanceId, uniqueStubNumber, data.fuelType, data.allocatedLiters]);
+
+    // 5. Update Vehicle Status to Dispatched
+    await client.query(
+      'UPDATE vehicles SET status = \'dispatched\' WHERE vehicle_id = $1',
+      [data.vehicleId]
+    );
+
+    // Commit Transaction
+    await client.query('COMMIT');
+
+    res.status(201).json({
+      success: true,
+      message: 'Government vehicle issued successfully and fuel stub generated.',
+      data: {
+        issuanceId: newIssuanceId,
+        stubNumber: stubResult.rows[0].stub_number,
+        issuedAt: stubResult.rows[0].issued_date,
+        startingOdometer: vehicle.current_odometer
+      }
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error executing vehicle issuance instance:', error);
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
+  } finally {
+    client.release();
+  }
+};
+
+
+
+
+-- Call this query upon successful vehicle return inspection
+UPDATE vehicle_issuances 
+SET 
+    actual_return = NOW(),
+    ending_odometer = 154200, -- Dynamic input parameter from physical inspection
+    is_active = FALSE
+WHERE issuance_id = 1 
+RETURNING vehicle_id, starting_odometer;
+
+-- Immediately chain update to vehicles inventory table
+UPDATE vehicles 
+SET 
+    current_odometer = 154200, -- Matches ending_odometer above
+    status = 'available'
+WHERE vehicle_id = (SELECT vehicle_id FROM vehicle_issuances WHERE issuance_id = 1);
+
+
+
+
+-- Core Enumerations for System Constancy
+CREATE TYPE vehicle_status_type AS ENUM ('AVAILABLE', 'DISPATCHED', 'MAINTENANCE', 'DECOMMISSIONED');
+CREATE TYPE dispatch_classification AS ENUM ('ROUTINE_MISSION', 'EMERGENCY_RESPONSE', 'TACTICAL_DEPLOYMENT', 'ADMINISTRATIVE');
+CREATE TYPE fuel_type_enum AS ENUM ('DIESEL_ENHANCED', 'GASOLINE_UNLEADED', 'HYDROGEN_CELL', 'ELECTRIC_CHARGE');
+
+-- 1. Fleet Asset Management Table
+CREATE TABLE fleet_vehicles (
+    vehicle_uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    plate_number VARCHAR(20) UNIQUE NOT NULL,
+    property_tag VARCHAR(50) UNIQUE NOT NULL,
+    make_model VARCHAR(100) NOT NULL,
+    engine_displacement VARCHAR(10),
+    fuel_type fuel_type_enum NOT NULL,
+    current_odometer INT NOT NULL DEFAULT 0 CHECK (current_odometer >= 0),
+    current_status vehicle_status_type DEFAULT 'AVAILABLE',
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_positive_odometer CHECK (current_odometer >= 0)
+);
+
+-- 2. Transactional Issuance Ledger
+CREATE TABLE vehicle_issuances (
+    issuance_uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    vehicle_uuid UUID REFERENCES fleet_vehicles(vehicle_uuid) ON DELETE RESTRICT,
+    operator_id_card VARCHAR(50) NOT NULL, -- Driver ID / Government Badge Number
+    operator_fullname VARCHAR(150) NOT NULL,
+    mission_classification dispatch_classification NOT NULL DEFAULT 'ROUTINE_MISSION',
+    geographical_destination VARCHAR(255) NOT NULL,
+    authorized_purpose TEXT NOT NULL,
+    
+    departure_timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expected_return_timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    actual_return_timestamp TIMESTAMP WITH TIME ZONE,
+    
+    starting_odometer INT NOT NULL,
+    ending_odometer INT,
+    
+    approving_officer_badge VARCHAR(50) NOT NULL,
+    is_active_dispatch BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_odometer_progression CHECK (ending_odometer >= starting_odometer),
+    CONSTRAINT chk_timeline CHECK (expected_return_timestamp > departure_timestamp)
+);
+
+-- 3. High-Security Cryptographic Fuel Allocations (Stubs)
+CREATE TABLE cryptographic_fuel_stubs (
+    stub_uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    issuance_uuid UUID REFERENCES vehicle_issuances(issuance_uuid) ON DELETE CASCADE,
+    secure_stub_serial VARCHAR(64) UNIQUE NOT NULL, -- Format: STUB-YYYYMMDD-[HASH]
+    fuel_type fuel_type_enum NOT NULL,
+    allocated_units NUMERIC(8, 2) NOT NULL CHECK (allocated_units > 0.00),
+    max_fiat_limit NUMERIC(10, 2) NOT NULL CHECK (max_fiat_limit >= 0.00),
+    is_redeemed BOOLEAN DEFAULT FALSE,
+    redeemed_timestamp TIMESTAMP WITH TIME ZONE,
+    issuing_depot_partner VARCHAR(100) DEFAULT 'State-Authorized Fuel Repository',
+    cryptographic_signature TEXT NOT NULL -- Integrity verify payload hash
+);
+
+-- Indexes for Fast Search Performance
+CREATE INDEX idx_fleet_status ON fleet_vehicles(current_status);
+CREATE INDEX idx_issuance_active ON vehicle_issuances(is_active_dispatch) WHERE is_active_dispatch = TRUE;
+CREATE INDEX idx_fuel_serial ON cryptographic_fuel_stubs(secure_stub_serial);
+
+
+
+import { Request, Response } from 'express';
+import { Pool, PoolClient } from 'pg';
+import * as crypto from 'crypto';
+
+const dbPool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
+
+// Structural Typings for Transaction Payload
+interface DispatchPayload {
+  vehicleUuid: string;
+  operatorIdCard: string;
+  operatorFullname: string;
+  classification: 'ROUTINE_MISSION' | 'EMERGENCY_RESPONSE' | 'TACTICAL_DEPLOYMENT' | 'ADMINISTRATIVE';
+  destination: string;
+  purpose: string;
+  expectedReturn: string;
+  allocatedUnits: number;
+  maxFiatLimit: number;
+  approverBadge: string;
+}
+
+export const processAdvancedVehicleIssuance = async (req: Request, res: Response): Promise<void> => {
+  const payload: DispatchPayload = req.body;
+  const client: PoolClient = await dbPool.connect();
+
+  try {
+    // Initiate Serialized / Write-Lock Transaction Boundary
+    await client.query('BEGIN');
+
+    // 1. Thread-safe Resource Evaluation via Row-Level Pessimistic Locking
+    const vehicleQuery = `
+      SELECT current_status, current_odometer, fuel_type 
+      FROM fleet_vehicles 
+      WHERE vehicle_uuid = $1 
+      FOR UPDATE;
+    `;
+    const vehicleRes = await client.query(vehicleQuery, [payload.vehicleUuid]);
+
+    if (vehicleRes.rows.length === 0) {
+      res.status(404).json({ error: 'TARGET_VEHICLE_NOT_FOUND' });
+      await client.query('ROLLBACK');
+      return;
+    }
+
+    const vehicleData = vehicleRes.rows[0];
+
+    // Emergency Bypass Logic: Allow dispatches if context is classified as EMERGENCY_RESPONSE
+    if (vehicleData.current_status !== 'AVAILABLE' && payload.classification !== 'EMERGENCY_RESPONSE') {
+      res.status(409).json({ 
+        error: 'RESOURCE_LOCKED', 
+        message: `Asset status: ${vehicleData.current_status}. Dispatch rejected.` 
+      });
+      await client.query('ROLLBACK');
+      return;
+    }
+
+    // 2. Persist the Vehicle Issuance Record Ledger
+    const issuanceInsertQuery = `
+      INSERT INTO vehicle_issuances (
+        vehicle_uuid, operator_id_card, operator_fullname, mission_classification, 
+        geographical_destination, authorized_purpose, expected_return_timestamp, starting_odometer, approving_officer_badge
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING issuance_uuid, departure_timestamp;
+    `;
+    const issuanceValues = [
+      payload.vehicleUuid,
+      payload.operatorIdCard,
+      payload.operatorFullname,
+      payload.classification,
+      payload.destination,
+      payload.purpose,
+      payload.expectedReturn,
+      vehicleData.current_odometer,
+      payload.approverBadge
+    ];
+    
+    const issuanceRes = await client.query(issuanceInsertQuery, issuanceValues);
+    const currentIssuanceUuid = issuanceRes.rows[0].issuance_uuid;
+    const departureTime = issuanceRes.rows[0].departure_timestamp;
+
+    // 3. Cryptographic Token Generation for the Fuel Stub
+    const dateSegment = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const entropyHex = crypto.randomBytes(4).toString('hex').toUpperCase();
+    const generatedSerial = `STUB-${dateSegment}-${entropyHex}`;
+
+    // Compute Cryptographic Digital Signature for Verification and Fraud Mitigation
+    const signaturePayload = `${generatedSerial}:${currentIssuanceUuid}:${payload.allocatedUnits}:${payload.maxFiatLimit}`;
+    const digitalSignature = crypto
+      .createHmac('sha256', process.env.SYSTEM_HMAC_SECRET || 'SYS_SECRET_KEY')
+      .update(signaturePayload)
+      .digest('hex');
+
+    // 4. Persist Fuel Stub Allocation Data
+    const fuelStubInsertQuery = `
+      INSERT INTO cryptographic_fuel_stubs (
+        issuance_uuid, secure_stub_serial, fuel_type, allocated_units, max_fiat_limit, cryptographic_signature
+      ) VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING secure_stub_serial;
+    `;
+    await client.query(fuelStubInsertQuery, [
+      currentIssuanceUuid,
+      generatedSerial,
+      vehicleData.fuel_type,
+      payload.allocatedUnits,
+      payload.maxFiatLimit,
+      digitalSignature
+    ]);
+
+    // 5. Mutate Vehicle Asset Registry State
+    const updateVehicleStateQuery = `
+      UPDATE fleet_vehicles 
+      SET current_status = 'DISPATCHED', updated_at = CURRENT_TIMESTAMP 
+      WHERE vehicle_uuid = $1;
+    `;
+    await client.query(updateVehicleStateQuery, [payload.vehicleUuid]);
+
+    // Commit Transactional Pipeline safely
+    await client.query('COMMIT');
+
+    // Return Telemetry Packet
+    res.status(201).json({
+      status: 'SUCCESS',
+      issuance_id: currentIssuanceUuid,
+      stub_serial: generatedSerial,
+      departure_time: departureTime,
+      starting_odometer: vehicleData.current_odometer,
+      integrity_hash: digitalSignature
+    });
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('SYSTEM_TRANSACTION_FAILURE -> Rollback Executed.', err);
+    res.status(500).json({ error: 'INTERNAL_LEDGER_ERROR', technical_details: (err as Error).message });
+  } finally {
+    client.release();
+  }
+};
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fleet Telemetry & Resource Distribution</title>
+    <style>
+        :root {
+            --bg-base: #0a0f1d;
+            --surface: #141b2d;
+            --border-glow: #1f2a45;
+            --text-main: #e2e8f0;
+            --accent-glow: #00f2fe;
+            --status-active: #00e676;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: 'SF Pro Display', '-apple-system', sans-serif;
+            margin: 0;
+            padding: 24px;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header-system {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-glow);
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+
+        .system-title {
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--accent-glow);
+        }
+
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        .glass-panel {
+            background: var(--surface);
+            border: 1px solid var(--border-glow);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        /* Electronic Fuel Stub Representation styling */
+        .fuel-stub-ticket {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 2px dashed #334155;
+            border-radius: 6px;
+            padding: 16px;
+            position: relative;
+            font-family: 'Courier New', monospace;
+        }
+
+        .stub-header {
+            text-align: center;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            font-weight: bold;
+            color: var(--accent-glow);
+        }
+
+        .stub-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 6px 0;
+            font-size: 0.9rem;
+        }
+
+        .cryptographic-seal {
+            font-size: 0.65rem;
+            color: #64748b;
+            word-break: break-all;
+            margin-top: 12px;
+            border-top: 1px solid #334155;
+            padding-top: 8px;
+        }
+
+        .status-badge {
+            background-color: rgba(0, 230, 118, 0.15);
+            color: var(--status-active);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <header class="header-system">
+        <div class="system-title">Asset Dispatch Console [Active Matrix]</div>
+        <div class="status-badge">SYSTEM LNK: ONLINE</div>
+    </header>
+
+    <div class="telemetry-grid">
+        <!-- Main Interface Readout Entry -->
+        <div class="glass-panel">
+            <h3>Active System Dispatch Matrix</h3>
+            <p>System tracking operational readiness, real-time mileage status updates, and dynamic ledger calculations.</p>
+            <hr style="border:0; border-top:1px solid var(--border-glow); margin: 20px 0;">
+            <!-- Table data would populate directly here via programmatic loop -->
+            <p style="color: #64748b;">Awaiting active user transaction payloads...</p>
+        </div>
+
+        <!-- Token Visual Output -->
+        <div class="glass-panel">
+            <h3>Generated Structural Allocation Ticket</h3>
+            <div class="fuel-stub-ticket">
+                <div class="stub-header">GOVERNMENT FUEL DISPATCH STUB</div>
+                <div class="stub-row">
+                    <span>SERIAL:</span>
+                    <span style="color: #f59e0b;">STUB-20260715-4D9A</span>
+                </div>
+                <div class="stub-row">
+                    <span>ALLOCATION:</span>
+                    <span>45.00 LITERS</span>
+                </div>
+                <div class="stub-row">
+                    <span>TYPE:</span>
+                    <span>DIESEL_ENHANCED</span>
+                </div>
+                <div class="stub-row">
+                    <span>FIAT THRESHOLD:</span>
+                    <span>PHP 3,500.00</span>
+                </div>
+                <div class="cryptographic-seal">
+                    SECURE SIGNATURE:<br>
+                    8f92b7c41a3d5e6f8b9d0a1c2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
+
+
+
+-- Atomic Asset Reconciliation Protocol
+WITH closed_issuance AS (
+    UPDATE vehicle_issuances 
+    SET 
+        actual_return_timestamp = CURRENT_TIMESTAMP,
+        ending_odometer = 142500, -- Dynamic Inspection Variable Input
+        is_active_dispatch = FALSE
+    WHERE issuance_uuid = 'YOUR_ISSUANCE_UUID_HERE'
+    RETURNING vehicle_uuid, starting_odometer, ending_odometer
+)
+UPDATE fleet_vehicles 
+SET 
+    current_odometer = (SELECT ending_odometer FROM closed_issuance),
+    current_status = 'AVAILABLE',
+    updated_at = CURRENT_TIMESTAMP
+WHERE vehicle_uuid = (SELECT vehicle_uuid FROM closed_issuance);
+
+
+
+// VehicleIssuanceIcon.tsx
+export const VehicleIssuanceIcon = ({ className = "w-6 h-6", strokeColor = "#00f2fe" }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke={strokeColor} 
+    strokeWidth="1.5" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    {/* Vehicle Chassis */}
+    <path d="M2 17h20L19 12H5L2 17z" />
+    <circle cx="6" cy="19" r="2" />
+    <circle cx="18" cy="19" r="2" />
+    {/* Verification Badge */}
+    <rect x="14" y="3" width="6" height="8" rx="1" strokeWidth="2" />
+    <path d="M15 7l2 2 3-3" strokeWidth="2" />
+  </svg>
+);
+
+
+
+
+
+// FuelStubIcon.tsx
+export const FuelStubIcon = ({ className = "w-6 h-6", strokeColor = "#f59e0b" }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke={strokeColor} 
+    strokeWidth="1.5" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    {/* Ticket Body */}
+    <rect x="4" y="2" width="16" height="20" rx="2" />
+    {/* Barcode/Data Lines */}
+    <line x1="8" y1="8" x2="16" y2="8" />
+    <line x1="8" y1="12" x2="16" y2="12" />
+    <line x1="8" y1="16" x2="14" y2="16" />
+    {/* Fuel Nozzle Detail */}
+    <path d="M16 2l2 2v4" />
+  </svg>
+);
+
+
+
+/* Add to your global.css or module.css */
+.hud-icon-container {
+  background: rgba(20, 27, 45, 0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(31, 42, 69, 0.8);
+  border-radius: 6px;
+  padding: 8px;
+  display: inline-flex;
+  transition: all 0.2s ease-in-out;
+}
+
+.hud-icon-container:hover {
+  box-shadow: 0 0 12px rgba(0, 242, 254, 0.3);
+  border-color: rgba(0, 242, 254, 0.5);
+}
+
+
+
+<div className="hud-icon-container">
+  <VehicleIssuanceIcon strokeColor="#00f2fe" />
+</div>
+
+<div className="hud-icon-container">
+  <FuelStubIcon strokeColor="#f59e0b" />
+</div>
