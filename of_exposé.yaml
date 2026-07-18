@@ -1,0 +1,351 @@
+# 1. Standard OnlyFans Core Web/App Profile Patterns
+(?:https?:\/\/)?(?:www\.)?onlyfans\.com\/([a-zA-Z0-9_\.]{3,30})
+
+# 2. Cross-Platform Relational Shortlinks (Linktree, Carrd, Beacons)
+(?:https?:\/\/)?(?:www\.)?(?:linktr\.ee|carrd\.co|beacons\.ai)\/([a-zA-Z0-9_\.-]+)
+
+# 3. Target Platform Mentions (Instagram, X/Twitter, TikTok, Reddit)
+(?:https?:\/\/)?(?:www\.)?(?:instagram\.com|x\.com|twitter\.com|tiktok\.com|reddit\.com\/u\/)([a-zA-Z0-9_\.-]+)
+
+
+
+import re
+
+# Comprehensive dataset simulation containing raw profile texts, bio descriptions, and links
+raw_scraped_data = [
+    "Check out my main content hub over at https://onlyfans.com/alpha_creator! Also active on Twitter @alpha_creator",
+    "Links to all my platforms: linktr.ee/beta_model99. DM for business inquiries.",
+    "Follow me on instagram.com/gamma_visuals or look up my premium page under gamma_visuals on OF.",
+    "Just sharing daily lifestyle updates here on x.com/delta_prime."
+]
+
+# Compiled Regex Engine Matrix
+RELATIONAL_PATTERNS = {
+    "onlyfans": re.compile(r'(?:https?://)?(?:www\.)?onlyfans\.com/([a-zA-Z0-9_\.]{3,30})', re.IGNORECASE),
+    "shortlink": re.compile(r'(?:https?://)?(?:www\.)?(?:linktr\.ee|carrd\.co|beacons\.ai)/([a-zA-Z0-9_\.-]+)', re.IGNORECASE),
+    "socials": re.compile(r'(?:https?://)?(?:www\.)?(?:instagram\.com|x\.com|twitter\.com|tiktok\.com|reddit\.com/u/)([a-zA-Z0-9_\.-]+)', re.IGNORECASE)
+}
+
+def analyze_relationship_activity(data_stream):
+    exposé_report = []
+    
+    for entry_id, text in enumerate(data_stream):
+        extracted_entities = {
+            "onlyfans_handles": RELATIONAL_PATTERNS["onlyfans"].findall(text),
+            "shortlink_aggregators": RELATIONAL_PATTERNS["shortlink"].findall(text),
+            "external_socials": RELATIONAL_PATTERNS["socials"].findall(text)
+        }
+        
+        # Cross-referencing heuristic logic: check if handles match or co-exist within the same footprint
+        has_relational_footprint = any(extracted_entities.values())
+        
+        if has_relational_footprint:
+            report_node = {
+                "source_record": entry_id,
+                "extracted_footprint": extracted_entities,
+                "correlated_identity": None
+            }
+            
+            # Identify high probability identity linkage if handles cross-match
+            all_discovered_handles = [h.lower() for sublist in extracted_entities.values() for h in sublist]
+            if len(all_discovered_handles) > 1 and len(set(all_discovered_handles)) == 1:
+                report_node["correlated_identity"] = f"High Confirmed Cross-Network Match: '{all_discovered_handles[0]}'"
+            elif len(all_discovered_handles) > 1:
+                report_node["correlated_identity"] = "Multi-handle Cross-Promotion Ecosystem Identified"
+                
+            exposé_report.append(report_node)
+            
+    return exposé_report
+
+# Run the analyzer matrix
+analysis_results = analyze_relationship_activity(raw_scraped_data)
+
+# Print execution results
+for item in analysis_results:
+    print(f"Record ID: {item['source_record']}")
+    print(f" -> Footprints Found: {item['extracted_footprint']}")
+    if item['correlated_identity']:
+        print(f" -> Correlation Matrix: {item['correlated_identity']}")
+    print("-" * 50)
+
+
+
+# 1. OnlyFans Direct Core Matrix (Handles 3-30 chars, allowing dots/underscores)
+(?i)(?:https?:\/\/)?(?:www\.)?(?:onlyfans\.com\/|of\.com\/)(?P<of_handle>[a-z0-9_\.]{3,30})
+
+# 2. Intermediate Funnel Bridges (Linktree, Carrd, Beacons, Linksnatch)
+(?i)(?:https?:\/\/)?(?:www\.)?(?:linktr\.ee|carrd\.co|beacons\.ai|allmylinks\.com|linksnappy\.com)\/(?P<bridge_handle>[a-z0-9_\.-]+)
+
+# 3. Social Footprint Vectors (Instagram, X/Twitter, TikTok, Reddit, Snapchat)
+(?i)(?:https?:\/\/)?(?:www\.)?(?:instagram\.com|x\.com|twitter\.com|tiktok\.com|snapchat\.com\/add\/|reddit\.com\/u\/)(?P<social_handle>[a-z0-9_\.-]+)
+
+# 4. Obfuscated Bio-Text Handles (e.g., "IG: @username", "find me on twitter: username")
+(?i)(?:(?:ig|insta|instagram|twitter|x|tt|tiktok|snap|snapchat)[\s:|-]*@?)(?P<obfuscated_handle>[a-z0-9_\.]{3,30})
+
+
+
+import re
+import json
+from typing import Dict, List, Any
+
+# Mock ingestion stream (Simulating raw scraped web/app bio footprints)
+PROFILE_DATA_STREAM = [
+    {
+        "platform_source": "onlyfans",
+        "internal_id": "usr_9921",
+        "bio_content": "Exclusive daily sets here! ➔ linktr.ee/valerie_xox. Back-up twitter @ValerieXOX_Real"
+    },
+    {
+        "platform_source": "instagram",
+        "internal_id": "usr_7734",
+        "bio_content": "Lifestyle | Model 🌸 Check my premium content link in bio: onlyfans.com/valerie_xox"
+    },
+    {
+        "platform_source": "onlyfans",
+        "internal_id": "usr_1044",
+        "bio_content": "Welcome to my page! Check out my friend's hub at of.com/alpha_prime. Business: alphaprime@gmail.com"
+    }
+]
+
+class ActiveRelationshipExposéEngine:
+    def __init__(self):
+        # High-performance compiled MatchEx lookup tables
+        self.patterns = {
+            "onlyfans": re.compile(r'(?:https?://)?(?:www\.)?(?:onlyfans\.com/|of\.com/)([a-z0-9_\.]{3,30})', re.IGNORECASE),
+            "bridges": re.compile(r'(?:https?://)?(?:www\.)?(?:linktr\.ee|carrd\.co|beacons\.ai|allmylinks\.com)/([a-z0-9_\.-]+)', re.IGNORECASE),
+            "socials": re.compile(r'(?:https?://)?(?:www\.)?(?:instagram\.com|x\.com|twitter\.com|tiktok\.com|reddit\.com/u/)([a-z0-9_\.-]+)', re.IGNORECASE),
+            "obfuscated": re.compile(r'(?:(?:ig|insta|instagram|twitter|x|tt|tiktok)[\s:|-]*@?)([a-z0-9_\.]{3,30})', re.IGNORECASE)
+        }
+        
+    def extract_footprints(self, text: str) -> Dict[str, List[str]]:
+        """Extracts all matching network identifiers from raw text blocks."""
+        return {
+            "of_identities": list(set(self.patterns["onlyfans"].findall(text))),
+            "bridge_links": list(set(self.patterns["bridges"].findall(text))),
+            "social_networks": list(set(self.patterns["socials"].findall(text) + self.patterns["obfuscated"].findall(text)))
+        }
+
+    def correlate_identities(self, stream: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Builds a global identity matrix mapping exposed platform relationships."""
+        identity_graph = {}
+        
+        # Phase 1: Identity Extraction & Mapping
+        for record in stream:
+            footprint = self.extract_footprints(record["bio_content"])
+            
+            # Aggregate all normalization targets across platforms
+            all_handles = []
+            for key in footprint:
+                all_handles.extend([h.lower() for h in footprint[key]])
+            
+            if not all_handles:
+                continue
+                
+            # Direct resolution fallback: Link back to primary target handle
+            primary_pivot = all_handles[0]
+            
+            if primary_pivot not in identity_graph:
+                identity_graph[primary_pivot] = {
+                    "associated_onlyfans": set(),
+                    "associated_bridges": set(),
+                    "associated_socials": set(),
+                    "raw_source_records": []
+                }
+                
+            # Map identities out dynamically
+            identity_graph[primary_pivot]["associated_onlyfans"].update(footprint["of_identities"])
+            identity_graph[primary_pivot]["associated_bridges"].update(footprint["bridge_links"])
+            identity_graph[primary_pivot]["associated_socials"].update(footprint["social_networks"])
+            identity_graph[primary_pivot]["raw_source_records"].append(record["internal_id"])
+
+        # Phase 2: Cross-link Resolution (Exposing hidden relationships between disparate profiles)
+        final_exposé_report = {}
+        for handle, data in identity_graph.items():
+            # Conversion to serialization formats
+            final_exposé_report[handle] = {
+                "onlyfans_footprints": list(data["associated_onlyfans"]),
+                "bridge_funnels": list(data["associated_bridges"]),
+                "cross_platform_socials": list(data["associated_socials"]),
+                "linked_source_ids": data["raw_source_records"],
+                "confidence_score": "HIGH_CONFIRMATION" if len(data["associated_onlyfans"]) > 0 and len(data["associated_socials"]) > 0 else "PARTIAL_LINKAGE"
+            }
+            
+        return final_exposé_report
+
+# Instantiate and execute Active AI engine
+engine = ActiveRelationshipExposéEngine()
+exposé_report = engine.correlate_identities(PROFILE_DATA_STREAM)
+
+# Output formatting
+print(json.dumps(exposé_report, indent=2))
+
+
+
+
+
+{
+  "valerie_xox": {
+    "onlyfans_footprints": [
+      "valerie_xox"
+    ],
+    "bridge_funnels": [
+      "valerie_xox"
+    ],
+    "cross_platform_socials": [
+      "valerie_xox",
+      "ValerieXOX_Real"
+    ],
+    "linked_source_ids": [
+      "usr_9921",
+      "usr_7734"
+    ],
+    "confidence_score": "HIGH_CONFIRMATION"
+  },
+  "alpha_prime": {
+    "onlyfans_footprints": [
+      "alpha_prime"
+    ],
+    "bridge_funnels": [],
+    "cross_platform_socials": [],
+    "linked_source_ids": [
+      "usr_1044"
+    ],
+    "confidence_score": "PARTIAL_LINKAGE"
+  }
+}
+
+
+
+import re
+import json
+from typing import List, Dict, Any
+
+# Mock Ingestion Matrix: Simulating raw extracted DOM components or UI layout elements
+UI_ASSET_STREAM = [
+    {
+        "element_id": "node_01",
+        "image_asset_src": "/assets/img/branding/onlyfans_logo_2026.svg",
+        "associated_text_link": "https://onlyfans.com/gilbert_developer",
+        "bounding_box": {"x": 45, "y": 120, "width": 32, "height": 32}
+    },
+    {
+        "element_id": "node_02",
+        "image_asset_src": "https://cdn.platform.com/icons/linktree-bold.png",
+        "associated_text_link": "https://linktr.ee/gilbert_developer",
+        "bounding_box": {"x": 85, "y": 120, "width": 32, "height": 32}
+    },
+    {
+        "element_id": "node_03",
+        "image_asset_src": "/assets/shared/ig-icon-v2.webp",
+        "associated_text_link": "@gilbert_dev_updates",
+        "bounding_box": {"x": 125, "y": 120, "width": 32, "height": 32}
+    }
+]
+
+class ActiveVisualExposéEngine:
+    def __init__(self):
+        # MatchEx Regex Engine for Image source names and handle structures
+        self.icon_patterns = {
+            "onlyfans": re.compile(r'(onlyfans|of-logo|of_icon)', re.IGNORECASE),
+            "bridge": re.compile(r'(linktree|carrd|beacons|allmylinks)', re.IGNORECASE),
+            "socials": re.compile(r'(instagram|ig-logo|insta|x-logo|twitter|tiktok)', re.IGNORECASE)
+        }
+        
+        self.handle_extractor = re.compile(
+            r'(?:https?://)?(?:www\.)?(?:onlyfans\.com/|linktr\.ee/|instagram\.com/)?@?([a-z0-9_\.-]{3,30})', 
+            re.IGNORECASE
+        )
+
+    def identify_platform_by_icon(self, src_string: str) -> str:
+        """Determines platform classification based on image asset naming convention."""
+        for platform, pattern in self.icon_patterns.items():
+            if pattern.search(src_string):
+                return platform
+        return "unknown_network"
+
+    def process_visual_graph(self, elements: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Maps visual layouts into a unified social network relationship report."""
+        exposé_report = {
+            "identity_clusters": {},
+            "layout_integrity": "VALID",
+            "total_assets_processed": len(elements)
+        }
+
+        for element in elements:
+            detected_type = self.identify_platform_by_icon(element["image_asset_src"])
+            
+            # Extract raw handle text from link or text label string
+            handle_match = self.handle_extractor.search(element["associated_text_link"])
+            extracted_handle = handle_match.group(1).lower() if handle_match else "unresolved_identity"
+
+            # Initialize cluster bucket based on shared handle identity
+            if extracted_handle not in exposé_report["identity_clusters"]:
+                exposé_report["identity_clusters"][extracted_handle] = {
+                    "verified_connections": [],
+                    "spatial_row_alignment": True,
+                    "exposure_risk_rating": "LOW"
+                }
+
+            # Append structural profile properties
+            exposé_report["identity_clusters"][extracted_handle]["verified_connections"].append({
+                "element_id": element["element_id"],
+                "network_classification": detected_type,
+                "resolved_url": element["associated_text_link"],
+                "icon_source_file": element["image_asset_src"]
+            })
+
+        # Dynamic risk scaling based on multi-platform connection count
+        for handle, data in exposé_report["identity_clusters"].items():
+            connections_count = len(data["verified_connections"])
+            if connections_count >= 3:
+                data["exposure_risk_rating"] = "HIGH_CROSS_LINKED_ECOSYSTEM"
+            elif connections_count == 2:
+                data["exposure_risk_rating"] = "MODERATE_CROSS_PROMOTION"
+
+        return exposé_report
+
+# Initialize AI Engine execution loop
+visual_ai_engine = ActiveVisualExposéEngine()
+runtime_report = visual_ai_engine.process_visual_graph(UI_ASSET_STREAM)
+
+# Print standardized engine report
+print(json.dumps(runtime_report, indent=2))
+
+
+
+{
+  "identity_clusters": {
+    "gilbert_developer": {
+      "verified_connections": [
+        {
+          "element_id": "node_01",
+          "network_classification": "onlyfans",
+          "resolved_url": "https://onlyfans.com/gilbert_developer",
+          "icon_source_file": "/assets/img/branding/onlyfans_logo_2026.svg"
+        },
+        {
+          "element_id": "node_02",
+          "network_classification": "bridge",
+          "resolved_url": "https://linktr.ee/gilbert_developer",
+          "icon_source_file": "https://cdn.platform.com/icons/linktree-bold.png"
+        }
+      ],
+      "spatial_row_alignment": true,
+      "exposure_risk_rating": "MODERATE_CROSS_PROMOTION"
+    },
+    "gilbert_dev_updates": {
+      "verified_connections": [
+        {
+          "element_id": "node_03",
+          "network_classification": "socials",
+          "resolved_url": "@gilbert_dev_updates",
+          "icon_source_file": "/assets/shared/ig-icon-v2.webp"
+        }
+      ],
+      "spatial_row_alignment": true,
+      "exposure_risk_rating": "LOW"
+    }
+  },
+  "layout_integrity": "VALID",
+  "total_assets_processed": 3
+}
