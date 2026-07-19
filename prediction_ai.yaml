@@ -1,0 +1,722 @@
+import numpy as np
+from sklearn.datasets import make_classification
+from sklearn.ensemble import RandomForestClassifier
+from scipy.stats import entropy
+
+class ActivePredictionAI:
+    def __init__(self, estimator, initial_train_size=10):
+        self.model = estimator
+        self.initial_train_size = initial_train_size
+        
+    def compute_entropy(self, X_pool):
+        """Calculate prediction entropy for the unlabeled pool."""
+        # Get probability distributions for each class
+        probs = self.model.predict_proba(X_pool)
+        # Compute Shannon Entropy along the class axis
+        return entropy(probs.T)
+
+    def active_learning_loop(self, X, y, n_queries=5, batch_size=2):
+        """Simulates the active prediction/learning pipeline."""
+        num_samples = X.shape[0]
+        
+        # 1. Initialize labeled and unlabeled pools
+        indices = np.arange(num_samples)
+        np.random.shuffle(indices)
+        
+        labeled_idx = list(indices[:self.initial_train_size])
+        pool_idx = list(indices[self.initial_train_size:])
+        
+        print(f"Initial training pool size: {len(labeled_idx)}")
+        print(f"Unlabeled candidate pool size: {len(pool_idx)}\n")
+
+        for q in range(n_queries):
+            # 2. Train model on currently labeled data
+            self.model.fit(X[labeled_idx], y[labeled_idx])
+            
+            # 3. Predict and evaluate uncertainty on the unlabeled pool
+            X_pool = X[pool_idx]
+            uncertainties = self.compute_entropy(X_pool)
+            
+            # 4. Select the instances with the highest entropy (most uncertain)
+            query_indices_inside_pool = np.argsort(uncertainties)[-batch_size:]
+            
+            # Map back to global indices
+            global_query_indices = [pool_idx[i] for i in query_indices_inside_pool]
+            
+            print(f"[Query {q + 1}] AI is highly uncertain about indices: {global_query_indices}")
+            print(f"-> Selected sample entropies: {uncertainties[query_indices_inside_pool]}")
+            
+            # 5. "Active Oracle" provides the labels (simulated here by pulling from 'y')
+            # In production, this triggers an API call, webhook, or UI prompt for a human reviewer.
+            for idx in global_query_indices:
+                labeled_idx.append(idx)
+                pool_idx.remove(idx)
+                
+            print(f"-> Updated training set size: {len(labeled_idx)}\n")
+            
+        # Final model fit
+        self.model.fit(X[labeled_idx], y[labeled_idx])
+        print("Active training loop complete.")
+        return self.model
+
+# --- Demonstration Execution ---
+if __name__ == "__main__":
+    # Generate a dummy classification dataset
+    X_data, y_data = make_classification(
+        n_samples=200, n_features=5, n_informative=3, n_classes=2, random_state=42
+    )
+    
+    # Use a Random Forest base model capable of predicting probabilities
+    base_estimator = RandomForestClassifier(n_estimators=50, random_state=42)
+    
+    # Instantiate and run the Active AI
+    active_ai = ActivePredictionAI(estimator=base_estimator, initial_train_size=15)
+    trained_model = active_ai.active_learning_loop(X_data, y_data, n_queries=4, batch_size=3)
+
+
+
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from collections import deque
+from typing import List, Tuple, Dict, Any
+
+class PredictionNetwork(nn.Module):
+    """Deep feature extractor and classification head."""
+    def __init__(self, input_dim: int, hidden_dim: int, num_classes: int):
+        super().__init__()
+        self.feature_extractor = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.SiLU(),
+            nn.Dropout(p=0.1),
+            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.SiLU()
+        )
+        self.classifier = nn.Linear(hidden_dim // 2, num_classes)
+        
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        features = self.feature_extractor(x)
+        return self.classifier(features)
+
+class AdvancedActivePredictionAI:
+    """
+    Advanced Streaming Active Prediction AI utilizing Query-by-Committee (QbC)
+    via KL-Divergence Consensus and real-time buffer replay.
+    """
+    def __init__(
+        self, 
+        input_dim: int, 
+        num_classes: int, 
+        committee_size: int = 3, 
+        hidden_dim: int = 64,
+        divergence_threshold: float = 0.35,
+        buffer_max_size: int = 1000
+    ):
+        self.input_dim = input_dim
+        self.num_classes = num_classes
+        self.threshold = divergence_threshold
+        
+        # Initialize the Committee of diverse neural models
+        self.committee: List[nn.Module] = []
+        self.optimizers: List[optim.Optimizer] = []
+        
+        for i in range(committee_size):
+            # Vary initializations to ensure committee diversity
+            model = PredictionNetwork(input_dim, hidden_dim, num_classes)
+            # Inject slight weight divergence manually if needed, or rely on distinct random seeds
+            torch.nn.init.orthogonal_(model.classifier.weight, gain=0.1 * (i + 1))
+            
+            optimizer = optim.AdamW(model.parameters(), lr=0.002, weight_decay=1e-4)
+            self.committee.append(model)
+            self.optimizers.append(optimizer)
+            
+        # Real-time replay buffer for labeled stream stabilization
+        self.replay_buffer = deque(maxlen=buffer_max_size)
+        self.criterion = nn.CrossEntropyLoss()
+
+    def _compute_ensemble_consensus(self, probabilities: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Computes consensus via Mean KL-Divergence.
+        probabilities shape: [committee_size, batch_size, num_classes]
+        """
+        # Average probability distribution across the committee
+        mean_probs = torch.mean(probabilities, dim=0) # Shape: [batch_size, num_classes]
+        
+        # Calculate KL Divergence for each member relative to the consensus average
+        kl_divergences = []
+        for member_prob in probabilities:
+            # Avoid log(0) with clamping
+            eps = 1e-9
+            kl = member_prob * (torch.log(member_prob + eps) - torch.log(mean_probs + eps))
+            kl_divergences.append(torch.sum(kl, dim=-1)) # Sum across classes
+            
+        # Mean disagreement profile per sample
+        mean_kl = torch.mean(torch.stack(kl_divergences), dim=0)
+        return mean_probs, mean_kl
+
+    def process_stream_sample(self, x_raw: np.ndarray) -> Dict[str, Any]:
+        """
+        Evaluates a live streaming sample. Measures disagreement to decide
+        if an active prediction intervention (Oracle query) is required.
+        """
+        x_tensor = torch.tensor(x_raw, dtype=torch.float32).unsqueeze(0)
+        
+        all_probs = []
+        self.committee_eval_mode()
+        
+        with torch.no_grad():
+            for model in self.committee:
+                logits = model(x_tensor)
+                probs = torch.softmax(logits, dim=-1)
+                all_probs.append(probs)
+                
+        # Stack shape: [committee_size, 1, num_classes]
+        stacked_probs = torch.cat(all_probs, dim=0)
+        consensus_prob, disagreement_score = self._compute_ensemble_consensus(stacked_probs)
+        
+        prediction = torch.argmax(consensus_prob, dim=-1).item()
+        confidence = consensus_prob[0, prediction].item()
+        disagreement = disagreement_score[0].item()
+        
+        # Decision boundary logic for Active Alerting
+        requires_oracle = disagreement > self.threshold
+        
+        return {
+            "prediction": prediction,
+            "confidence": confidence,
+            "disagreement_score": disagreement,
+            "requires_oracle_label": requires_oracle
+        }
+
+    def train_step(self, x_raw: np.ndarray, y_raw: int, updates: int = 3):
+        """
+        Performs an online, real-time update using the latest labeled sample 
+        and historic experience replay to prevent catastrophic forgetting.
+        """
+        self.replay_buffer.append((x_raw, y_raw))
+        if len(self.replay_buffer) < 4:
+            return # Wait until minimal warm start sample size is achieved
+            
+        self.committee_train_mode()
+        
+        for _ in range(updates):
+            # Sample a mini-batch from experience memory
+            batch_size = min(16, len(self.replay_buffer))
+            indices = np.random.choice(len(self.replay_buffer), batch_size, replace=False)
+            
+            x_batch = torch.tensor(np.array([self.replay_buffer[i][0] for i in indices]), dtype=torch.float32)
+            y_batch = torch.tensor([self.replay_buffer[i][1] for i in indices], dtype=torch.long)
+            
+            # Update every member of the committee independently on the batch
+            for model, optimizer in zip(self.committee, self.optimizers):
+                optimizer.zero_grad()
+                logits = model(x_batch)
+                loss = self.criterion(logits, y_batch)
+                loss.backward()
+                optimizer.step()
+
+    def committee_eval_mode(self):
+        for model in self.committee: model.eval()
+        
+    def committee_train_mode(self):
+        for model in self.committee: model.train()
+
+# --- Simulation of Streaming Execution Pipeline ---
+if __name__ == "__main__":
+    np.random.seed(42)
+    torch.manual_seed(42)
+    
+    # Configuration parameters
+    FEATURES = 8
+    CLASSES = 3
+    ai_system = AdvancedActivePredictionAI(input_dim=FEATURES, num_classes=CLASSES, committee_size=3)
+    
+    print("⚡ AI Prediction Stream Initialized. Processing telemetry inputs...\n")
+    
+    # Simulating a dynamic telemetry/data stream
+    for stream_tick in range(1, 11):
+        simulated_features = np.random.randn(FEATURES)
+        
+        # Process live inference
+        metrics = ai_system.process_stream_sample(simulated_features)
+        
+        print(f"[Tick {stream_tick:02d}] Pred: {metrics['prediction']} | Conf: {metrics['confidence']:.2f} | Disagreement: {metrics['disagreement_score']:.4f}")
+        
+        if metrics["requires_oracle_label"]:
+            print(f"  ⚠️  [ACTIVE INTERVENTION] High committee variance detected. Routing to Oracle.")
+            # Simulate Oracle resolving the issue by providing ground truth label
+            simulated_ground_truth = np.random.randint(0, CLASSES)
+            ai_system.train_step(simulated_features, simulated_ground_truth)
+            print(f"  ✓  System synchronized. Buffer size: {len(ai_system.replay_buffer)}\n")
+        else:
+            # High certainty: we optionally skip labeling overhead or store for low-priority background updates
+            if stream_tick % 3 == 0: 
+                # Periodic verification paths
+                simulated_ground_truth = metrics["prediction"]
+                ai_system.train_step(simulated_features, simulated_ground_truth)
+            print("  ↳  Prediction stable. Proceeding natively.\n")
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+    <defs>
+        <!-- Deep Space HUD Background Gradient -->
+        <radialGradient id="bgGrad" cx="50%" cy="50%" r="70%">
+            <stop offset="0%" stop-color="#040d1a"/>
+            <stop offset="100%" stop-color="#010307"/>
+        </radialGradient>
+
+        <!-- Cyber Glow Effects -->
+        <filter id="hudGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="6" result="blur" />
+            <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+            </feMerge>
+        </filter>
+
+        <!-- Core Quantum Energy Gradient -->
+        <linearGradient id="coreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#00f3ff"/>
+            <stop offset="50%" stop-color="#0066ff"/>
+            <stop offset="100%" stop-color="#7000ff"/>
+        </linearGradient>
+
+        <!-- Prediction Vector Line Gradient -->
+        <linearGradient id="vectorGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+            <stop offset="0%" stop-color="#0066ff" stop-opacity="0.2"/>
+            <stop offset="100%" stop-color="#00f3ff" stop-opacity="1"/>
+        </linearGradient>
+    </defs>
+
+    <!-- Base Canvas -->
+    <rect width="512" height="512" fill="url(#bgGrad)"/>
+
+    <!-- Outer Telemetry Ring (Segmented) -->
+    <circle cx="256" cy="256" r="220" fill="none" stroke="#0055ff" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="10 15 40 15"/>
+    <circle cx="256" cy="256" r="206" fill="none" stroke="#00f3ff" stroke-width="2" stroke-opacity="0.6" stroke-dasharray="180 30 40 30" filter="url(#hudGlow)"/>
+
+    <!-- Active Analytics Trajectory Grids -->
+    <g stroke="url(#vectorGrad)" stroke-width="1.5" stroke-linecap="round" fill="none">
+        <!-- Target Reticles & Trend Paths -->
+        <path d="M 120 256 L 392 256" stroke-dasharray="4 8"/>
+        <path d="M 256 120 L 256 392" stroke-dasharray="4 8"/>
+        <path d="M 160 160 L 352 352"/>
+        <path d="M 160 352 L 352 160" stroke-opacity="0.4"/>
+    </g>
+
+    <!-- Interactive Data Node Points (Prediction Convergence) -->
+    <g filter="url(#hudGlow)">
+        <circle cx="352" cy="160" r="6" fill="#00f3ff"/>
+        <circle cx="352" cy="160" r="14" fill="none" stroke="#00f3ff" stroke-width="1" stroke-opacity="0.5"/>
+        <circle cx="160" cy="352" r="4" fill="#7000ff"/>
+        <circle cx="392" cy="256" r="5" fill="#00f3ff"/>
+    </g>
+
+    <!-- Inner Processor Ring with Degree Crosshairs -->
+    <circle cx="256" cy="256" r="140" fill="none" stroke="#002244" stroke-width="8"/>
+    <circle cx="256" cy="256" r="140" fill="none" stroke="#0066ff" stroke-width="3" stroke-dasharray="70 20 10 20" filter="url(#hudGlow)"/>
+
+    <!-- Central Neural AI Profile / Oracle Processor Core -->
+    <g filter="url(#hudGlow)">
+        <!-- Hexagonal Framework Base -->
+        <polygon points="256,156 342,206 342,306 256,356 170,306 170,206" fill="url(#coreGrad)" fill-opacity="0.15" stroke="#00f3ff" stroke-width="2.5"/>
+        
+        <!-- Core Synaptic Gateway Matrix -->
+        <circle cx="256" cy="256" r="40" fill="url(#coreGrad)"/>
+        <circle cx="256" cy="256" r="55" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.7" stroke-dasharray="15 8"/>
+    </g>
+
+    <!-- Synthetic HUD Readout Ornaments -->
+    <path d="M 70 80 L 120 80 L 130 90" fill="none" stroke="#00f3ff" stroke-width="2" stroke-opacity="0.7"/>
+    <text x="70" y="70" fill="#00f3ff" font-family="monospace" font-size="12" font-weight="bold" letter-spacing="2" opacity="0.8">SYS_ACTIVE_ON</text>
+    <text x="375" y="450" fill="#0066ff" font-family="monospace" font-size="11" font-weight="bold" opacity="0.6">PRED_MD_v4.0</text>
+    
+    <path d="M 442 432 L 392 432 L 382 422" fill="none" stroke="#0066ff" stroke-width="2" stroke-opacity="0.5"/>
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Neon Glow Definition -->
+  <defs>
+    <filter id="glow-blue" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Active Pulse/Data Stream -->
+  <path d="M10 40 L18 40 L22 30 L28 50 L34 35 L40 40 L48 40" fill="none" stroke="#00ffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow-blue)"/>
+  
+  <!-- Prediction Nodes -->
+  <circle cx="28" cy="50" r="2" fill="#00ffff" filter="url(#glow-blue)"/>
+  <circle cx="48" cy="40" r="2" fill="#00ffff" filter="url(#glow-blue)"/>
+
+  <!-- Forecasting Arrow -->
+  <path d="M48 40 L58 25 M58 25 L52 25 M58 25 L58 31" fill="none" stroke="#ff00ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow-blue)"/>
+  
+</svg>
+
+
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <filter id="glow-purple" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Neural Convergence -->
+  <path d="M15 15 L30 30 M15 49 L30 34 M49 15 L34 30 M49 49 L34 34" fill="none" stroke="#ff00ff" stroke-width="2" filter="url(#glow-purple)"/>
+  
+  <!-- Core Hexagon -->
+  <polygon points="32,20 44,26 44,38 32,44 20,38 20,26" fill="none" stroke="#ff00ff" stroke-width="2" filter="url(#glow-purple)"/>
+
+  <!-- Active Binary Elements -->
+  <text x="28" y="36" fill="#00ffff" font-family="monospace" font-size="12" font-weight="bold" filter="url(#glow-blue)">1</text>
+  <text x="36" y="32" fill="#00ffff" font-family="monospace" font-size="10" font-weight="bold" filter="url(#glow-blue)">0</text>
+</svg>
+
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <filter id="glow-blue" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Segmented Scanning Ring -->
+  <circle cx="32" cy="32" r="25" fill="none" stroke="#00ffff" stroke-width="2" stroke-dasharray="10 5 15 5" filter="url(#glow-blue)"/>
+  <circle cx="32" cy="32" r="18" fill="none" stroke="#00ffff" stroke-width="1" stroke-dasharray="5 5" filter="url(#glow-blue)"/>
+  
+  <!-- Inward Prediction Vectors -->
+  <path d="M32 7 L32 20 M57 32 L44 32 M32 57 L32 44 M7 32 L20 32" fill="none" stroke="#ff00ff" stroke-width="2" stroke-linecap="round" filter="url(#glow-purple)"/>
+  
+  <!-- Center Point -->
+  <circle cx="32" cy="32" r="3" fill="#ff00ff" filter="url(#glow-purple)"/>
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <filter id="glow-purple" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Graph Framework -->
+  <path d="M10 54 L54 54 M10 54 L10 10" fill="none" stroke="#666" stroke-width="1"/>
+  
+  <!-- Decision Nodes -->
+  <circle cx="20" cy="40" r="3" fill="#ff00ff" filter="url(#glow-purple)"/>
+  <circle cx="35" cy="30" r="3" fill="#ff00ff" filter="url(#glow-purple)"/>
+  <circle cx="50" cy="45" r="3" fill="#ff00ff" filter="url(#glow-purple)"/>
+  
+  <!-- Active Forecast Arrow -->
+  <path d="M35 30 L55 15 M55 15 L48 15 M55 15 L55 22" fill="none" stroke="#00ffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow-blue)"/>
+
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <filter id="glow-mixed" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Lightbulb Outline -->
+  <path d="M32 10 A15 15 0 0 1 32 40 L32 48 M25 54 L39 54" fill="none" stroke="#ff00ff" stroke-width="2" stroke-linecap="round" filter="url(#glow-mixed)"/>
+  
+  <!-- Active Pulse within the Bulb -->
+  <path d="M22 25 L26 25 L28 20 L32 30 L34 22 L38 25" fill="none" stroke="#00ffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow-mixed)"/>
+
+  <!-- Small External Forecast -->
+  <path d="M42 35 L52 25 L58 31" fill="none" stroke="#00ffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow-mixed)"/>
+</svg>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active AI Prediction Stream & Conversion Hub</title>
+    <!-- Tailwind CSS Engine for Quick Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #030712; }
+        .glass-hud {
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            box-shadow: 0 0 25px rgba(0, 102, 255, 0.15);
+        }
+    </style>
+</head>
+<body class="text-slate-100 font-mono p-6">
+
+    <div class="max-w-5xl mx-auto space-y-6">
+        <!-- Main Header -->
+        <header class="flex justify-between items-center border-b border-cyan-500/30 pb-4">
+            <div>
+                <h1 class="text-2xl font-black tracking-wider text-cyan-400">ACTIVE PREDICTION SYSTEM</h1>
+                <p class="text-xs text-slate-400">Status: Monitoring Real-Time Streams</p>
+            </div>
+            <button onclick="simulationEngine.triggerMockAnomaly()" class="bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-400 text-cyan-400 text-xs px-4 py-2 rounded font-bold transition-all duration-200">
+                ⚡ SIMULATE ANOMALY STREAM
+            </button>
+        </header>
+
+        <!-- Live Telemetry Display & Alerts Grid -->
+        <main class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Left Panel: Text/Image Stream Notification Card -->
+            <section id="alertCard" class="md:col-span-2 glass-hud rounded-lg p-5 flex flex-col justify-between min-h-[350px] transition-all duration-300 opacity-60">
+                <div>
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded border border-slate-700">ALERT STREAM</span>
+                        <span id="alertStatus" class="text-xs text-slate-500 font-bold tracking-widest">IDLE</span>
+                    </div>
+                    
+                    <div id="alertContent" class="space-y-4">
+                        <p class="text-slate-400 text-sm">System operating within standard parameters. Awaiting uncertainty deviation prompts...</p>
+                        <!-- Dynamic Image Area -->
+                        <div id="alertImageWrapper" class="hidden w-full h-44 rounded border border-red-500/30 bg-slate-950/80 overflow-hidden flex items-center justify-center relative">
+                            <span class="absolute top-2 left-2 text-[10px] bg-red-500 text-white px-1 rounded font-bold">LIVE TELEMETRY SNAPSHOT</span>
+                            <img id="alertImage" src="" alt="Anomaly Snapshot" class="w-full h-full object-cover">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bottom Live Metrics Block -->
+                <div id="alertMeta" class="mt-4 pt-4 border-t border-slate-800 flex justify-between text-xs text-slate-500">
+                    <div>CONFIDENCE: <span id="metaConf" class="text-slate-300">--</span></div>
+                    <div>DISAGREEMENT (KL): <span id="metaDis" class="text-slate-300">--</span></div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Conversion & Active Oracle Labeling Widget -->
+            <section id="conversionWidget" class="glass-hud rounded-lg p-5 border-dashed border-slate-700 bg-slate-900/10 flex flex-col justify-between transition-all duration-300 pointer-events-none opacity-40">
+                <div>
+                    <div class="text-xs text-amber-500 font-bold mb-2 tracking-widest flex items-center gap-1">
+                        <span class="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                        ORACLE INTERVENTION HUB
+                    </div>
+                    <h3 class="text-sm font-bold text-slate-200 mb-4">Re-route Sample to Training Set</h3>
+                    
+                    <div class="space-y-3">
+                        <label class="block text-xs text-slate-400">Model predicted target boundary is unstable. Override ground-truth context classification:</label>
+                        <select id="oracleLabelSelect" class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs focus:outline-none focus:border-amber-500 text-slate-300">
+                            <option value="0">Class Alpha (System Nominal)</option>
+                            <option value="1">Class Beta (Telemetry Spike)</option>
+                            <option value="2">Class Gamma (Structural Anomaly)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-6 space-y-2">
+                    <button onclick="simulationEngine.submitOracleConversion()" class="w-full bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500 text-amber-400 text-xs py-2 rounded font-bold tracking-wider transition-all duration-200">
+                        CONVERT TO LABELED SAMPLE
+                    </button>
+                    <p class="text-[10px] text-center text-slate-500">Submitting feeds updates back to active experience replay memory streams instantly.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Core Pipeline Script Logic -->
+    <script src="app.js"></script>
+</body>
+</html>
+
+
+
+
+/**
+ * Active AI Notification and Conversion Manager
+ */
+class ActiveNotificationPipeline {
+    constructor() {
+        // Audio Context setup for synth notification hums and alerts
+        this.audioCtx = null;
+        
+        // Element caching
+        this.alertCard = document.getElementById('alertCard');
+        this.alertStatus = document.getElementById('alertStatus');
+        this.alertContent = document.getElementById('alertContent');
+        this.alertImageWrapper = document.getElementById('alertImageWrapper');
+        this.alertImage = document.getElementById('alertImage');
+        this.metaConf = document.getElementById('metaConf');
+        this.metaDis = document.getElementById('metaDis');
+        this.conversionWidget = document.getElementById('conversionWidget');
+        
+        // Internal tracking variable
+        this.activeEventPayload = null;
+    }
+
+    initAudio() {
+        if (!this.audioCtx) {
+            this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    /**
+     * Synthesizes a high-alert synth sound natively via the Web Audio API
+     */
+    playAudibleAlert(frequency = 587.33, duration = 0.3) {
+        this.initAudio();
+        if (this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume();
+        }
+
+        const osc = this.audioCtx.createOscillator();
+        const gainNode = this.audioCtx.createGain();
+
+        // High-tech sawtooth warning tone shape
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(frequency, this.audioCtx.currentTime);
+        // Quick futuristic pitch-drop sweep
+        osc.frequency.exponentialRampToValueAtTime(220, this.audioCtx.currentTime + duration);
+
+        gainNode.gain.setValueAtTime(0.15, this.audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + duration);
+
+        osc.connect(gainNode);
+        gainNode.connect(this.audioCtx.destination);
+
+        osc.start();
+        osc.stop(this.audioCtx.currentTime + duration);
+    }
+
+    /**
+     * Dispatches active alert visual transformations to the interface
+     */
+    raiseActiveAnomalyAlert(payload) {
+        this.activeEventPayload = payload;
+        
+        // Trigger sound notification
+        this.playAudibleAlert(659.25, 0.4);
+
+        // Transform Alert panel to highly critical visual state
+        this.alertCard.classList.remove('opacity-60', 'border-cyan-500/20');
+        this.alertCard.classList.add('opacity-100', 'border-red-500/60', 'shadow-red-500/10');
+        
+        this.alertStatus.innerText = "CRITICAL: MODEL UNCERTAINTY DEVIATION";
+        this.alertStatus.className = "text-xs text-red-400 font-bold tracking-widest animate-pulse";
+
+        // Update textual payload context
+        this.alertContent.innerHTML = `
+            <div class="text-sm space-y-1">
+                <p class="text-red-400 font-bold">⚠️ SYSTEM INTERVENTION PROMPT</p>
+                <p class="text-slate-300">Live feature array triggered high disagreement across ensemble networks. Target node predictions diverged beyond tolerance limits.</p>
+                <div class="bg-slate-950 p-2 rounded border border-slate-800 text-xs text-slate-400 mt-2">
+                    <span class="text-cyan-400">Stream Feature Payload:</span> ${JSON.stringify(payload.features)}
+                </div>
+            </div>
+        `;
+
+        // Inject and show Image telemetry component
+        this.alertImage.src = payload.telemetryImage;
+        this.alertImageWrapper.classList.remove('hidden');
+
+        // Update analytics readouts
+        this.metaConf.innerText = `${(payload.confidence * 100).toFixed(1)}%`;
+        this.metaDis.innerText = payload.disagreement.toFixed(4);
+
+        // UNLOCK Conversion Widget for operator labeling ingestion
+        this.conversionWidget.classList.remove('pointer-events-none', 'opacity-40', 'border-slate-700');
+        this.conversionWidget.classList.add('opacity-100', 'border-amber-500/50');
+    }
+
+    /**
+     * Resets dashboard state back to default tracing mode
+     */
+    resetDashboardState() {
+        this.alertCard.className = "md:col-span-2 glass-hud rounded-lg p-5 flex flex-col justify-between min-h-[350px] transition-all duration-300 opacity-60";
+        this.alertStatus.innerText = "IDLE";
+        this.alertStatus.className = "text-xs text-slate-500 font-bold tracking-widest";
+        this.alertContent.innerHTML = `<p class="text-slate-400 text-sm">System operating within standard parameters. Awaiting uncertainty deviation prompts...</p>`;
+        this.alertImageWrapper.classList.add('hidden');
+        this.metaConf.innerText = "--";
+        this.metaDis.innerText = "--";
+        
+        this.conversionWidget.className = "glass-hud rounded-lg p-5 border-dashed border-slate-700 bg-slate-900/10 flex flex-col justify-between transition-all duration-300 pointer-events-none opacity-40";
+        this.activeEventPayload = null;
+    }
+}
+
+/**
+ * Simulator Mock Orchestrator to simulate runtime streams
+ */
+class StreamSimulationEngine {
+    constructor(pipeline) {
+        this.pipeline = pipeline;
+    }
+
+    triggerMockAnomaly() {
+        // Construct simulated unclassified data payload with high variance
+        const mockPayload = {
+            streamId: "STRM_" + Math.floor(Math.random() * 90000 + 10000),
+            features: Array.from({length: 5}, () => parseFloat((Math.random() * 4 - 2).toFixed(3))),
+            confidence: 0.421, 
+            disagreement: 0.4892, // Divergence score greater than threshold 0.35
+            // Placeholder fallback data URL representing an live anomaly tracking event image
+            telemetryImage: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"
+        };
+
+        this.pipeline.raiseActiveAnomalyAlert(mockPayload);
+    }
+
+    submitOracleConversion() {
+        const selectedLabel = document.getElementById('oracleLabelSelect').value;
+        const completeDataPayload = {
+            sourceStream: this.pipeline.activeEventPayload,
+            assignedGroundTruthLabel: parseInt(selectedLabel),
+            operatorTimestamp: new Date().toISOString()
+        };
+
+        // Output conversion object context safely directly to developer consoles
+        console.log("🚀 [ACTIVE LEARNING CONVERSION SUBMITTED] Route payload to backend APIs:", completeDataPayload);
+        
+        // Audible success confirmation ping
+        this.pipeline.playAudibleAlert(880.00, 0.15);
+        
+        alert(`Sample Successfully Saved! Dispatched with Label Class: ${selectedLabel}`);
+        this.pipeline.resetDashboardState();
+    }
+}
+
+// Global Activation
+const pipelineHUD = new ActiveNotificationPipeline();
+const simulationEngine = new StreamSimulationEngine(pipelineHUD);
