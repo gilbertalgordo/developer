@@ -1,0 +1,2351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active AI Verified Badge Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- FontAwesome for HUD Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <div class="hud-container">
+        <!-- Header Section -->
+        <header class="hud-header">
+            <div class="logo">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>AI VERIFIED BADGE SYSTEM</span>
+            </div>
+            <div class="status-indicator">
+                <span class="pulse"></span> SYSTEM ACTIVE
+            </div>
+        </header>
+
+        <!-- Main Dashboard Grid -->
+        <main class="hud-grid">
+            
+            <!-- Step 1: Authentication Panel -->
+            <section class="hud-card" id="auth-panel">
+                <h2><i class="fa-solid fa-fingerprint"></i> 1. Authentication</h2>
+                <p>Log in securely via decentralized OAuth or API token.</p>
+                <form id="login-form">
+                    <div class="input-group">
+                        <label for="username">Username / ID</label>
+                        <input type="text" id="username" placeholder="Enter handle or user ID" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="auth-token">Auth Token / Key</label>
+                        <input type="password" id="auth-token" placeholder="••••••••••••••••" required>
+                    </div>
+                    <button type="submit" class="hud-btn primary">
+                        <i class="fa-solid fa-lock-open"></i> Authenticate Session
+                    </button>
+                </form>
+                <div id="auth-status" class="status-msg hidden">
+                    <i class="fa-solid fa-circle-check"></i> Authenticated Successfully
+                </div>
+            </section>
+
+            <!-- Step 2: URL & Feature Configuration Panel -->
+            <section class="hud-card disabled" id="config-panel">
+                <h2><i class="fa-solid fa-sliders"></i> 2. Target & Features</h2>
+                <p>Configure link parameters and toggle badge attributes.</p>
+                
+                <div class="input-group">
+                    <label for="target-url">Target Account URL</label>
+                    <input type="url" id="target-url" placeholder="https://platform.com/user/profile" disabled>
+                </div>
+
+                <div class="toggles-container">
+                    <div class="toggle-row">
+                        <span>Verified Badge Feature</span>
+                        <label class="switch">
+                            <input type="checkbox" id="badge-toggle" checked disabled>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-row">
+                        <span>API Usage Limitation Override</span>
+                        <label class="switch">
+                            <input type="checkbox" id="limit-toggle" disabled>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-row">
+                        <span>HD / 3D Holographic Glint</span>
+                        <label class="switch">
+                            <input type="checkbox" id="hologram-toggle" checked disabled>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="button" id="save-btn" class="hud-btn success" disabled>
+                    <i class="fa-solid fa-floppy-disk"></i> Save & Generate Badge
+                </button>
+            </section>
+
+        </main>
+
+        <!-- Output / Terminal HUD Footer -->
+        <footer class="hud-terminal">
+            <div class="terminal-header">
+                <i class="fa-solid fa-terminal"></i> SYSTEM LOG CONSOLE
+            </div>
+            <div id="console-output" class="terminal-body">
+                [11:19:12] System initialized. Waiting for user authentication...
+            </div>
+        </footer>
+    </div>
+
+    <!-- Interactive Logic Script -->
+    <script>
+        const loginForm = document.getElementById('login-form');
+        const authPanel = document.getElementById('auth-panel');
+        const configPanel = document.getElementById('config-panel');
+        const authStatus = document.getElementById('auth-status');
+        const targetUrl = document.getElementById('target-url');
+        const badgeToggle = document.getElementById('badge-toggle');
+        const limitToggle = document.getElementById('limit-toggle');
+        const hologramToggle = document.getElementById('hologram-toggle');
+        const saveBtn = document.getElementById('save-btn');
+        const consoleOutput = document.getElementById('console-output');
+
+        function logMessage(msg) {
+            const time = new Date().toLocaleTimeString();
+            consoleOutput.innerHTML += `<br>[${time}] ${msg}`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            logMessage("Authenticating session credentials...");
+            
+            setTimeout(() => {
+                authStatus.classList.remove('hidden');
+                logMessage("Authentication token verified successfully.");
+                
+                // Unlock Configuration Panel
+                configPanel.classList.remove('disabled');
+                targetUrl.disabled = false;
+                badgeToggle.disabled = false;
+                limitToggle.disabled = false;
+                hologramToggle.disabled = false;
+                saveBtn.disabled = false;
+                logMessage("Configuration panel unlocked. Ready for parameters.");
+            }, 800);
+        });
+
+        saveBtn.addEventListener('click', () => {
+            const urlValue = targetUrl.value.trim();
+            if(!urlValue) {
+                logMessage("ERROR: Target URL field cannot be empty.");
+                alert("Please enter a valid target URL link.");
+                return;
+            }
+
+            logMessage(`Target configuration saved for: ${urlValue}`);
+            logMessage(`Badge Status: ${badgeToggle.checked ? 'ENABLED' : 'DISABLED'}`);
+            logMessage(`Usage Limit Override: ${limitToggle.checked ? 'ENABLED' : 'DISABLED'}`);
+            logMessage(`Holographic Glint: ${hologramToggle.checked ? 'ENABLED' : 'DISABLED'}`);
+            logMessage("SUCCESS: Active AI Verified Badge successfully deployed to target link!");
+            
+            alert("Badge generation and configuration saved successfully!");
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+:root {
+    --bg-color: #0b0f19;
+    --panel-bg: #111827;
+    --border-color: #1f2937;
+    --accent-color: #06b6d4;
+    --accent-hover: #22d3ee;
+    --success-color: #10b981;
+    --text-main: #f3f4f6;
+    --text-muted: #9ca3af;
+    --font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: var(--font-family);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.hud-container {
+    width: 100%;
+    max-width: 900px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 0 25px rgba(6, 182, 212, 0.15);
+    overflow: hidden;
+}
+
+/* Header */
+.hud-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    background: #0f172a;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--accent-color);
+}
+
+.status-indicator {
+    font-size: 0.85rem;
+    color: var(--success-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+
+.pulse {
+    width: 8px;
+    height: 8px;
+    background-color: var(--success-color);
+    border-radius: 50%;
+    box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
+}
+
+/* Grid Layout */
+.hud-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 24px;
+}
+
+@media(max-width: 768px) {
+    .hud-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.hud-card {
+    background: #0f172a;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    transition: opacity 0.3s ease;
+}
+
+.hud-card.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.hud-card h2 {
+    font-size: 1.1rem;
+    margin-bottom: 6px;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hud-card p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+
+/* Inputs & Forms */
+.input-group {
+    margin-bottom: 14px;
+}
+
+.input-group label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-main);
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.input-group input:focus {
+    border-color: var(--accent-color);
+}
+
+/* Buttons */
+.hud-btn {
+    width: 100%;
+    padding: 11px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.2s;
+}
+
+.hud-btn.primary {
+    background: var(--accent-color);
+    color: #000;
+}
+
+.hud-btn.primary:hover {
+    background: var(--accent-hover);
+}
+
+.hud-btn.success {
+    background: var(--success-color);
+    color: #000;
+    margin-top: 10px;
+}
+
+.hud-btn.success:hover {
+    background: #059669;
+}
+
+/* Status Notifications */
+.status-msg {
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: var(--success-color);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Toggle Switches */
+.toggles-container {
+    margin: 15px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.88rem;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 22px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: var(--border-color);
+    transition: .3s;
+    border-radius: 22px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--accent-color);
+}
+
+input:checked + .slider:before {
+    transform: translateX(22px);
+}
+
+/* Terminal Footer */
+.hud-terminal {
+    background: #080c14;
+    border-top: 1px solid var(--border-color);
+    padding: 14px 24px;
+}
+
+.terminal-header {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.terminal-body {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.8rem;
+    color: var(--accent-color);
+    max-height: 80px;
+    overflow-y: auto;
+    line-height: 1.4;
+}
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active AI - Advanced Verified Badge Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- FontAwesome Pro/Free Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- Background Ambient Glow Elements -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <div class="hud-container">
+        <!-- Top Navigation / Telemetry Header -->
+        <header class="hud-header">
+            <div class="brand">
+                <i class="fa-solid fa-atom fa-spin"></i>
+                <div class="brand-text">
+                    <h1>ACTIVE AI CORE</h1>
+                    <span>Verified Badge Generator v4.8</span>
+                </div>
+            </div>
+            <div class="telemetry-readout">
+                <div class="metric"><span class="label">SECURE MESH:</span> <span class="val">ONLINE</span></div>
+                <div class="metric"><span class="label">LATENCY:</span> <span class="val">14ms</span></div>
+                <div class="status-pill active"><span class="pulse"></span> READY</div>
+            </div>
+        </header>
+
+        <!-- Main Workspace Grid -->
+        <div class="hud-grid">
+            
+            <!-- Column 1: Authentication & Node Access -->
+            <section class="hud-panel" id="auth-panel">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-fingerprint"></i> Step 1: Secure Node Auth</h2>
+                    <span class="step-badge">01</span>
+                </div>
+                <p class="panel-desc">Authenticate cryptographic session keys to access active agent pathways.</p>
+                
+                <form id="auth-form">
+                    <div class="input-group">
+                        <label for="node-id">Node Operator ID</label>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-user-shield"></i>
+                            <input type="text" id="node-id" placeholder="Enter Operator Handle" value="Gilbert Algordo" required>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label for="auth-key">Cryptographic Token / Key</label>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-key"></i>
+                            <input type="password" id="auth-key" placeholder="••••••••••••••••••••" value="ai_sec_9948210" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="hud-btn btn-primary" id="auth-btn">
+                        <i class="fa-solid fa-lock-open"></i> Authenticate Session
+                    </button>
+                </form>
+                
+                <div id="auth-success-box" class="feedback-box hidden">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <div>
+                        <strong>Session Verified</strong>
+                        <span>Node linked securely. Configuration parameters unlocked.</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Column 2: Target URL & Badge Configuration Panel -->
+            <section class="hud-panel locked" id="config-panel">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-sliders"></i> Step 2: Target & Badge Matrix</h2>
+                    <span class="step-badge">02</span>
+                </div>
+                <p class="panel-desc">Define account endpoint URL and configure active verification flags.</p>
+                
+                <div class="input-group">
+                    <label for="target-url">Target Account URL Link</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-link"></i>
+                        <input type="url" id="target-url" placeholder="https://platform.com/account/profile" disabled>
+                    </div>
+                </div>
+
+                <div class="matrix-controls">
+                    <div class="control-row">
+                        <div class="control-info">
+                            <strong>Active Badge Feature</strong>
+                            <span>Deploy holographic verification checkmark</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="badge-feature-toggle" checked disabled>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="control-row">
+                        <div class="control-info">
+                            <strong>Disable Usage Limitations</strong>
+                            <span>Bypass standard generation rate bounds</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="limit-toggle" checked disabled>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="control-row">
+                        <div class="control-info">
+                            <strong>Dynamic Holographic Glint</strong>
+                            <span>Enable 3D light-bounce tracking</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="glint-toggle" checked disabled>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="button" class="hud-btn btn-success" id="save-deploy-btn" disabled>
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Save & Deploy Badge Generator
+                </button>
+            </section>
+
+        </div>
+
+        <!-- Live Preview / Generated Output Container -->
+        <section class="hud-panel preview-panel" id="preview-section">
+            <div class="panel-header">
+                <h2><i class="fa-solid fa-eye"></i> Live Generated Badge Simulation</h2>
+                <span class="live-dot"><span class="pulse"></span> LIVE PREVIEW</span>
+            </div>
+            <div class="preview-canvas">
+                <div class="simulated-profile-card">
+                    <div class="sim-avatar">
+                        <i class="fa-solid fa-user-astronaut"></i>
+                    </div>
+                    <div class="sim-details">
+                        <div class="sim-name-row">
+                            <span id="sim-handle">@operator_target</span>
+                            <!-- Dynamic Badge Render Target -->
+                            <div id="badge-container" class="verified-badge-node">
+                                <i class="fa-solid fa-circle-check"></i>
+                            </div>
+                        </div>
+                        <span id="sim-url-display" class="sim-url">Awaiting target configuration link...</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Bottom Terminal / Telemetry Console -->
+        <footer class="hud-terminal">
+            <div class="terminal-bar">
+                <span><i class="fa-solid fa-terminal"></i> KAIZEN SYSTEM LOG CONSOLE</span>
+                <span id="log-clock">00:00:00</span>
+            </div>
+            <div class="terminal-screen" id="terminal-logs">
+                [SYSTEM] Active AI Framework loaded successfully. Waiting for operator authentication...
+            </div>
+        </footer>
+    </div>
+
+    <!-- Script Engine -->
+    <script>
+        // DOM Elements
+        const authForm = document.getElementById('auth-form');
+        const authPanel = document.getElementById('auth-panel');
+        const configPanel = document.getElementById('config-panel');
+        const authSuccessBox = document.getElementById('auth-success-box');
+        const authBtn = document.getElementById('auth-btn');
+        const targetUrlInput = document.getElementById('target-url');
+        const badgeToggle = document.getElementById('badge-feature-toggle');
+        const limitToggle = document.getElementById('limit-toggle');
+        const glintToggle = document.getElementById('glint-toggle');
+        const saveDeployBtn = document.getElementById('save-deploy-btn');
+        const terminalLogs = document.getElementById('terminal-logs');
+        const logClock = document.getElementById('log-clock');
+        const simHandle = document.getElementById('sim-handle');
+        const simUrlDisplay = document.getElementById('sim-url-display');
+        const badgeContainer = document.getElementById('badge-container');
+
+        // Clock runner
+        setInterval(() => {
+            const now = new Date();
+            logClock.textContent = now.toTimeString().split(' ')[0];
+        }, 1000);
+
+        function appendLog(message, type = 'info') {
+            const timestamp = new Date().toTimeString().split(' ')[0];
+            let colorClass = 'log-info';
+            if (type === 'success') colorClass = 'log-success';
+            if (type === 'error') colorClass = 'log-error';
+            
+            terminalLogs.innerHTML += `<br><span class="log-time">[${timestamp}]</span> <span class="${colorClass}">${message}</span>`;
+            terminalLogs.scrollTop = terminalLogs.scrollHeight;
+        }
+
+        // Authentication Event Handler
+        authForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const operatorId = document.getElementById('node-id').value;
+            
+            authBtn.disabled = true;
+            authBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying Cryptographic Handshake...';
+            appendLog(`Initiating secure OAuth exchange for operator: ${operatorId}...`, 'info');
+
+            setTimeout(() => {
+                authBtn.innerHTML = '<i class="fa-solid fa-check"></i> Authenticated';
+                authSuccessBox.classList.remove('hidden');
+                
+                // Unlock Configuration Matrix
+                configPanel.classList.remove('locked');
+                targetUrlInput.disabled = false;
+                badgeToggle.disabled = false;
+                limitToggle.disabled = false;
+                glintToggle.disabled = false;
+                saveDeployBtn.disabled = false;
+
+                // Extract handle name for simulation
+                simHandle.textContent = `@${operatorId.toLowerCase().replace(/\s+/g, '_')}`;
+                appendLog(`Authentication sequence accepted. Matrix unlocked for node [${operatorId}].`, 'success');
+            }, 1000);
+        });
+
+        // Dynamic URL Listener for Live Preview
+        targetUrlInput.addEventListener('input', (e) => {
+            const val = e.target.value.trim();
+            if (val) {
+                simUrlDisplay.textContent = val;
+                simUrlDisplay.style.color = '#38bdf8';
+            } else {
+                simUrlDisplay.textContent = 'Awaiting target configuration link...';
+                simUrlDisplay.style.color = '#64748b';
+            }
+        });
+
+        // Toggle Feature Listeners
+        badgeToggle.addEventListener('change', () => {
+            if (badgeToggle.checked) {
+                badgeContainer.style.display = 'inline-flex';
+                appendLog("Verified Badge Feature: ENABLED", 'success');
+            } else {
+                badgeContainer.style.display = 'none';
+                appendLog("Verified Badge Feature: DISABLED", 'error');
+            }
+        });
+
+        limitToggle.addEventListener('change', () => {
+            appendLog(`Usage Limitations Override: ${limitToggle.checked ? 'ENABLED (Bypassed)' : 'RESTRICTED'}`, 'info');
+        });
+
+        glintToggle.addEventListener('change', () => {
+            if (glintToggle.checked) {
+                badgeContainer.classList.add('hologram-glint');
+                appendLog("Holographic Glint Shimmer: ACTIVATED", 'success');
+            } else {
+                badgeContainer.classList.remove('hologram-glint');
+                appendLog("Holographic Glint Shimmer: DEACTIVATED", 'info');
+            }
+        });
+
+        // Save & Deploy Matrix Action
+        saveDeployBtn.addEventListener('click', () => {
+            const targetUrlVal = targetUrlInput.value.trim();
+            if (!targetUrlVal) {
+                appendLog("ERROR: Deployment aborted. Target URL parameter cannot be null.", 'error');
+                alert("Please input a valid target link before saving configuration.");
+                targetUrlInput.focus();
+                return;
+            }
+
+            saveDeployBtn.disabled = true;
+            saveDeployBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Compiling & Deploying...';
+            appendLog(`Compiling target profile target: ${targetUrlVal}`, 'info');
+
+            setTimeout(() => {
+                saveDeployBtn.disabled = false;
+                saveDeployBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Save & Deploy Badge Generator';
+                appendLog(`SUCCESS: Verified badge agent compiled and deployed securely to [${targetUrlVal}]`, 'success');
+                appendLog(`Parameters Saved -> Badge: ${badgeToggle.checked}, Limit Override: ${limitToggle.checked}, Glint: ${glintToggle.checked}`, 'success');
+                
+                alert("Active AI Verified Badge generator parameters saved and deployed successfully!");
+            }, 1200);
+        });
+    </script>
+</body>
+</html>
+
+
+
+:root {
+    --bg-deep: #030712;
+    --panel-bg: rgba(17, 24, 39, 0.75);
+    --panel-border: rgba(56, 189, 248, 0.15);
+    --accent-cyan: #06b6d4;
+    --accent-blue: #38bdf8;
+    --success-green: #10b981;
+    --error-red: #ef4444;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --font-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', Consolas, monospace;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-deep);
+    color: var(--text-main);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    overflow-x: hidden;
+}
+
+/* Ambient Background Holographic Glows */
+.ambient-glow {
+    position: absolute;
+    width: 450px;
+    height: 450px;
+    border-radius: 50%;
+    filter: blur(120px);
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.15;
+}
+.glow-1 { top: -10%; left: -10%; background: var(--accent-cyan); }
+.glow-2 { bottom: -10%; right: -10%; background: #6366f1; }
+
+/* Main HUD Frame Layout */
+.hud-container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 960px;
+    background: var(--panel-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+
+/* Header Telemetry */
+.hud-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 28px;
+    background: rgba(15, 23, 42, 0.6);
+    border-bottom: 1px solid var(--panel-border);
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: var(--accent-blue);
+    font-size: 1.2rem;
+}
+
+.brand-text h1 {
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: #fff;
+}
+
+.brand-text span {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.telemetry-readout {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+}
+
+.metric .label { color: var(--text-muted); }
+.metric .val { color: var(--accent-cyan); font-weight: 600; }
+
+.status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 4px 10px;
+    border-radius: 20px;
+    color: var(--success-green);
+    font-weight: 600;
+}
+
+.pulse {
+    width: 7px;
+    height: 7px;
+    background-color: var(--success-green);
+    border-radius: 50%;
+    box-shadow: 0 0 0 rgba(16, 185, 129, 0.5);
+    animation: pulse-ring 1.5s infinite;
+}
+
+@keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* Grid Layout */
+.hud-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 24px;
+}
+
+@media(max-width: 768px) {
+    .hud-grid { grid-template-columns: 1fr; }
+}
+
+.hud-panel {
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 22px;
+    transition: all 0.3s ease;
+}
+
+.hud-panel.locked {
+    opacity: 0.35;
+    pointer-events: none;
+    filter: grayscale(40%);
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.panel-header h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.step-badge {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    background: rgba(56, 189, 248, 0.1);
+    color: var(--accent-blue);
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.panel-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 18px;
+}
+
+/* Inputs & Forms */
+.input-group {
+    margin-bottom: 14px;
+}
+
+.input-group label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-wrapper i {
+    position: absolute;
+    left: 12px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.input-wrapper input {
+    width: 100%;
+    background: rgba(3, 7, 18, 0.6);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 10px 12px 10px 38px;
+    color: var(--text-main);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-wrapper input:focus {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
+}
+
+.input-wrapper input:disabled {
+    cursor: not-allowed;
+    background: rgba(3, 7, 18, 0.3);
+}
+
+/* Feedback Notice */
+.feedback-box {
+    margin-top: 14px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    padding: 10px 12px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.8rem;
+    color: var(--success-green);
+}
+
+.feedback-box.hidden { display: none; }
+.feedback-box i { font-size: 1.1rem; }
+.feedback-box strong { display: block; font-weight: 600; }
+.feedback-box span { color: var(--text-muted); font-size: 0.75rem; }
+
+/* Control Matrix Switches */
+.matrix-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 18px 0;
+}
+
+.control-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(3, 7, 18, 0.4);
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.control-info strong {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-main);
+}
+
+.control-info span {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Toggle Switch Styling */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 22px;
+}
+
+.switch input { opacity: 0; width: 0; height: 0; }
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #1e293b;
+    transition: 0.3s;
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+input:checked + .slider { background-color: var(--accent-cyan); }
+input:checked + .slider:before { transform: translateX(22px); }
+
+/* Buttons */
+.hud-btn {
+    width: 100%;
+    padding: 11px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background: var(--accent-cyan);
+    color: #030712;
+}
+.btn-primary:hover { background: var(--accent-blue); }
+
+.btn-success {
+    background: var(--success-green);
+    color: #030712;
+    margin-top: 6px;
+}
+.btn-success:hover { background: #059669; }
+
+/* Live Preview Panel */
+.preview-panel {
+    margin: 0 24px 24px 24px;
+}
+
+.live-dot {
+    font-size: 0.7rem;
+    font-family: var(--font-mono);
+    color: var(--accent-cyan);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.preview-canvas {
+    background: rgba(3, 7, 18, 0.7);
+    border: 1px dashed rgba(56, 189, 248, 0.3);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.simulated-profile-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 12px 20px;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 450px;
+}
+
+.sim-avatar {
+    width: 42px;
+    height: 42px;
+    background: linear-gradient(135deg, var(--accent-cyan), #3b82f6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #030712;
+    font-size: 1.1rem;
+}
+
+.sim-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+}
+
+.sim-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sim-name-row span {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #fff;
+}
+
+/* Verified Badge Core Design */
+.verified-badge-node {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-cyan);
+    font-size: 0.9rem;
+    position: relative;
+    filter: drop-shadow(0 0 6px rgba(6, 182, 212, 0.6));
+}
+
+/* Holographic Glint Animation */
+.hologram-glint {
+    animation: glint-pulse 2s infinite ease-in-out;
+}
+
+@keyframes glint-pulse {
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(6, 182, 212, 0.5)); transform: scale(1); }
+    50% { filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.9)); transform: scale(1.08); }
+}
+
+.sim-url {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+}
+
+/* Terminal Console */
+.hud-terminal {
+    background: #02040a;
+    border-top: 1px solid var(--panel-border);
+    padding: 12px 24px;
+}
+
+.terminal-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+}
+
+.terminal-screen {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--accent-cyan);
+    background: rgba(0, 0, 0, 0.4);
+    padding: 10px;
+    border-radius: 6px;
+    max-height: 90px;
+    overflow-y: auto;
+    line-height: 1.4;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.log-time { color: #64748b; }
+.log-info { color: var(--accent-blue); }
+.log-success { color: var(--success-green); }
+.log-error { color: var(--error-red); }
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active AI - Badge Generator Icon Suite</title>
+    <link rel="stylesheet" href="icons.css">
+</head>
+<body>
+
+    <div class="icon-showcase-container">
+        <header>
+            <h1>ACTIVE AI VECTOR ICON SUITE</h1>
+            <p>Pure CSS3 & Scalable SVG Node Assets</p>
+        </header>
+
+        <div class="icon-grid">
+            
+            <!-- Icon 1: Verified Badge Core -->
+            <div class="icon-card">
+                <div class="icon-wrapper hologram-glint">
+                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="32" cy="32" r="30" fill="url(#cyan-glow)" stroke="#06b6d4" stroke-width="2"/>
+                        <path d="M20 32L28 40L44 24" stroke="#030712" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 32L28 40L44 24" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        <defs>
+                            <radialGradient id="cyan-glow" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stop-color="#22d3ee"/>
+                                <stop offset="100%" stop-color="#0891b2"/>
+                            </radialGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <span>Verified Badge (Active)</span>
+            </div>
+
+            <!-- Icon 2: Disabled / Revoked Badge -->
+            <div class="icon-card">
+                <div class="icon-wrapper disabled">
+                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="32" cy="32" r="30" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+                        <path d="M22 22L42 42" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                        <path d="M42 22L22 42" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <span>Verified Badge (Disabled)</span>
+            </div>
+
+            <!-- Icon 3: Secure Auth Key Node -->
+            <div class="icon-card">
+                <div class="icon-wrapper pulse-node">
+                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="14" y="26" width="36" height="28" rx="6" fill="#0f172a" stroke="#38bdf8" stroke-width="2"/>
+                        <path d="M22 26V18C22 12.4772 26.4772 8 32 8C37.5228 8 42 12.4772 42 18V26" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="32" cy="38" r="4" fill="#06b6d4"/>
+                        <path d="M32 42V48" stroke="#06b6d4" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <span>Secure Auth Node</span>
+            </div>
+
+            <!-- Icon 4: Target URL Link Matrix -->
+            <div class="icon-card">
+                <div class="icon-wrapper">
+                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M24 38L18 44C14.134 47.866 7.86599 47.866 4 44C0.134007 40.134 0.134007 33.866 4 30L12 22" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+                        <path d="M40 26L46 20C49.866 16.134 56.134 16.134 60 20C63.866 23.866 63.866 30.134 60 34L52 42" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+                        <line x1="22" y1="42" x2="42" y2="22" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <span>Target URL Link Node</span>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>
+
+
+
+:root {
+    --bg-deep: #030712;
+    --panel-bg: rgba(17, 24, 39, 0.8);
+    --border-color: rgba(56, 189, 248, 0.2);
+    --accent-cyan: #06b6d4;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --font-ui: 'Segoe UI', system-ui, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-deep);
+    color: var(--text-main);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.icon-showcase-container {
+    width: 100%;
+    max-width: 800px;
+    background: var(--panel-bg);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+header h1 {
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: var(--accent-cyan);
+    margin-bottom: 6px;
+}
+
+header p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+/* Icon Grid Layout */
+.icon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 20px;
+}
+
+.icon-card {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.icon-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent-cyan);
+}
+
+.icon-wrapper {
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-wrapper svg {
+    width: 100%;
+    height: 100%;
+}
+
+.icon-card span {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: center;
+    font-weight: 600;
+}
+
+/* CSS3 Animations for Icons */
+.hologram-glint svg {
+    filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.6));
+    animation: icon-pulse 2s infinite ease-in-out;
+}
+
+@keyframes icon-pulse {
+    0%, 100% { filter: drop-shadow(0 0 5px rgba(6, 182, 212, 0.4)); transform: scale(1); }
+    50% { filter: drop-shadow(0 0 12px rgba(34, 211, 238, 0.9)); transform: scale(1.06); }
+}
+
+.pulse-node svg {
+    animation: node-hover 3s infinite ease-in-out;
+}
+
+@keyframes node-hover {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
+.icon-wrapper.disabled {
+    opacity: 0.5;
+    filter: grayscale(80%);
+}
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active AI - Badge Generator Vector Icons</title>
+    <link rel="stylesheet" href="icons.css">
+</head>
+<body>
+
+    <div class="icon-showcase-container">
+        <header>
+            <h1>ACTIVE AI VECTOR ICON SUITE</h1>
+            <p>Pure CSS3 & Scalable SVG Node Assets for Verified Badges</p>
+        </header>
+
+        <div class="icon-grid">
+            
+            <!-- Icon 1: Verified Badge (Enabled State) -->
+            <div class="icon-card">
+                <div class="icon-wrapper hologram-glint">
+                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="32" cy="32" r="30" fill="url(#cyan-glow)" stroke="#06b6d4" stroke-width="2"/>
+                        <path d="M20 32L28 40L44 24" stroke="#030712" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 32L28 40L44 24" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        <defs>
+                            <radialGradient id="cyan-glow" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stop-color="#22d3ee"/>
+                                <stop offset="100%" stop-color="#0891b2"/>
+                            </radialGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <span>Verified Badge (Enabled)</span>
+            </div>
+
+            <!-- Icon 2: Verified Badge (Disabled / Revoked State) -->
+            <div class="icon-card">
+                <div class="icon-wrapper disabled">
+                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="32" cy="32" r="30" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+                        <path d="M22 22L42 42" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                        <path d="M42 22L22 42" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <span>Verified Badge (Disabled)</span>
+            </div>
+
+            <!-- Icon 3: Secure Login & Authentication Node -->
+            <div class="icon-card">
+                <div class="icon-wrapper pulse-node">
+                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="14" y="26" width="36" height="28" rx="6" fill="#0f172a" stroke="#38bdf8" stroke-width="2"/>
+                        <path d="M22 26V18C22 12.4772 26.4772 8 32 8C37.5228 8 42 12.4772 42 18V26" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="32" cy="38" r="4" fill="#06b6d4"/>
+                        <path d="M32 42V48" stroke="#06b6d4" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <span>Secure Authentication Node</span>
+            </div>
+
+            <!-- Icon 4: Target URL Link Matrix -->
+            <div class="icon-card">
+                <div class="icon-wrapper">
+                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M24 38L18 44C14.134 47.866 7.86599 47.866 4 44C0.134007 40.134 0.134007 33.866 4 30L12 22" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+                        <path d="M40 26L46 20C49.866 16.134 56.134 16.134 60 20C63.866 23.866 63.866 30.134 60 34L52 42" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+                        <line x1="22" y1="42" x2="42" y2="22" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <span>Target URL Link Matrix</span>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>
+
+
+
+
+:root {
+    --bg-deep: #030712;
+    --panel-bg: rgba(17, 24, 39, 0.85);
+    --border-color: rgba(56, 189, 248, 0.2);
+    --accent-cyan: #06b6d4;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --font-ui: 'Segoe UI', system-ui, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-deep);
+    color: var(--text-main);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.icon-showcase-container {
+    width: 100%;
+    max-width: 840px;
+    background: var(--panel-bg);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+header h1 {
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: var(--accent-cyan);
+    margin-bottom: 6px;
+}
+
+header p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+/* Icon Grid Layout */
+.icon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 20px;
+}
+
+.icon-card {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.icon-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent-cyan);
+}
+
+.icon-wrapper {
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-wrapper svg {
+    width: 100%;
+    height: 100%;
+}
+
+.icon-card span {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: center;
+    font-weight: 600;
+}
+
+/* CSS3 Animations */
+.hologram-glint svg {
+    filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.6));
+    animation: icon-pulse 2s infinite ease-in-out;
+}
+
+@keyframes icon-pulse {
+    0%, 100% { filter: drop-shadow(0 0 5px rgba(6, 182, 212, 0.4)); transform: scale(1); }
+    50% { filter: drop-shadow(0 0 12px rgba(34, 211, 238, 0.9)); transform: scale(1.06); }
+}
+
+.pulse-node svg {
+    animation: node-hover 3s infinite ease-in-out;
+}
+
+@keyframes node-hover {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
+.icon-wrapper.disabled {
+    opacity: 0.5;
+    filter: grayscale(80%);
+}
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active AI - Verified Badge Generator (HUD Edition)</title>
+    <style>
+        :root {
+            --bg-deep: #030712;
+            --panel-bg: rgba(17, 24, 39, 0.85);
+            --panel-border: rgba(56, 189, 248, 0.2);
+            --accent-cyan: #06b6d4;
+            --accent-blue: #38bdf8;
+            --success-green: #10b981;
+            --error-red: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --font-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --font-mono: Consolas, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: var(--font-ui);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .ambient-glow {
+            position: absolute;
+            width: 450px;
+            height: 450px;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.15;
+        }
+        .glow-1 { top: -10%; left: -10%; background: var(--accent-cyan); }
+        .glow-2 { bottom: -10%; right: -10%; background: #6366f1; }
+
+        .hud-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 960px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+        }
+
+        .hud-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 28px;
+            background: rgba(15, 23, 42, 0.6);
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            color: var(--accent-blue);
+            font-size: 1.2rem;
+        }
+
+        .brand-text h1 {
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            color: #fff;
+        }
+
+        .brand-text span {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 4px 10px;
+            border-radius: 20px;
+            color: var(--success-green);
+            font-weight: 600;
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+        }
+
+        .pulse {
+            width: 7px;
+            height: 7px;
+            background-color: var(--success-green);
+            border-radius: 50%;
+            animation: pulse-ring 1.5s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .hud-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 24px;
+        }
+
+        @media(max-width: 768px) {
+            .hud-grid { grid-template-columns: 1fr; }
+        }
+
+        .hud-panel {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 22px;
+            transition: all 0.3s ease;
+        }
+
+        .hud-panel.locked {
+            opacity: 0.35;
+            pointer-events: none;
+            filter: grayscale(40%);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .panel-header h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step-badge {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent-blue);
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        .panel-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 18px;
+        }
+
+        .input-group {
+            margin-bottom: 14px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper span.icon {
+            position: absolute;
+            left: 12px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            background: rgba(3, 7, 18, 0.6);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 10px 12px 10px 38px;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-wrapper input:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
+        }
+
+        .input-wrapper input:disabled {
+            cursor: not-allowed;
+            background: rgba(3, 7, 18, 0.3);
+        }
+
+        .feedback-box {
+            margin-top: 14px;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            padding: 10px 12px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.8rem;
+            color: var(--success-green);
+        }
+
+        .feedback-box.hidden { display: none; }
+        .feedback-box strong { display: block; font-weight: 600; }
+        .feedback-box span { color: var(--text-muted); font-size: 0.75rem; }
+
+        .matrix-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 18px 0;
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(3, 7, 18, 0.4);
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .control-info strong {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-main);
+        }
+
+        .control-info span {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 22px;
+        }
+
+        .switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #1e293b;
+            transition: 0.3s;
+            border-radius: 22px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: var(--accent-cyan); }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        .hud-btn {
+            width: 100%;
+            padding: 11px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary { background: var(--accent-cyan); color: #030712; }
+        .btn-primary:hover { background: var(--accent-blue); }
+
+        .btn-success { background: var(--success-green); color: #030712; margin-top: 6px; }
+        .btn-success:hover { background: #059669; }
+
+        .preview-panel {
+            margin: 0 24px 24px 24px;
+        }
+
+        .live-dot {
+            font-size: 0.7rem;
+            font-family: var(--font-mono);
+            color: var(--accent-cyan);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .preview-canvas {
+            background: rgba(3, 7, 18, 0.7);
+            border: 1px dashed rgba(56, 189, 248, 0.3);
+            border-radius: 10px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .simulated-profile-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 12px 20px;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .sim-avatar {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, var(--accent-cyan), #3b82f6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #030712;
+            font-weight: bold;
+        }
+
+        .sim-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow: hidden;
+        }
+
+        .sim-name-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sim-name-row span {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #fff;
+        }
+
+        .verified-badge-node {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-cyan);
+            filter: drop-shadow(0 0 6px rgba(6, 182, 212, 0.6));
+        }
+
+        .hologram-glint {
+            animation: glint-pulse 2s infinite ease-in-out;
+        }
+
+        @keyframes glint-pulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(6, 182, 212, 0.5)); transform: scale(1); }
+            50% { filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.9)); transform: scale(1.08); }
+        }
+
+        .sim-url {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 280px;
+        }
+
+        .hud-terminal {
+            background: #02040a;
+            border-top: 1px solid var(--panel-border);
+            padding: 12px 24px;
+        }
+
+        .terminal-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .terminal-screen {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent-cyan);
+            background: rgba(0, 0, 0, 0.4);
+            padding: 10px;
+            border-radius: 6px;
+            max-height: 90px;
+            overflow-y: auto;
+            line-height: 1.4;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .log-time { color: #64748b; }
+        .log-success { color: var(--success-green); }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <div class="hud-container">
+        <!-- Header -->
+        <header class="hud-header">
+            <div class="brand">
+                <span>⚡</span>
+                <div class="brand-text">
+                    <h1>ACTIVE AI CORE</h1>
+                    <span>Verified Badge Generator UI</span>
+                </div>
+            </div>
+            <div class="status-pill">
+                <span class="pulse"></span> ONLINE
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <div class="hud-grid">
+            
+            <!-- Step 1: Authentication -->
+            <section class="hud-panel" id="auth-panel">
+                <div class="panel-header">
+                    <h2><span>🔒</span> Step 1: Secure Node Auth</h2>
+                    <span class="step-badge">01</span>
+                </div>
+                <p class="panel-desc">Authenticate session keys to initialize active agent pathways.</p>
+                
+                <form id="auth-form">
+                    <div class="input-group">
+                        <label for="node-id">Operator Handle / ID</label>
+                        <div class="input-wrapper">
+                            <span class="icon">👤</span>
+                            <input type="text" id="node-id" placeholder="Enter handle" value="Gilbert Algordo" required>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label for="auth-key">Cryptographic Token</label>
+                        <div class="input-wrapper">
+                            <span class="icon">🔑</span>
+                            <input type="password" id="auth-key" placeholder="••••••••••••••••••••" value="ai_sec_token" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="hud-btn btn-primary" id="auth-btn">
+                        <span>🔓</span> Authenticate Session
+                    </button>
+                </form>
+                
+                <div id="auth-success-box" class="feedback-box hidden">
+                    <span>✅</span>
+                    <div>
+                        <strong>Session Verified</strong>
+                        <span>Node linked securely. Configuration parameters unlocked.</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 2: Target URL & Features -->
+            <section class="hud-panel locked" id="config-panel">
+                <div class="panel-header">
+                    <h2><span>⚙️</span> Step 2: Target & Badge Matrix</h2>
+                    <span class="step-badge">02</span>
+                </div>
+                <p class="panel-desc">Define account endpoint URL and toggle verified badge attributes.</p>
+                
+                <div class="input-group">
+                    <label for="target-url">Target Account URL Link</label>
+                    <div class="input-wrapper">
+                        <span class="icon">🌐</span>
+                        <input type="url" id="target-url" placeholder="https://platform.com/account/profile" disabled>
+                    </div>
+                </div>
+
+                <div class="matrix-controls">
+                    <div class="control-row">
+                        <div class="control-info">
+                            <strong>Active Badge Feature</strong>
+                            <span>Deploy verification checkmark</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="badge-feature-toggle" checked disabled>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="control-row">
+                        <div class="control-info">
+                            <strong>Disable Usage Limitations</strong>
+                            <span>Bypass standard generation rate bounds</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="limit-toggle" checked disabled>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="button" class="hud-btn btn-success" id="save-deploy-btn" disabled>
+                    <span>💾</span> Save & Deploy Badge Generator
+                </button>
+            </section>
+
+        </div>
+
+        <!-- Live Preview -->
+        <section class="hud-panel preview-panel">
+            <div class="panel-header">
+                <h2><span>👁️</span> Live Generated Badge Simulation</h2>
+                <span class="live-dot"><span class="pulse"></span> LIVE</span>
+            </div>
+            <div class="preview-canvas">
+                <div class="simulated-profile-card">
+                    <div class="sim-avatar">GA</div>
+                    <div class="sim-details">
+                        <div class="sim-name-row">
+                            <span id="sim-handle">@gilbert_algordo</span>
+                            <div id="badge-container" class="verified-badge-node hologram-glint">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                            </div>
+                        </div>
+                        <span id="sim-url-display" class="sim-url">Awaiting target configuration link...</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Terminal Console -->
+        <footer class="hud-terminal">
+            <div class="terminal-bar">
+                <span><span>💻</span> SYSTEM LOG CONSOLE</span>
+                <span id="log-clock">00:00:00</span>
+            </div>
+            <div class="terminal-screen" id="terminal-logs">
+                [SYSTEM] Active AI Framework loaded successfully. Waiting for operator authentication...
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const authForm = document.getElementById('auth-form');
+        const configPanel = document.getElementById('config-panel');
+        const authSuccessBox = document.getElementById('auth-success-box');
+        const authBtn = document.getElementById('auth-btn');
+        const targetUrlInput = document.getElementById('target-url');
+        const badgeToggle = document.getElementById('badge-feature-toggle');
+        const limitToggle = document.getElementById('limit-toggle');
+        const saveDeployBtn = document.getElementById('save-deploy-btn');
+        const terminalLogs = document.getElementById('terminal-logs');
+        const logClock = document.getElementById('log-clock');
+        const simHandle = document.getElementById('sim-handle');
+        const simUrlDisplay = document.getElementById('sim-url-display');
+        const badgeContainer = document.getElementById('badge-container');
+
+        setInterval(() => {
+            logClock.textContent = new Date().toTimeString().split(' ')[0];
+        }, 1000);
+
+        function appendLog(message, type = 'info') {
+            const timestamp = new Date().toTimeString().split(' ')[0];
+            let colorClass = 'log-info';
+            if (type === 'success') colorClass = 'log-success';
+            terminalLogs.innerHTML += `<br><span class="log-time">[${timestamp}]</span> <span class="${colorClass}">${message}</span>`;
+            terminalLogs.scrollTop = terminalLogs.scrollHeight;
+        }
+
+        authForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const operatorId = document.getElementById('node-id').value;
+            authBtn.disabled = true;
+            authBtn.textContent = 'Verifying Handshake...';
+            appendLog(`Initiating secure OAuth exchange for operator: ${operatorId}...`, 'info');
+
+            setTimeout(() => {
+                authBtn.textContent = 'Authenticated';
+                authSuccessBox.classList.remove('hidden');
+                configPanel.classList.remove('locked');
+                targetUrlInput.disabled = false;
+                badgeToggle.disabled = false;
+                limitToggle.disabled = false;
+                saveDeployBtn.disabled = false;
+                simHandle.textContent = `@${operatorId.toLowerCase().replace(/\s+/g, '_')}`;
+                appendLog(`Authentication sequence accepted. Matrix unlocked for node [${operatorId}].`, 'success');
+            }, 800);
+        });
+
+        targetUrlInput.addEventListener('input', (e) => {
+            const val = e.target.value.trim();
+            if (val) {
+                simUrlDisplay.textContent = val;
+                simUrlDisplay.style.color = '#38bdf8';
+            } else {
+                simUrlDisplay.textContent = 'Awaiting target configuration link...';
+                simUrlDisplay.style.color = '#64748b';
+            }
+        });
+
+        badgeToggle.addEventListener('change', () => {
+            if (badgeToggle.checked) {
+                badgeContainer.style.display = 'inline-flex';
+                appendLog("Verified Badge Feature: ENABLED", 'success');
+            } else {
+                badgeContainer.style.display = 'none';
+                appendLog("Verified Badge Feature: DISABLED", 'info');
+            }
+        });
+
+        limitToggle.addEventListener('change', () => {
+            appendLog(`Usage Limitations Override: ${limitToggle.checked ? 'ENABLED (Bypassed)' : 'RESTRICTED'}`, 'success');
+        });
+
+        saveDeployBtn.addEventListener('click', () => {
+            const targetUrlVal = targetUrlInput.value.trim();
+            if (!targetUrlVal) {
+                alert("Please input a valid target link before saving configuration.");
+                targetUrlInput.focus();
+                return;
+            }
+
+            saveDeployBtn.disabled = true;
+            saveDeployBtn.textContent = 'Compiling & Deploying...';
+            appendLog(`Compiling target profile endpoint: ${targetUrlVal}`, 'info');
+
+            setTimeout(() => {
+                saveDeployBtn.disabled = false;
+                saveDeployBtn.textContent = 'Save & Deploy Badge Generator';
+                appendLog(`SUCCESS: Verified badge agent compiled and deployed securely to [${targetUrlVal}]`, 'success');
+                alert("Active AI Verified Badge generator parameters saved and deployed successfully!");
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
