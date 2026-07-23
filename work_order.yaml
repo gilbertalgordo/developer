@@ -1,0 +1,333 @@
+pip install google-auth-oauthlib google-auth-httplib2 google-api-python-client
+
+
+
+import base64
+from email.mime.text import MIMEText
+import os.path
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+# If modifying these scopes, delete the file token.json.
+SCOPES = ['https://www.googleapis.com/auth/gmail.compose']
+
+def authenticate_gmail():
+    """Shows basic usage of the Gmail API to create drafts."""
+    creds = None
+    if os.path.exists('token.json'):
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        with open('token.json', 'w') as token:
+            token.write(creds.to_json())
+    return creds
+
+def create_work_order_draft(service, recipient_email, work_order_data):
+    """Creates a draft email for a work order."""
+    
+    subject = f"Work Order #{work_order_data['order_id']} - {work_order_data['title']}"
+    
+    # HTML Email Template for the Work Order
+    message_body = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; color: #333;">
+        <h2 style="color: #2c3e50;">New Work Order Notification</h2>
+        <p>Hello <strong>{work_order_data['client_name']}</strong>,</p>
+        <p>A new work order has been generated and is pending review/action.</p>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+          <tr>
+            <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9;"><strong>Work Order ID:</strong></td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{work_order_data['order_id']}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9;"><strong>Service/Task:</strong></td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{work_order_data['title']}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9;"><strong>Priority:</strong></td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{work_order_data['priority']}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9;"><strong>Due Date:</strong></td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{work_order_data['due_date']}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9;"><strong>Description:</strong></td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{work_order_data['description']}</td>
+          </tr>
+        </table>
+        
+        <p style="margin-top: 20px;">Please reach out if you have any questions or require modifications.</p>
+        <p>Best regards,<br><strong>Operations Team</strong></p>
+      </body>
+    </html>
+    """
+
+    message = MIMEText(message_body, 'html')
+    message['to'] = recipient_email
+    message['subject'] = subject
+    
+    # Encode the message in URL-safe base64
+    raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+    draft_body = {'message': {'raw': raw_message}}
+
+    try:
+        draft = service.users().drafts().create(userId='me', body=draft_body).execute()
+        print(f"Draft created successfully! Draft ID: {draft['id']}")
+        return draft
+    except HttpError as error:
+        print(f"An error occurred: {error}")
+        return None
+
+if __name__ == '__main__':
+    # 1. Authenticate and connect to Gmail API
+    creds = authenticate_gmail()
+    service = build('gmail', 'v1', credentials=creds)
+
+    # 2. Define Work Order Details
+    work_order = {
+        "order_id": "WO-2026-0892",
+        "client_name": "Acme Corp",
+        "title": "HVAC System Maintenance & Inspection",
+        "priority": "High",
+        "due_date": "2026-08-15",
+        "description": "Perform quarterly checkup on primary rooftop cooling units and replace air filters."
+    }
+    
+    recipient = "client@example.com"
+
+    # 3. Create the automated draft
+    create_work_order_draft(service, recipient, work_order)
+
+
+
+
+
+pip install google-auth-oauthlib google-auth-httplib2 google-api-python-client pydantic jinja2 tenacity
+
+
+
+
+
+import base64
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import os.path
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from typing import List, Dict, Any, Optional
+
+from pydantic import BaseModel, EmailStr, Field
+from jinja2 import Template
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+SCOPES = ['https://www.googleapis.com/auth/gmail.compose']
+
+# --- 1. Pydantic Data Models (Validation & Schema) ---
+class WorkOrder(BaseModel):
+    order_id: str = Field(..., description="Unique Work Order Identifier")
+    client_name: str = Field(..., description="Name of the client or recipient company")
+    recipient_email: EmailStr = Field(..., description="Valid destination email address")
+    title: str = Field(..., description="Service task summary")
+    priority: str = Field(..., regex="^(Low|Medium|High|Critical)$")
+    due_date: str = Field(..., description="Target completion date (YYYY-MM-DD)")
+    assigned_technician: Optional[str] = Field("Unassigned", description="Lead technician name")
+    description: str = Field(..., description="Detailed scope of work")
+    cost_estimate: Optional[float] = Field(None, description="Estimated cost in USD")
+
+
+# --- 2. Advanced Jinja2 HTML Template ---
+EMAIL_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; }
+    .container { max-width: 600px; background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .header { border-bottom: 2px solid #3498db; padding-bottom: 15px; margin-bottom: 20px; }
+    .header h2 { color: #2c3e50; margin: 0; }
+    .badge { display: inline-block; padding: 4px 10px; font-size: 12px; font-weight: bold; border-radius: 4px; 
+             background-color: {% if work_order.priority == 'Critical' %}#e74c3c{% elif work_order.priority == 'High' %}#e67e22{% else %}#2ecc71{% endif %}; color: white; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { padding: 10px 12px; border: 1px solid #e1e8ed; text-align: left; font-size: 14px; }
+    th { background-color: #f8fafc; color: #475569; width: 30%; }
+    td { background-color: #ffffff; color: #1e293b; }
+    .footer { margin-top: 25px; font-size: 13px; color: #64748b; border-top: 1px solid #e1e8ed; padding-top: 15px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>Automated Work Order Draft</h2>
+      <p style="margin: 5px 0 0; color: #64748b;">Reference ID: <strong>{{ work_order.order_id }}</strong></p>
+    </div>
+    
+    <p>Hello <strong>{{ work_order.client_name }}</strong>,</p>
+    <p>A new work order has been generated automatically via enterprise backend systems and is pending review.</p>
+    
+    <table>
+      <tr>
+        <th>Task Title</th>
+        <td>{{ work_order.title }}</td>
+      </tr>
+      <tr>
+        <th>Priority Level</th>
+        <td><span class="badge">{{ work_order.priority }}</span></td>
+      </tr>
+      <tr>
+        <th>Assigned Tech</th>
+        <td>{{ work_order.assigned_technician }}</td>
+      </tr>
+      <tr>
+        <th>Due Date</th>
+        <td>{{ work_order.due_date }}</td>
+      </tr>
+      {% if work_order.cost_estimate %}
+      <tr>
+        <th>Estimated Cost</th>
+        <td>${{ "%.2f"|format(work_order.cost_estimate) }}</td>
+      </tr>
+      {% endif %}
+      <tr>
+        <th>Scope of Work</th>
+        <td>{{ work_order.description }}</td>
+      </tr>
+    </table>
+    
+    <div class="footer">
+      <p>This is an automated system draft. Please review and dispatch manually from your client-facing dashboard.</p>
+      <p>Best regards,<br><strong>Operations & Engineering Dispatch</strong></p>
+    </div>
+  </div>
+</body>
+</html>
+"""
+
+
+class GmailWorkOrderAutomation:
+    def __init__(self):
+        self.service = self._authenticate_gmail()
+        self.executor = ThreadPoolExecutor(max_workers=5)
+
+    def _authenticate_gmail(self):
+        """Authenticates using OAuth2 flow and returns a Gmail API service client."""
+        creds = None
+        if os.path.exists('token.json'):
+            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+                creds = flow.run_local_server(port=0)
+            with open('token.json', 'w') as token:
+                token.write(creds.to_json())
+        return build('gmail', 'v1', credentials=creds)
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(HttpError),
+        reraise=True
+    )
+    def _create_single_draft_sync(self, work_order: WorkOrder) -> Dict[str, Any]:
+        """Synchronous draft creation with built-in Exponential Backoff Retries."""
+        template = Template(EMAIL_TEMPLATE)
+        html_content = template.render(work_order=work_order.dict())
+
+        message = MIMEMultipart('alternative')
+        message['To'] = work_order.recipient_email
+        message['Subject'] = f"Work Order #{work_order.order_id}: {work_order.title}"
+        
+        # Attach HTML payload
+        part_html = MIMEText(html_content, 'html')
+        message.attach(part_html)
+
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        draft_body = {'message': {'raw': raw_message}}
+
+        draft = self.service.users().drafts().create(userId='me', body=draft_body).execute()
+        return {"order_id": work_order.order_id, "draft_id": draft['id'], "status": "Success"}
+
+    async def create_draft_async(self, work_order: WorkOrder) -> Dict[str, Any]:
+        """Asynchronously wraps synchronous Gmail calls using a thread pool executor."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            self.executor, 
+            self._create_single_draft_sync, 
+            work_order
+        )
+
+    async def batch_create_drafts(self, work_orders: List[WorkOrder]) -> List[Dict[str, Any]]:
+        """Processes a batch of work orders concurrently with error handling."""
+        tasks = [self.create_draft_async(wo) for wo in work_orders]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        processed_results = []
+        for i, res in enumerate(results):
+            if isinstance(res, Exception):
+                processed_results.append({
+                    "order_id": work_orders[i].order_id, 
+                    "status": "Failed", 
+                    "error": str(res)
+                })
+            else:
+                processed_results.append(res)
+        return processed_results
+
+
+# --- Execution Example ---
+if __name__ == '__main__':
+    # Initialize Manager
+    automation = GmailWorkOrderAutomation()
+
+    # Define structured payloads (Validated via Pydantic)
+    raw_work_orders = [
+        {
+            "order_id": "WO-2026-9001",
+            "client_name": "Apex Manufacturing",
+            "recipient_email": "operations@apex.example.com",
+            "title": "Quantum Grid Overhaul Phase 1",
+            "priority": "Critical",
+            "due_date": "2026-08-01",
+            "assigned_technician": "Lead Eng. Team Alpha",
+            "description": "Upgrade local sub-station architecture and install redundant backup modules.",
+            "cost_estimate": 14500.00
+        },
+        {
+            "order_id": "WO-2026-9002",
+            "client_name": "Metro Logistics",
+            "recipient_email": "dispatch@metrologistics.example.com",
+            "title": "Fleet Telemetry Diagnostics",
+            "priority": "High",
+            "due_date": "2026-08-05",
+            "assigned_technician": "Diagnostics Unit B",
+            "description": "Run diagnostic check on automated fleet tracking nodes and update firmware.",
+            "cost_estimate": 3200.50
+        }
+    ]
+
+    # Validate inputs safely
+    validated_orders = [WorkOrder(**wo) for wo in raw_work_orders]
+
+    # Run the asynchronous batch draft creation
+    print("Initializing batch async draft generation...")
+    results = asyncio.run(automation.batch_create_drafts(validated_orders))
+
+    for result in results:
+        print(result)
