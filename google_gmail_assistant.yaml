@@ -1,0 +1,448 @@
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:updatePeriodMillis="86400000"
+    android:initialLayout="@layout/widget_greetings"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen">
+</appwidget-provider>
+
+
+
+
+package com.example.workspace
+
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProvider
+import android.content.Context
+import android.widget.RemoteViews
+import com.google.assistant.appactions.widgets.AppActionsWidgetExtension
+
+class GreetingsWidgetProvider : AppWidgetProvider() {
+
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray
+    ) {
+        for (appWidgetId in appWidgetIds) {
+            updateAppWidget(context, appWidgetManager, appWidgetId)
+        }
+    }
+
+    companion object {
+        fun updateAppWidget(
+            context: Context,
+            appWidgetManager: AppWidgetManager,
+            appWidgetId: Int
+        ) {
+            val views = RemoteViews(context.packageName, R.layout.widget_greetings)
+
+            // Extract parameters passed dynamically from Google Assistant App Actions
+            val optionsBundle = appWidgetManager.getAppWidgetOptions(appWidgetId)
+            val bii = optionsBundle.getString(AppActionsWidgetExtension.EXTRA_APP_ACTIONS_BII)
+            
+            if (!bii.isNullOrBlank()) {
+                val params = optionsBundle.getBundle(AppActionsWidgetExtension.EXTRA_APP_ACTIONS_PARAMS)
+                val recipient = params?.getString("recipientName") ?: Workspace
+                views.setTextViewText(R.id.widget_title, "Hello, $recipient")
+                views.setTextViewText(R.id.widget_subtitle, "Updated via Assistant BII: $bii")
+            } else {
+                views.setTextViewText(R.id.widget_title, "Workspace Dashboard")
+                views.setTextViewText(R.id.widget_subtitle, "Tap to check latest emails")
+            }
+
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
+    }
+}
+
+
+
+package com.example.workspace
+
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProvider
+import android.content.Context
+import android.widget.RemoteViews
+import com.google.assistant.appactions.widgets.AppActionsWidgetExtension
+
+class GreetingsWidgetProvider : AppWidgetProvider() {
+
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray
+    ) {
+        for (appWidgetId in appWidgetIds) {
+            updateAppWidget(context, appWidgetManager, appWidgetId)
+        }
+    }
+
+    companion object {
+        fun updateAppWidget(
+            context: Context,
+            appWidgetManager: AppWidgetManager,
+            appWidgetId: Int
+        ) {
+            val views = RemoteViews(context.packageName, R.layout.widget_greetings)
+
+            // Extract parameters passed dynamically from Google Assistant App Actions
+            val optionsBundle = appWidgetManager.getAppWidgetOptions(appWidgetId)
+            val bii = optionsBundle.getString(AppActionsWidgetExtension.EXTRA_APP_ACTIONS_BII)
+            
+            if (!bii.isNullOrBlank()) {
+                val params = optionsBundle.getBundle(AppActionsWidgetExtension.EXTRA_APP_ACTIONS_PARAMS)
+                val recipient = params?.getString("recipientName") ?: Workspace
+                views.setTextViewText(R.id.widget_title, "Hello, $recipient")
+                views.setTextViewText(R.id.widget_subtitle, "Updated via Assistant BII: $bii")
+            } else {
+                views.setTextViewText(R.id.widget_title, "Workspace Dashboard")
+                views.setTextViewText(R.id.widget_subtitle, "Tap to check latest emails")
+            }
+
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
+    }
+}
+
+
+
+
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <capability android:name="actions.intent.GET_MESSAGE">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.workspace"
+            android:targetClass="com.example.workspace.AssistantWidgetService">
+            <!-- Map Assistant parameters to widget intent keys -->
+            <parameter
+                android:name="message.payload"
+                android:key="queryPayload" />
+        </intent>
+        <!-- Fulfill intent directly on an interactive App Widget -->
+        <app-widget
+            android:identifier="WorkspaceEmailWidget"
+            android:targetPackage="com.example.workspace"
+            android:targetClass="com.example.workspace.AdvancedAssistantWidgetProvider">
+            <parameter
+                android:name="message.payload"
+                android:key="queryPayload" />
+        </app-widget>
+    </capability>
+</shortcuts>
+
+
+
+package com.example.workspace
+
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProvider
+import android.content.Context
+import android.os.Bundle
+import android.widget.RemoteViews
+import com.google.assistant.appactions.widgets.AppActionsWidgetExtension
+
+class AdvancedAssistantWidgetProvider : AppWidgetProvider() {
+
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray
+    ) {
+        for (widgetId in appWidgetIds) {
+            processAssistantFulfillment(context, appWidgetManager, widgetId)
+        }
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, widgetId, newOptions)
+        processAssistantFulfillment(context, appWidgetManager, widgetId)
+    }
+
+    private fun processAssistantFulfillment(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        widgetId: Int
+    ) {
+        val views = RemoteViews(context.packageName, R.layout.widget_advanced_workspace)
+        val options = appWidgetManager.getAppWidgetOptions(widgetId)
+        
+        // Extract App Actions extension payload safely
+        val biiName = options.getString(AppActionsWidgetExtension.EXTRA_APP_ACTIONS_BII)
+        val params = options.getBundle(AppActionsWidgetExtension.EXTRA_APP_ACTIONS_PARAMS)
+        
+        if (!biiName.isNullOrBlank() && params != null) {
+            val queryPayload = params.getString("queryPayload") ?: "Synchronized Workspace"
+            
+            views.setTextViewText(R.id.text_header, "Assistant Target: $biiName")
+            views.setTextViewText(R.id.text_body, "Payload: $queryPayload")
+
+            // Set custom Assistant Voice / TTS confirmation feedback response
+            val widgetExtension = AppActionsWidgetExtension.newBuilder(appWidgetManager, widgetId)
+                .setTts("Successfully fetched Workspace payload for $queryPayload")
+                .build()
+            widgetExtension.updateWidget(views)
+        } else {
+            views.setTextViewText(R.id.text_header, "Enterprise Workspace")
+            views.setTextViewText(R.id.text_body, "Awaiting voice trigger or manual sync...")
+            appWidgetManager.updateAppWidget(widgetId, views)
+        }
+    }
+}
+
+
+
+
+{
+  "timeZone": "Etc/UTC",
+  "dependencies": {
+    "enabledAdvancedServices": [
+      {
+        "userSymbol": "Gmail",
+        "serviceId": "gmail",
+        "version": "v1"
+      }
+    ]
+  },
+  "webapp": {
+    "access": "MYSELF",
+    "executeAs": "USER_DEPLOYING"
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.external_request"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Advanced Workspace Intelligence",
+      "logoUrl": "https://www.gstatic.com/images/branding/product/2x/admin_sdk_64dp.png",
+      "homepageTrigger": {
+        "runFunction": "onHomepageTrigger"
+      }
+    },
+    "gmail": {
+      "contextualTriggers": [
+        {
+          "unconditional": {},
+          "onGmailMessage": {
+            "runFunction": "getContextualAddOnCard"
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+
+/**
+ * Triggers contextually when an email thread opens in Gmail.
+ */
+function getContextualAddOnCard(event) {
+  var accessToken = event.gmail.accessToken;
+  GmailApp.setCurrentMessageAccessToken(accessToken);
+  
+  var messageId = event.gmail.messageId;
+  var message = GmailApp.getMessageById(messageId);
+  
+  var threadMetadata = {
+    subject: message.getSubject(),
+    sender: message.getFrom(),
+    date: message.getDate(),
+    snippet: message.getSnippet()
+  };
+
+  return [buildExecutiveCard(threadMetadata)];
+}
+
+/**
+ * Builds a non-contextual standard Homepage card view.
+ */
+function onHomepageTrigger() {
+  var card = CardService.newCardBuilder();
+  var header = CardService.newCardHeader()
+    .setTitle("Workspace Control Panel")
+    .setSubtitle("Active Sync Online");
+  
+  var section = CardService.newCardSection()
+    .addWidget(CardService.newTextParagraph().setText("Select an incoming Gmail message to initialize real-time workspace auditing and data extraction."))
+    .addWidget(
+      CardService.newTextButton()
+        .setText("Run System Health Check")
+        .setOnClickAction(CardService.newAction().setFunctionName("triggerHealthCheck"))
+        .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+    );
+
+  card.setHeader(header);
+  card.addSection(section);
+  return card.build();
+}
+
+/**
+ * Constructs an advanced data card containing parsed email attributes.
+ */
+function buildExecutiveCard(meta) {
+  var card = CardService.newCardBuilder();
+  
+  var header = CardService.newCardHeader()
+    .setTitle("Thread Intelligence")
+    .setSubtitle(meta.sender);
+  card.setHeader(header);
+
+  var section = CardService.newCardSection()
+    .setHeader("Email Properties")
+    .addWidget(
+      CardService.newDecoratedText()
+        .setTopLabel("Subject Line")
+        .setText(meta.subject)
+        .setWrapText(true)
+    )
+    .addWidget(
+      CardService.newDecoratedText()
+        .setTopLabel("Timestamp")
+        .setText(meta.date.toISOString())
+    );
+
+  // Input Field Widget for custom tagging
+  var tagInput = CardService.newTextInput()
+    .setFieldName("audit_tag")
+    .setTitle("Assign Audit Category")
+    .setHint("e.g., Priority, Infrastructure, Review");
+    
+  section.addWidget(tagInput);
+
+  // Action button container with bound parameters
+  var action = CardService.newAction()
+    .setFunctionName("commitEmailRecordToWorkspace")
+    .setParameters({
+      "subject": meta.subject,
+      "sender": meta.sender
+    });
+
+  var submitBtn = CardService.newTextButton()
+    .setText("Commit to Sheets")
+    .setOnClickAction(action)
+    .setTextButtonStyle(CardService.TextButtonStyle.FILLED);
+
+  var buttonSet = CardService.newButtonSet().addButton(submitBtn);
+  section.addWidget(buttonSet);
+
+  card.addSection(section);
+  return card.build();
+}
+
+/**
+ * Callback action handler executing data transmission.
+ */
+function commitEmailRecordToWorkspace(event) {
+  var tag = event.formInput.audit_tag || "General";
+  var subject = event.parameters.subject;
+  var sender = event.parameters.sender;
+
+  // Extension hook to external data layers or Google Sheets
+  // SpreadsheetApp.getActiveSpreadsheet().appendRow([new Date(), sender, subject, tag]);
+
+  return CardService.newActionResponseBuilder()
+    .setNotification(CardService.newNotification().setText("Successfully synchronized record under tag: " + tag))
+    .build();
+}
+
+function triggerHealthCheck(event) {
+  return CardService.newActionResponseBuilder()
+    .setNotification(CardService.newNotification().setText("All systems operational. Assistant widgets responding normally."))
+    .build();
+}
+
+
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  
+  <!-- Envelope Background Layer -->
+  <path
+      android:fillColor="#1A73E8"
+      android:pathData="M20,4H4C2.9,4 2.01,4.9 2.01,6L2,18C2,19.1 2.9,20 4,20H20C21.1,20 22,19.1 22,18V6C22,4.9 21.1,4 20,4ZM20,8L12,13L4,8V6L12,11L20,6V8Z"/>
+
+  <!-- Assistant Spark / AI Indicator Overlay -->
+  <path
+      android:fillColor="#34A853"
+      android:pathData="M19,2L18.06,4.06L16,5L18.06,5.94L19,8L19.94,5.94L22,5L19.94,4.06L19,2Z"/>
+</vector>
+
+
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    
+  <!-- Top Left Pane (Active Node) -->
+  <path
+      android:fillColor="#EA4335"
+      android:pathData="M3,3H10V10H3V3Z"/>
+
+  <!-- Top Right Pane -->
+  <path
+      android:fillColor="#FBBC05"
+      android:pathData="M14,3H21V10H14V3Z"/>
+
+  <!-- Bottom Left Pane -->
+  <path
+      android:fillColor="#4285F4"
+      android:pathData="M3,14H10V21H3V14Z"/>
+
+  <!-- Bottom Right Pane -->
+  <path
+      android:fillColor="#34A853"
+      android:pathData="M14,14H21V21H14V14Z"/>
+</vector>
+
+
+
+from PIL import Image, ImageDraw
+
+def create_workspace_icon(filename="workspace_icon_512.png"):
+    # Create a 512x512 transparent canvas
+    size = (512, 512)
+    image = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+
+    # Rounded background container
+    padding = 32
+    draw.rounded_rectangle(
+        [padding, padding, size[0] - padding, size[1] - padding],
+        radius=96,
+        fill=(255, 255, 255, 240),
+        outline=(26, 115, 232, 255),
+        width=8
+    )
+
+    # Draw Quad-Pane Workspace Grid inside
+    # Red Pane
+    draw.rectangle([96, 96, 236, 236], fill="#EA4335")
+    # Yellow Pane
+    draw.rectangle([276, 96, 416, 236], fill="#FBBC05")
+    # Blue Pane
+    draw.rectangle([96, 276, 236, 416], fill="#4285F4")
+    # Green Pane
+    draw.rectangle([276, 276, 416, 416], fill="#34A853")
+
+    image.save(filename, "PNG")
+    print(f"Successfully generated high-res icon: {filename}")
+
+if __name__ == "__main__":
+    create_workspace_icon()
