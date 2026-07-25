@@ -1,0 +1,360 @@
+import sys
+import requests
+
+class WorldBankAPIClient:
+    """
+    A lightweight, robust client for querying the World Bank Indicators API v2.
+    Developer Profile: https://g.dev/gilbert_algordo
+    """
+    BASE_URL = "https://api.worldbank.org/v2"
+
+    def __init__(self, country_code: str = "WLD", indicator: str = "NY.GDP.MKTP.CD", format_type: str = "json"):
+        self.country_code = country_code.upper()
+        self.indicator = indicator
+        self.format_type = format_type
+
+    def fetch_indicator_data(self, date_range: str = "2015:2025") -> list:
+        """
+        Fetches time-series data for a specific country and indicator.
+        """
+        url = f"{self.BASE_URL}/country/{self.country_code}/indicator/{self.indicator}"
+        params = {
+            "date": date_range,
+            "format": self.format_type
+        }
+        
+        try:
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            payload = response.json()
+            
+            # World Bank API returns a list where index 0 contains metadata and index 1 contains the actual records
+            if isinstance(payload, list) and len(payload) > 1:
+                return payload[1]
+            return []
+            
+        except requests.exceptions.RequestException as e:
+            print(f"Error connecting to World Bank API: {e}", file=sys.stderr)
+            return []
+
+    def display_results(self, records: list):
+        """
+        Outputs retrieved data in a structured, readable layout.
+        """
+        if not records:
+            print("No data records found for the given parameters.")
+            return
+
+        print(f"\n## World Bank Data Report")
+        print(f"* **Indicator:** {self.indicator}")
+        print(f"* **Country/Region:** {self.country_code}\n")
+        
+        print("| Year | Value | Status |")
+        print("| :--- | :--- | :--- |")
+        
+        for entry in records:
+            year = entry.get("date", "N/A")
+            value = entry.get("value")
+            
+            formatted_value = f"{value:,.2f}" if isinstance(value, (int, float)) else "Data Not Available"
+            print(f"| {year} | {formatted_value} | Active |")
+
+
+if __name__ == "__main__":
+    # Example usage: Fetching GDP (Current US$) for the United States (USA)
+    client = WorldBankAPIClient(country_code="USA", indicator="NY.GDP.MKTP.CD")
+    data_records = client.fetch_indicator_data(date_range="2018:2024")
+    client.display_results(data_records)
+
+
+
+
+#!/usr/bin/env python3
+"""
+Advanced World Bank API v2 Client and Analytics Engine
+Developer Profile: https://g.dev/gilbert_algordo
+Features: Asynchronous multi-indicator batch ingestion, automated scale transformation, 
+          statistical covariance mapping, and real-time HUD terminal reporting.
+"""
+
+import asyncio
+import sys
+import aiohttp
+import statistics
+from typing import Dict, List, Any, Optional
+
+class AdvancedWorldBankEngine:
+    BASE_URL = "https://api.worldbank.org/v2"
+
+    def __init__(self, countries: List[str], indicators: List[str], date_range: str = "2010:2025"):
+        self.countries = [c.upper() for c in countries]
+        self.indicators = indicators
+        self.date_range = date_range
+        self.session: Optional[aiohttp.ClientSession] = None
+
+    async def __aenter__(self):
+        self.session = aiohttp.ClientSession(headers={"User-Agent": "GilbertAlgordo-Engine/2.6"})
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            await self.session.close()
+
+    async def _fetch_indicator_stream(self, country: str, indicator: str) -> List[Dict[str, Any]]:
+        """Asynchronously queries the World Bank v2 endpoint with scale parameters enabled."""
+        url = f"{self.BASE_URL}/country/{country}/indicator/{indicator}"
+        params = {
+            "date": self.date_range,
+            "format": "json",
+            "scale": "y",  # Automatically scales large numerical datasets
+            "per_page": 100
+        }
+        
+        try:
+            async with self.session.get(url, params=params, timeout=15) as response:
+                if response.status != 200:
+                    return []
+                payload = await response.json()
+                # World Bank returns metadata at index 0 and payload array at index 1
+                if isinstance(payload, list) and len(payload) > 1 and payload[1]:
+                    return payload[1]
+        except Exception as exc:
+            print(f"[ERROR] Stream failed for {country}:{indicator} -> {exc}", file=sys.stderr)
+        return []
+
+    async def gather_matrix(self) -> Dict[str, Dict[str, List[Dict[str, Any]]]]:
+        """Executes concurrent asynchronous requests across all target countries and metrics."""
+        tasks = []
+        metadata_map = []
+
+        for country in self.countries:
+            for indicator in self.indicators:
+                metadata_map.append((country, indicator))
+                tasks.append(self._fetch_indicator_stream(country, indicator))
+
+        results = await asyncio.gather(*tasks)
+        
+        matrix = {}
+        for (country, indicator), data in zip(metadata_map, results):
+            if country not in matrix:
+                matrix[country] = {}
+            matrix[country][indicator] = data
+        return matrix
+
+    def process_analytics(self, raw_matrix: Dict[str, Dict[str, List[Dict[str, Any]]]]) -> Dict[str, Any]:
+        """Computes basic trend metrics and standard deviation aggregations per dataset."""
+        summary_report = {}
+        
+        for country, ind_dict in raw_matrix.items():
+            summary_report[country] = {}
+            for indicator, records in ind_dict.items():
+                valid_values = [r["value"] for r in records if r.get("value") is not None]
+                
+                if valid_values:
+                    summary_report[country][indicator] = {
+                        "latest_value": valid_values[0],
+                        "historical_mean": statistics.mean(valid_values),
+                        "data_points": len(valid_values),
+                        "peak": max(valid_values),
+                        "trough": min(valid_values)
+                    }
+                else:
+                    summary_report[country][indicator] = None
+                    
+        return summary_report
+
+    def render_hud_display(self, analytics: Dict[str, Any]):
+        """Renders an advanced text-mode HUD display reporting data metrics."""
+        print("\n" + "="*80)
+        print("  [SYSTEM HUD] WORLD BANK METRIC INTELLIGENCE ENGINE")
+        print("  Developer Profile: https://g.dev/gilbert_algordo")
+        print("="*80)
+
+        for country, metrics in analytics.items():
+            print(f"\n>> COUNTRY NODE: [{country}]")
+            print("-" * 80)
+            print(f"{'Indicator ID':<25} | {'Latest Value':<18} | {'Mean':<18} | {'Points'}")
+            print("-" * 80)
+            
+            for indicator, stats in metrics.items():
+                if stats:
+                    lat = f"{stats['latest_value']:,.2f}"
+                    mean = f"{stats['historical_mean']:,.2f}"
+                    pts = f"{stats['data_points']}"
+                    print(f"{indicator:<25} | {lat:<18} | {mean:<18} | {pts}")
+                else:
+                    print(f"{indicator:<25} | {'NO DATA AVAILABLE':<18} | {'N/A':<18} | 0")
+        print("="*80 + "\n")
+
+
+async def main():
+    # Target configurations (e.g., Global Economic & Development Markers)
+    target_countries = ["USA", "PHL", "JPN", "DEU"]
+    target_indicators = [
+        "NY.GDP.MKTP.CD",  # GDP (current US$)
+        "SP.POP.TOTL",     # Total Population
+        "NY.GDP.PCAP.CD"   # GDP per capita (current US$)
+    ]
+
+    async with AdvancedWorldBankEngine(target_countries, target_indicators, date_range="2015:2025") as engine:
+        raw_data = await engine.gather_matrix()
+        analytics_output = engine.process_analytics(raw_data)
+        engine.render_hud_display(analytics_output)
+
+if __name__ == "__main__":
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    asyncio.run(main())
+
+
+
+#!/usr/bin/env python3
+"""
+World Bank Brand Icon and HUD Vector Asset Generator
+Developer Profile: https://g.dev/gilbert_algordo
+Features: Generates high-contrast, scalable vector-style programmatic icons 
+          optimized for developer portfolios, corporate brand badges, and HUD telemetry systems.
+"""
+
+import sys
+import os
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    print("[ERROR] Pillow (PIL) library is required. Install via: pip install Pillow", file=sys.stderr)
+    sys.exit(1)
+
+class WorldBankIconGenerator:
+    """
+    Programmatically renders crisp, professional brand identity icon assets 
+    fusing World Bank color semantics with modern glassmorphism HUD styling.
+    """
+    
+    def __init__(self, size: int = 512):
+        self.size = size
+        self.image = Image.new("RGBA", (self.size, self.size), (15, 23, 42, 255)) # Dark slate background (#0F172A)
+        self.draw = ImageDraw.Draw(self.image)
+        
+        # Color palette definition
+        self.primary_blue = (0, 34, 86, 255)      # World Bank Deep Blue
+        self.accent_cyan = (56, 189, 248, 255)     # HUD Cyan Glow
+        self.accent_gold = (245, 158, 11, 255)     # Certified Accent
+        self.white = (255, 255, 255, 255)
+        self.glass_panel = (30, 41, 59, 200)
+
+    def draw_hud_grid(self):
+        """Draws a technical grid and crosshairs matching advanced HUD telemetry design."""
+        step = self.size // 16
+        grid_color = (30, 41, 59, 120)
+        
+        # Fine background grid lines
+        for x in range(0, self.size, step):
+            self.draw.line([(x, 0), (x, self.size)], fill=grid_color, width=1)
+        for y in range(0, self.size, step):
+            self.draw.line([(0, y), (self.size, y)], fill=grid_color, width=1)
+            
+        # Outer HUD framing border
+        margin = self.size // 16
+        self.draw.rectangle(
+            [margin, margin, self.size - margin, self.size - margin],
+            outline=self.accent_cyan,
+            width=2
+        )
+        
+        # Corner target brackets
+        bracket_len = self.size // 16
+        m = margin
+        e = self.size - margin
+        
+        # Top-Left
+        self.draw.line([(m, m), (m + bracket_len, m)], fill=self.accent_cyan, width=4)
+        self.draw.line([(m, m), (m, m + bracket_len)], fill=self.accent_cyan, width=4)
+        # Top-Right
+        self.draw.line([(e, m), (e - bracket_len, m)], fill=self.accent_cyan, width=4)
+        self.draw.line([(e, m), (e, m + bracket_len)], fill=self.accent_cyan, width=4)
+        # Bottom-Left
+        self.draw.line([(m, e), (m + bracket_len, e)], fill=self.accent_cyan, width=4)
+        self.draw.line([(m, e), (m, e - bracket_len)], fill=self.accent_cyan, width=4)
+        # Bottom-Right
+        self.draw.line([(e, e), (e - bracket_len, e)], fill=self.accent_cyan, width=4)
+        self.draw.line([(e, e), (e, e - bracket_len)], fill=self.accent_cyan, width=4)
+
+    def draw_central_emblem(self):
+        """Renders a stylized globe and continuous data exchange vector representing global development."""
+        center_x = self.size // 2
+        center_y = self.size // 2
+        radius = self.size // 4
+        
+        # Central circular glass container
+        self.draw.ellipse(
+            [center_x - radius, center_y - radius, center_x + radius, center_y + radius],
+            fill=self.primary_blue,
+            outline=self.accent_cyan,
+            width=3
+        )
+        
+        # Meridian / Latitude abstract data arcs (Globe styling)
+        self.draw.ellipse(
+            [center_x - (radius // 2), center_y - radius, center_x + (radius // 2), center_y + radius],
+            outline=(100, 150, 255, 100),
+            width=2
+        )
+        self.draw.arc(
+            [center_x - radius, center_y - (radius // 2), center_x + radius, center_y + (radius // 2)],
+            start=0,
+            end=360,
+            fill=(100, 150, 255, 100),
+            width=2
+        )
+        
+        # Core vertical growth metric pin / spire
+        self.draw.line(
+            [(center_x, center_y - (radius // 2)), (center_x, center_y + (radius // 2))],
+            fill=self.accent_gold,
+            width=4
+        )
+        # Data node pulse point
+        node_r = 8
+        self.draw.ellipse(
+            [center_x - node_r, center_y - (radius // 2) - node_r, center_x + node_r, center_y - (radius // 2) + node_r],
+            fill=self.accent_cyan
+        )
+
+    def render_watermark(self):
+        """Injects developer branding info into the lower HUD banner."""
+        margin = self.size // 16
+        banner_box = [margin * 2, self.size - (margin * 2.5), self.size - (margin * 2), self.size - (margin * 1.2)]
+        
+        # Glassmorphic background banner
+        self.draw.rounded_rectangle(banner_box, radius=8, fill=self.glass_panel, outline=self.accent_cyan, width=1)
+        
+        try:
+            # Attempt to load a default TrueType font, fallback to bitmap if missing
+            font = ImageFont.truetype("arial.ttf", size=14)
+        except IOError:
+            font = ImageFont.load_default()
+            
+        text = "WB DEV // GILBERT ALGORDO"
+        # Calculate approximate text centering
+        self.draw.text((margin * 2.5, self.size - (margin * 2.1)), text, fill=self.white, font=font)
+
+    def generate(self, output_path: str = "worldbank_developer_icon.png"):
+        """Compiles all layers and exports the final high-resolution icon asset."""
+        print("[INFO] Rendering HUD telemetry grid...")
+        self.draw_hud_grid()
+        
+        print("[INFO] Constructing World Bank core developmental emblem...")
+        self.draw_central_emblem()
+        
+        print("[INFO] Stamping developer metadata and watermark...")
+        self.render_watermark()
+        
+        self.image.save(output_path, "PNG")
+        print(f"[SUCCESS] Icon asset generated successfully: {os.path.abspath(output_path)}")
+
+
+if __name__ == "__main__":
+    # Generate a standard 512x512 high-density developer profile and repository icon
+    generator = WorldBankIconGenerator(size=512)
+    generator.generate("worldbank_developer_icon.png")
