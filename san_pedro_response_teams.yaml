@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>San Pedro City - Rapid Response Teams & Mapping</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 100vh; }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row h-screen bg-gray-100 overflow-hidden">
+
+    <!-- Sidebar: Contact Details -->
+    <div class="w-full md:w-1/3 bg-white shadow-xl overflow-y-auto p-6 z-10 flex flex-col justify-between">
+        <div>
+            <div class="flex items-center space-x-2 mb-4">
+                <span class="bg-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Emergency</span>
+                <h1 class="text-xl font-bold text-gray-900">San Pedro City Response</h1>
+            </div>
+            <p class="text-xs text-gray-500 mb-6">Laguna, Philippines — Rapid Deployment Directory</p>
+
+            <div class="space-y-4">
+                <!-- CDRRMO Card -->
+                <div class="p-4 border-l-4 border-red-500 bg-red-50 rounded-r-lg shadow-sm">
+                    <h3 class="font-bold text-gray-800">San Pedro City CDRRMO / Rescue</h3>
+                    <p class="text-xs text-gray-600 mb-2">Primary Disaster Risk Reduction & Management Office</p>
+                    <p class="text-xs font-semibold text-red-600">📞 Landline: (02) 8403-2648</p>
+                    <p class="text-xs font-semibold text-red-600">📱 Mobile: 0998-594-1743</p>
+                </div>
+
+                <!-- PNP Card -->
+                <div class="p-4 border-l-4 border-blue-500 bg-blue-50 rounded-r-lg shadow-sm">
+                    <h3 class="font-bold text-gray-800">San Pedro Police Station (PNP)</h3>
+                    <p class="text-xs text-gray-600 mb-2">Law Enforcement & Public Safety</p>
+                    <p class="text-xs font-semibold text-blue-700">📞 Hotline: 911 / (02) 8808-2020</p>
+                </div>
+
+                <!-- BFP Card -->
+                <div class="p-4 border-l-4 border-orange-500 bg-orange-50 rounded-r-lg shadow-sm">
+                    <h3 class="font-bold text-gray-800">Bureau of Fire Protection (BFP)</h3>
+                    <p class="text-xs text-gray-600 mb-2">Fire Suppression & Emergency Medical Response</p>
+                    <p class="text-xs font-semibold text-orange-700">📞 Hotline: (02) 8868-5111</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-gray-200 text-center text-xs text-gray-400">
+            Click map markers for exact station info & quick triggers.
+        </div>
+    </div>
+
+    <!-- Map Container -->
+    <div class="w-full md:w-2/3 h-full relative">
+        <div id="map"></div>
+    </div>
+
+    <!-- Leaflet JS CDN -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize Map centered precisely on San Pedro City, Laguna
+        const map = L.map('map').setView([14.3551, 121.0458], 14);
+
+        // Load OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Rapid Response Teams Geo-Data
+        const responseTeams = [
+            {
+                name: "San Pedro City CDRRMO / Rescue",
+                coords: [14.3551, 121.0458],
+                contact: "(02) 8403-2648 / 0998-594-1743",
+                type: "Disaster Rescue Coordination"
+            },
+            {
+                name: "San Pedro Municipal Police Station",
+                coords: [14.3530, 121.0470],
+                contact: "911 / (02) 8808-2020",
+                type: "Law Enforcement"
+            },
+            {
+                name: "Bureau of Fire Protection - San Pedro Fire Station",
+                coords: [14.3570, 121.0430],
+                contact: "(02) 8868-5111",
+                type: "Fire & Hazard Mitigation"
+            }
+        ];
+
+        // Render markers on the Leaflet map
+        responseTeams.forEach(team => {
+            const marker = L.marker(team.coords).addTo(map);
+            marker.bindPopup(`
+                <div class="p-1">
+                    <h4 class="font-bold text-sm text-red-600">${team.name}</h4>
+                    <p class="text-xs text-gray-600 mt-1"><b>Role:</b> ${team.type}</p>
+                    <p class="text-xs text-gray-800 mt-1"><b>Hotline:</b> ${team.contact}</p>
+                </div>
+            `);
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>San Pedro City Emergency Response Matrix</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.com/libraries/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <style>
+        #map { height: 100%; width: 100%; }
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            padding: 4px;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans flex flex-col h-screen overflow-hidden">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-950 border-b border-slate-800 px-6 py-3 flex justify-between items-center z-20">
+        <div class="flex items-center space-x-3">
+            <div class="h-3 w-3 rounded-full bg-red-500 animate-pulse"></div>
+            <h1 class="text-lg font-bold tracking-wide uppercase text-slate-100">
+                San Pedro City <span class="text-red-500">Rapid Response Command</span>
+            </h1>
+        </div>
+        <div class="text-xs text-slate-400 hidden sm:block">
+            <span class="font-semibold text-emerald-400">STATUS:</span> ACTIVE MONITORING | REGION IV-A
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="flex flex-col md:flex-row flex-1 h-full overflow-hidden">
+        
+        <!-- Sidebar Controls & Contact List -->
+        <aside class="w-full md:w-96 bg-slate-950 border-r border-slate-800 flex flex-col h-full z-10 shadow-2xl">
+            
+            <!-- Quick Filter Bar -->
+            <div class="p-4 border-b border-slate-800 bg-slate-900/50">
+                <label class="text-xs uppercase font-semibold text-slate-400 mb-2 block">Filter Response Sector</label>
+                <div class="grid grid-cols-4 gap-1 text-xs">
+                    <button onclick="filterMarkers('all')" class="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded font-medium text-center transition">All</button>
+                    <button onclick="filterMarkers('DRRM')" class="py-1.5 px-2 bg-red-950/60 border border-red-800/50 hover:bg-red-900/60 text-red-300 rounded font-medium text-center transition">DRRM</button>
+                    <button onclick="filterMarkers('Police')" class="py-1.5 px-2 bg-blue-950/60 border border-blue-800/50 hover:bg-blue-900/60 text-blue-300 rounded font-medium text-center transition">Police</button>
+                    <button onclick="filterMarkers('Fire/Medical')" class="py-1.5 px-2 bg-amber-950/60 border border-amber-800/50 hover:bg-amber-900/60 text-amber-300 rounded font-medium text-center transition">Fire/Med</button>
+                </div>
+            </div>
+
+            <!-- Contacts List -->
+            <div id="contact-list" class="flex-1 overflow-y-auto p-4 space-y-3">
+                <!-- Javascript will inject directory items dynamically -->
+            </div>
+
+            <!-- Footer / Hotline Info -->
+            <div class="p-4 border-t border-slate-800 bg-slate-950 text-center">
+                <p class="text-xs text-slate-400">National Emergency Hotline: <span class="text-white font-bold">911</span></p>
+            </div>
+        </aside>
+
+        <!-- Map Container -->
+        <main class="flex-1 relative bg-slate-900">
+            <div id="map"></div>
+        </main>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Database of Official Rapid Response Units in San Pedro City, Laguna
+        const responseTeams = [
+            {
+                id: 1,
+                name: "San Pedro City CDRRMO",
+                category: "DRRM",
+                address: "City Hall Compound, Poblacion, San Pedro, Laguna",
+                phone: "(02) 8403-2648",
+                mobile: "0998-594-1743",
+                lat: 14.3585,
+                lng: 121.0582,
+                status: "Operational 24/7",
+                color: "#ef4444"
+            },
+            {
+                id: 2,
+                name: "BFP San Pedro City Fire Station",
+                category: "Fire/Medical",
+                address: "Rizal Street, Brgy. Poblacion, San Pedro, Laguna",
+                phone: "(02) 8808-0617",
+                mobile: "0942-834-7377",
+                lat: 14.3583,
+                lng: 121.0575,
+                status: "On Call 24/7",
+                color: "#f59e0b"
+            },
+            {
+                id: 3,
+                name: "San Pedro City Police Station (PNP)",
+                category: "Police",
+                address: "Brgy. Poblacion, San Pedro, Laguna",
+                phone: "(02) 8868-8868",
+                mobile: "0998-598-5623",
+                lat: 14.3580,
+                lng: 121.0588,
+                status: "Active Patrol",
+                color: "#3b82f6"
+            },
+            {
+                id: 4,
+                name: "Evangelista Medical Specialty Hospital",
+                category: "Fire/Medical",
+                address: "Macaria, Pacita Complex 1, San Pedro, Laguna",
+                phone: "(02) 8838-2020",
+                mobile: "0917-586-4136",
+                lat: 14.3503,
+                lng: 121.0612,
+                status: "ER Open 24/7",
+                color: "#10b981"
+            },
+            {
+                id: 5,
+                name: "New Divine Mercy Hospital",
+                category: "Fire/Medical",
+                address: "National Highway, Brgy. Landayan, San Pedro, Laguna",
+                phone: "(02) 8808-3392",
+                mobile: "N/A",
+                lat: 14.3672,
+                lng: 121.0531,
+                status: "ER Open 24/7",
+                color: "#10b981"
+            },
+            {
+                id: 6,
+                name: "San Pedro Sub-Station 1 (Pacita)",
+                category: "Police",
+                address: "Pacita Complex 1, San Pedro, Laguna",
+                phone: "(02) 8808-2020",
+                mobile: "0917-800-0000",
+                lat: 14.3488,
+                lng: 121.0633,
+                status: "Active Unit",
+                color: "#3b82f6"
+            }
+        ];
+
+        // 1. Initialize Map Centered on San Pedro City
+        const map = L.map('map', { zoomControl: false }).setView([14.3550, 121.0580], 14);
+
+        // Add Zoom Control to Top Right
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        // Dark Map Tile Style (CARTO Dark Matter)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+
+        let markersLayer = {};
+
+        // 2. Render Markers & Populate Sidebar
+        function renderDirectory(data) {
+            const listContainer = document.getElementById('contact-list');
+            listContainer.innerHTML = '';
+
+            // Clear previous markers
+            Object.keys(markersLayer).forEach(key => map.removeLayer(markersLayer[key]));
+            markersLayer = {};
+
+            data.forEach(item => {
+                // Generate Dynamic Sidebar Card
+                const card = document.createElement('div');
+                card.className = "bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-lg p-3 transition cursor-pointer shadow-sm";
+                card.onclick = () => focusMapLocation(item.id);
+
+                card.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <h3 class="text-sm font-semibold text-slate-100">${item.name}</h3>
+                        <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded text-slate-900" style="background-color: ${item.color}">${item.category}</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">${item.address}</p>
+                    <div class="mt-2 space-y-1 text-xs">
+                        <div class="flex items-center text-slate-300">
+                            <span class="w-16 text-slate-500 font-semibold">Landline:</span>
+                            <a href="tel:${item.phone}" class="hover:underline text-blue-400">${item.phone}</a>
+                        </div>
+                        <div class="flex items-center text-slate-300">
+                            <span class="w-16 text-slate-500 font-semibold">Mobile:</span>
+                            <a href="tel:${item.mobile}" class="hover:underline text-emerald-400">${item.mobile}</a>
+                        </div>
+                    </div>
+                `;
+                listContainer.appendChild(card);
+
+                // Create Map Marker
+                const customIcon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style="background-color:${item.color};" class="w-5 h-5 rounded-full border-2 border-white shadow-lg flex items-center justify-center"></div>`,
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                });
+
+                const marker = L.marker([item.lat, item.lng], { icon: customIcon })
+                    .addTo(map)
+                    .bindPopup(`
+                        <div class="text-slate-900 p-1">
+                            <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded text-white" style="background-color: ${item.color}">${item.category}</span>
+                            <h4 class="font-bold text-sm mt-1">${item.name}</h4>
+                            <p class="text-xs text-slate-600">${item.address}</p>
+                            <hr class="my-2 border-slate-200">
+                            <p class="text-xs"><b>Tel:</b> ${item.phone}</p>
+                            <p class="text-xs"><b>Mobile:</b> ${item.mobile}</p>
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="block text-center mt-2 bg-slate-900 text-white py-1 rounded text-xs hover:bg-slate-800">
+                                Navigate Here ➔
+                            </a>
+                        </div>
+                    `);
+
+                markersLayer[item.id] = marker;
+            });
+        }
+
+        // 3. Map Focus Handler
+        function focusMapLocation(id) {
+            const item = responseTeams.find(t => t.id === id);
+            if (item) {
+                map.flyTo([item.lat, item.lng], 16, { duration: 1.5 });
+                markersLayer[id].openPopup();
+            }
+        }
+
+        // 4. Category Filter Handler
+        function filterMarkers(category) {
+            if (category === 'all') {
+                renderDirectory(responseTeams);
+            } else {
+                const filtered = responseTeams.filter(item => item.category === category);
+                renderDirectory(filtered);
+            }
+        }
+
+        // Initialize Render
+        renderDirectory(responseTeams);
+    </script>
+</body>
+</html>
+
+
+
+<!-- SVG ID: icon-drrm -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48">
+  <defs><style>.cls-1{fill:#f97316;}.cls-2{fill:#fff;}</style></defs>
+  <path class="cls-1" d="M32,2C15.43,2,2,15.43,2,32s13.43,30,30,30,30-13.43,30-30S48.57,2,32,2Z"/>
+  <path class="cls-2" d="M45.31,26.4l-5.56-2.45L32,9.3l-7.75,14.66-5.56,2.45L14.79,32l4.1,8.14,2.21,6.03,10.9-2.9,10.9,2.9,2.21-6.03,4.1-8.14-3.9-5.6ZM36,37.92l-2.08,5.68L32,42.8l-1.92,1.1-2.08-5.68-5-10.56,3.72-1.64L32,17.9l6.28,2.91,3.72,1.64-5,10.56Z"/>
+</svg>
+
+
+
+
+<!-- SVG ID: icon-police -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48">
+  <defs><style>.cls-1{fill:#3b82f6;}.cls-2{fill:#fff;}</style></defs>
+  <path class="cls-1" d="M32,2C15.43,2,2,15.43,2,32s13.43,30,30,30,30-13.43,30-30S48.57,2,32,2Z"/>
+  <path class="cls-2" d="M32,11.67l9.43,4.28v8.57c0,9.43-5.89,17.36-9.43,19.99-3.54-2.63-9.43-10.56-9.43-19.99v-8.57Zm0,4.48L24.71,19.5v7.03c0,7.45,4.33,13.9,7.29,16.34,2.96-2.44,7.29-8.89,7.29-16.34v-7.03Z"/>
+  <circle class="cls-2" cx="32" cy="29.14" r="4.29"/>
+</svg>
+
+
+
+<!-- SVG ID: icon-fire -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="48" height="48">
+  <defs><style>.cls-1{fill:#ef4444;}.cls-2{fill:#fff;}</style></defs>
+  <path class="cls-1" d="M32,2C15.43,2,2,15.43,2,32s13.43,30,30,30,30-13.43,30-30S48.57,2,32,2Z"/>
+  <path class="cls-2" d="M43.41,30.14L38,24.73l1.41-1.41,5.41,5.41Zm-6.28-7.69l1.41-1.41,5.41,5.41-1.41,1.41ZM32,16.86l5.41,5.41L36,23.68l-4-4-4,4-1.41-1.41ZM24.73,30.14L30.14,35.55l-1.41,1.41-5.41-5.41ZM22.45,22.45l5.41-5.41,1.41,1.41-5.41,5.41ZM32,47.14c-2.36,0-6-2.95-6-6.86s3.64-6.86,6-6.86,6,2.95,6,6.86-3.64,6.86-6,6.86Zm0-11.72c-1.6,0-3.43,1.47-3.43,4.86s1.83,4.86,3.43,4.86,3.43-1.47,3.43-4.86-1.83-4.86-3.43-4.86Z"/>
+  <path class="cls-2" d="M32,41.43C32,41.43,32,41.43,32,41.43a3.58,3.58,0,0,0,.71-2.14c0-1.79-1.43-2.14-1.43-2.14s-1.43.36-1.43,2.14A3.58,3.58,0,0,0,32,41.43Z"/>
+</svg>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>San Pedro City Emergency Response Mapping</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; }
+        #map { height: 100vh; width: 100vw; }
+        
+        /* Custom Icon Styling */
+        .response-icon {
+            background: transparent;
+            border: none;
+        }
+        .icon-shadow {
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+        }
+
+        /* Leaflet Popup Customization */
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+            padding: 0;
+            overflow: hidden;
+        }
+        .leaflet-popup-content {
+            margin: 0;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .leaflet-popup-tip {
+            background: white;
+        }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row-reverse h-screen">
+
+    <!-- Map Container -->
+    <div id="map" class="flex-grow z-0"></div>
+
+    <!-- Sidebar: Contact Details & Legend -->
+    <aside class="w-full md:w-80 bg-white p-5 shadow-2xl z-10 flex flex-col border-b-4 border-red-600 md:border-l-4 md:border-b-0">
+        <div class="flex items-center mb-4">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Seal_of_San_Pedro%2C_Laguna.png/120px-Seal_of_San_Pedro%2C_Laguna.png" 
+                 alt="San Pedro Logo" class="h-12 w-12 mr-3">
+            <div>
+                <h1 class="text-lg font-bold text-gray-900">Response Units</h1>
+                <p class="text-xs text-gray-600">San Pedro City, Laguna</p>
+            </div>
+        </div>
+
+        <div class="border-t pt-3 mb-3">
+            <h2 class="text-sm font-semibold text-gray-700 mb-2">Live Directory</h2>
+            <div class="space-y-3 max-h-[70vh] overflow-y-auto pr-2" id="directory-list">
+                <!-- Dynamic Content injected here -->
+            </div>
+        </div>
+
+        <div class="mt-auto border-t pt-3 text-center">
+             <button onclick="resetMapView()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium py-2 px-4 rounded transition">
+                Reset Map View
+            </button>
+        </div>
+    </aside>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // --- 1. Embedded SVG Icon Definitions ---
+        // These match the SVGs provided in the prompt text explanation.
+        const svgIcons = {
+            drrm: `
+                <svg viewBox="0 0 64 64" class="icon-shadow" style="width:40px; height:40px;">
+                    <circle cx="32" cy="32" r="30" fill="#f97316" stroke="#ffffff" stroke-width="2"/>
+                    <path fill="#ffffff" d="M45.31,26.4l-5.56-2.45L32,9.3l-7.75,14.66-5.56,2.45L14.79,32l4.1,8.14,2.21,6.03,10.9-2.9,10.9,2.9,2.21-6.03,4.1-8.14-3.9-5.6ZM36,37.92l-2.08,5.68L32,42.8l-1.92,1.1-2.08-5.68-5-10.56,3.72-1.64L32,17.9l6.28,2.91,3.72,1.64-5,10.56Z"/>
+                </svg>`,
+            police: `
+                <svg viewBox="0 0 64 64" class="icon-shadow" style="width:40px; height:40px;">
+                    <circle cx="32" cy="32" r="30" fill="#3b82f6" stroke="#ffffff" stroke-width="2"/>
+                    <path fill="#ffffff" d="M32,11.67l9.43,4.28v8.57c0,9.43-5.89,17.36-9.43,19.99-3.54-2.63-9.43-10.56-9.43-19.99v-8.57Zm0,4.48L24.71,19.5v7.03c0,7.45,4.33,13.9,7.29,16.34,2.96-2.44,7.29-8.89,7.29-16.34v-7.03Z"/>
+                    <circle fill="#ffffff" cx="32" cy="29.14" r="4.29"/>
+                </svg>`,
+            fire: `
+                <svg viewBox="0 0 64 64" class="icon-shadow" style="width:40px; height:40px;">
+                    <circle cx="32" cy="32" r="30" fill="#ef4444" stroke="#ffffff" stroke-width="2"/>
+                    <path fill="#ffffff" d="M43.41,30.14L38,24.73l1.41-1.41,5.41,5.41Zm-6.28-7.69l1.41-1.41,5.41,5.41-1.41,1.41ZM32,16.86l5.41,5.41L36,23.68l-4-4-4,4-1.41-1.41ZM24.73,30.14L30.14,35.55l-1.41,1.41-5.41-5.41ZM22.45,22.45l5.41-5.41,1.41,1.41-5.41,5.41ZM32,47.14c-2.36,0-6-2.95-6-6.86s3.64-6.86,6-6.86,6,2.95,6,6.86-3.64,6.86-6,6.86Zm0-11.72c-1.6,0-3.43,1.47-3.43,4.86s1.83,4.86,3.43,4.86,3.43-1.47,3.43-4.86-1.83-4.86-3.43-4.86Z"/>
+                    <path fill="#ffffff" d="M32,41.43C32,41.43,32,41.43,32,41.43a3.58,3.58,0,0,0,.71-2.14c0-1.79-1.43-2.14-1.43-2.14s-1.43.36-1.43,2.14A3.58,3.58,0,0,0,32,41.43Z"/>
+                </svg>`
+        };
+
+        // --- 2. Data Set (San Pedro Specific Locations) ---
+        const responseUnits = [
+            {
+                name: "San Pedro CDRRMO / Rescue",
+                type: "drrm", // Links to icon definition
+                address: "City Hall, Poblacion",
+                hotline
