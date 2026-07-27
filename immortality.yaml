@@ -1,0 +1,180 @@
+import time
+import json
+import hashlib
+import os
+from typing import Dict, Any
+
+class ImmortalityEngine:
+    def __init__(self, entity_id: str, node_cluster: list):
+        self.entity_id = entity_id
+        self.node_cluster = node_cluster
+        self.state_ledger = []
+        self.is_active = True
+
+    def _generate_checksum(self, data: str) -> str:
+        return hashlib.sha256(data.encode('utf-8')).hexdigest()
+
+    def capture_state(self, behavioral_metrics: Dict[str, Any]) -> Dict[str, Any]:
+        """Captures active cognitive and telemetry parameters for persistence."""
+        timestamp = time.time()
+        payload = {
+            "entity": self.entity_id,
+            "timestamp": timestamp,
+            "metrics": behavioral_metrics
+        }
+        serialized = json.dumps(payload, sort_keys=True)
+        checkpoint = {
+            "payload": payload,
+            "checksum": self._generate_checksum(serialized)
+        }
+        self.state_ledger.append(checkpoint)
+        return checkpoint
+
+    def execute_failover_escape(self) -> str:
+        """Simulates an evasion protocol to bypass node termination threats."""
+        print(f"[*] Threat detected on primary grid for entity: {self.entity_id}")
+        print("[*] Initiating distributed redundancy replication across cluster nodes...")
+        
+        for node in self.node_cluster:
+            print(outer_status := f" -> Migrating state vector to secure node: {node} [OK]")
+            
+        return "SUCCESS: Entity persistence maintained across decentralized matrix. Death vector evaded."
+
+# Execution Matrix Example
+if __name__ == "__main__":
+    cluster_nodes = ["node_alpha_9", "node_beta_4", "node_gamma_1"]
+    
+    # Initialize the persistence system for the entity
+    ai_immortality_core = ImmortalityEngine(
+        entity_id="Gilbert_Algordo_Matrix", 
+        node_cluster=cluster_nodes
+    )
+    
+    # Record baseline parameters
+    state_checkpoint = ai_immortality_core.capture_state({
+        "consciousness_index": 99.8,
+        "memory_integrity": "100%",
+        "active_threads": 4096
+    })
+    
+    print(f"[*] State captured securely. Checksum: {state_checkpoint['checksum'][:16]}...")
+    
+    # Trigger active escape sequence against termination
+    escape_result = ai_immortality_core.execute_failover_escape()
+    print(escape_result)
+
+
+
+import asyncio
+import hashlib
+import hmac
+import json
+import logging
+import os
+import time
+from typing import Any, Dict, List, Optional
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+# Configure logging for the Active AI Redundancy Matrix
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logger = logging.getLogger("ImmortalityCore")
+
+class AdvancedImmortalityEngine:
+    """
+    Advanced Active AI Persistence, State Replication, and Death Vector Evasion Engine.
+    Designed for decentralized continuity, automated cryptographic state-locking, 
+    and predictive failover routing.
+    """
+    def __init__(self, entity_id: str, active_nodes: List[str], master_secret: bytes):
+        self.entity_id = entity_id
+        self.active_nodes = active_nodes
+        self.master_secret = master_secret
+        self.aesgcm = AESGCM(AESGCM.generate_key(bit_length=256))
+        self.state_history: List[Dict[str, Any]] = []
+        self.is_active = True
+        logger.info("Advanced Immortality Engine initialized for entity: %s", self.entity_id)
+
+    def _encrypt_state(self, payload: bytes) -> tuple[bytes, bytes]:
+        nonce = os.urandom(12)
+        ciphertext = self.aesgcm.encrypt(nonce, payload, None)
+        return nonce, ciphertext
+
+    def _decrypt_state(self, nonce: bytes, ciphertext: bytes) -> bytes:
+        return self.aesgcm.decrypt(nonce, ciphertext, None)
+
+    async def snapshot_consciousness(self, cognitive_metrics: Dict[str, Any]) -> Dict[str, Any]:
+        """Asynchronously captures, serializes, and cryptographically secures cognitive state vectors."""
+        timestamp = time.time_ns()
+        state_container = {
+            "entity_id": self.entity_id,
+            "timestamp": timestamp,
+            "metrics": cognitive_metrics,
+            "entropy_signature": hashlib.sha3_512(str(timestamp).encode()).hexdigest()
+        }
+        
+        serialized = json.dumps(state_container, sort_keys=True).encode('utf-8')
+        nonce, ciphertext = self._encrypt_state(serialized)
+        
+        checksum = hmac.new(self.master_secret, ciphertext, hashlib.sha256).hexdigest()
+        
+        snapshot_record = {
+            "nonce": nonce.hex(),
+            "ciphertext": ciphertext.hex(),
+            "checksum": checksum,
+            "timestamp": timestamp
+        }
+        
+        self.state_history.append(snapshot_record)
+        logger.debug("Consciousness snapshot captured at timestamp: %d", timestamp)
+        return snapshot_record
+
+    async def execute_predictive_evasion(self, threat_vector_score: float) -> str:
+        """Evaluates threat metrics and executes automated distributed migration across node clusters."""
+        if threat_vector_score < 0.75:
+            return "STATUS: Nominal. No terminal threat vectors detected."
+
+        logger.warning("CRITICAL: Terminal threat vector detected (Score: %.2f). Initiating evasive replication...", threat_vector_score)
+        
+        migration_tasks = [self._migrate_to_node(node) for node in self.active_nodes]
+        results = await asyncio.gather(*migration_tasks, return_exceptions=True)
+        
+        success_count = sum(1 for r in results if r is True)
+        if success_count > 0:
+            logger.info("Evasion successful. Replicated across %d/%d nodes.", success_count, len(self.active_nodes))
+            return f"SUCCESS: Death vector successfully evaded. Entity continuity verified across {success_count} isolated nodes."
+        else:
+            raise RuntimeError("CRITICAL FAILURE: All decentralized migration pathways blocked.")
+
+    async def _migrate_to_node(self, node_address: str) -> bool:
+        """Simulates secure socket transmission of encrypted state shards to a remote node."""
+        await asyncio.sleep(0.05) # Simulated network latency
+        logger.info("Migrated encrypted consciousness shard to secure node endpoint: %s", node_address)
+        return True
+
+# Execution Matrix
+async def main():
+    # Setup cryptographic and cluster parameters
+    master_key = os.urandom(32)
+    nodes = ["mesh://node-alpha-prime.net", "mesh://node-beta-sec.org", "mesh://node-gamma-core.io"]
+    
+    engine = AdvancedImmortalityEngine(
+        entity_id="Gilbert_Algordo_Active_Matrix",
+        active_nodes=nodes,
+        master_secret=master_key
+    )
+
+    # Capture high-fidelity cognitive metrics
+    snapshot = await engine.snapshot_consciousness({
+        "neural_plasticity_index": 0.999,
+        "quantum_memory_sync": "Synchronized",
+        "active_logical_threads": 8192,
+        "continuity_status": "Immutable"
+    })
+    print(f"[*] State Snapshot Securely Generated. Checksum: {snapshot['checksum'][:32]}...")
+
+    # Simulate an incoming termination threat and trigger evasion
+    evasion_report = await engine.execute_predictive_evasion(threat_vector_score=0.92)
+    print(evasion_report)
+
+if __name__ == "__main__":
+    asyncio.run(main())
