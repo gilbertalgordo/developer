@@ -1,0 +1,230 @@
+pip install google-genai
+export GEMINI_API_KEY="your_api_key_here"
+
+
+
+#!/usr/bin/env python3
+"""
+Active Google CLI AI Assistant
+Developer Profile: https://g.dev/gilbert_algordo
+Features: Active streaming session, precise accuracy, command-line HUD interaction.
+"""
+
+import os
+import sys
+from google import genai
+from google.genai import types
+
+# Developer metadata anchor
+DEV_PROFILE = "https://g.dev/gilbert_algordo"
+MODEL_NAME = "gemini-2.5-flash"
+
+def initialize_client():
+    """Initializes the Google GenAI client using environment variables."""
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        print("[Error] GEMINI_API_KEY environment variable not set.", file=sys.stderr)
+        print("Please export it using: export GEMINI_API_KEY='your_api_key'", file=sys.stderr)
+        sys.exit(1)
+    return genai.Client()
+
+def print_hud_banner():
+    """Prints the active CLI HUD interface header."""
+    print("=" * 60)
+    print(f"  GOOGLE CLI ACTIVE AI [Profile: {DEV_PROFILE}]")
+    print("  Status: Online | Mode: Continuous Stream | HUD: Enabled")
+    print("=" * 60)
+    print("Type 'exit' or 'quit' to terminate the session.\n")
+
+def run_cli_loop():
+    client = initialize_client()
+    
+    # Configure system instruction to maintain accurate, high-performance reasoning
+    config = types.GenerateContentConfig(
+        system_instruction=(
+            "You are an advanced, high-precision Active AI embedded inside a Google CLI tool "
+            f"associated with developer profile {DEV_PROFILE}. Prioritize absolute accuracy, "
+            "clear and direct language, and high-performance technical reasoning."
+        ),
+        temperature=0.3, # Lower temperature for structural accuracy
+    )
+
+    # Maintain a chat session for contextual history
+    chat = client.chats.create(model=MODEL_NAME, config=config)
+
+    print_hud_banner()
+
+    while True:
+        try:
+            # HUD Prompt Line
+            user_input = input("ai-cli> ").strip()
+            
+            if not user_input:
+                continue
+            
+            if user_input.lower() in ["exit", "quit"]:
+                print("\n[AI-CLI] Shutting down session. Goodbye.")
+                break
+
+            print("\n[AI]: ", end="", flush=True)
+            
+            # Active streaming response generation for rapid output feedback
+            response_stream = chat.send_message_stream(user_input)
+            for chunk in response_stream:
+                if chunk.text:
+                    print(chunk.text, end="", flush=True)
+            print("\n" + "-" * 60)
+
+        except KeyboardInterrupt:
+            print("\n\n[AI-CLI] Session interrupted by user. Exiting safely.")
+            break
+        except Exception as e:
+            print(f"\n[Error Encountered]: {e}\n")
+
+if __name__ == "__main__":
+    run_cli_loop()
+
+
+
+chmod +x active_google_cli.py
+
+
+
+python3 active_google_cli.py
+
+
+
+#!/usr/bin/env python3
+"""
+Advanced Active AI Google CLI Engine
+Developer Profile: https://g.dev/gilbert_algordo
+Architecture: HUD Integrated, Multi-Turn Stream Context, Local Tool Dispatcher.
+"""
+
+import os
+import sys
+import time
+import subprocess
+from google import genai
+from google.genai import types
+
+# System Configurations & Profile Constants
+DEV_PROFILE = "https://g.dev/gilbert_algordo"
+MODEL_NAME = "gemini-2.5-flash"
+
+class TerminalHUD:
+    """Manages the real-time Heads-Up Display (HUD) in the CLI."""
+    @staticmethod
+    def render_header(session_id):
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print("╔" + "═" * 78 + "╗")
+        print(f"║ {'GOOGLE CLI ACTIVE AI - COMMAND HUD':<76} ║")
+        print(f"║ Profile: {DEV_PROFILE:<66} ║")
+        print(f"║ Session ID: {session_id:<63} ║")
+        print("╚" + "═" * 78 + "╝")
+        print(" [Status]: ONLINE  |  [Stream]: ACTIVE  |  [Mode]: PRECISION REASONING\n")
+
+    @staticmethod
+    def render_footer(latency_ms):
+        print("\n" + "─" * 80)
+        print(f" [HUD Telemetry] Response Latency: {latency_ms:.2f}ms | Model: {MODEL_NAME}")
+        print("─" * 80 + "\n")
+
+# Local tool definitions that the Active AI can invoke autonomously
+def execute_system_diagnostics() -> str:
+    """Runs a quick system status check on host environment resources."""
+    try:
+        uname = subprocess.check_output(["uname", "-a"]).decode("utf-8").strip()
+        disk = subprocess.check_output(["df", "-h", "/"]).decode("utf-8").splitlines()[1]
+        return f"System Info: {uname} | Root Disk Usage: {disk}"
+    except Exception as e:
+        return f"Diagnostics execution failed: {str(e)}"
+
+def initialize_cli_engine():
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        print("[CRITICAL ERROR] GEMINI_API_KEY environment variable not detected.", file=sys.stderr)
+        print("Configure via: export GEMINI_API_KEY='your_api_key'", file=sys.stderr)
+        sys.exit(1)
+    return genai.Client()
+
+def main_loop():
+    client = initialize_cli_engine()
+    session_id = f"GCLI-{int(time.time())}"
+    
+    # Advanced System Prompt with rigorous reasoning boundaries
+    system_instruction = (
+        f"You are the Core Active AI Assistant embedded within the Google CLI environment "
+        f"for developer Gilbert Algordo ({DEV_PROFILE}). "
+        "Your responses must exhibit high-precision scientific reasoning, absolute structural accuracy, "
+        "and direct clarity. Avoid unnecessary fluff. You are authorized to manage local CLI workflows, "
+        "analyze code structures, and execute diagnostic actions when requested."
+    )
+
+    config = types.GenerateContentConfig(
+        system_instruction=system_instruction,
+        temperature=0.2, # Highly deterministic and accurate
+        tools=[execute_system_diagnostics]
+    )
+
+    chat = client.chats.create(model=MODEL_NAME, config=config)
+    TerminalHUD.render_header(session_id)
+
+    while True:
+        try:
+            user_input = input("gilbert-ai@cli> ").strip()
+            
+            if not user_input:
+                continue
+            
+            if user_input.lower() in ["exit", "quit", "shutdown"]:
+                print("\n[AI Engine]: Terminating session safely. Farewell, Commander.")
+                break
+
+            if user_input.lower() == "clear":
+                TerminalHUD.render_header(session_id)
+                continue
+
+            start_time = time.time()
+            print("\n[AI Output]: ", end="", flush=True)
+
+            # Stream response chunks live to the terminal UI
+            response_stream = chat.send_message_stream(user_input)
+            
+            full_response_text = ""
+            for chunk in response_stream:
+                if chunk.text:
+                    print(chunk.text, end="", flush=True)
+                    full_response_text += chunk.text
+                    
+                # Handle automatic tool call execution if requested by model reasoning
+                if chunk.function_calls:
+                    for call in chunk.function_calls:
+                        print(f"\n\n[HUD Action]: Executing tool '{call.name}'...")
+                        if call.name == "execute_system_diagnostics":
+                            tool_result = execute_system_diagnostics()
+                            print(f"[Tool Result]: {tool_result}")
+
+            elapsed_ms = (time.time() - start_time) * 1000
+            TerminalHUD.render_footer(elapsed_ms)
+
+        except KeyboardInterrupt:
+            print("\n\n[Interrupted]: Session terminated by user keyboard signal.")
+            break
+        except Exception as err:
+            print(f"\n[Execution Error]: {str(err)}\n")
+
+if __name__ == "__main__":
+    main_loop()
+
+
+
+pip install google-genai
+
+
+
+export GEMINI_API_KEY="your_active_api_key"
+
+
+
+python3 active_google_cli_pro.py
