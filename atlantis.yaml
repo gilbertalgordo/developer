@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Atlantis Explorer</title>
+    <!-- Leaflet CSS for the map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Plotly.js for the timeline chart -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #f0f2f5;
+        }
+        #sidebar {
+            width: 350px;
+            background: white;
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        #map {
+            flex-grow: 1;
+            position: relative;
+        }
+        h1 { color: #0056b3; font-size: 24px; margin-top: 0; }
+        h2 { color: #333; font-size: 18px; margin-bottom: 10px; }
+        p { color: #555; font-size: 14px; line-height: 1.6; }
+        .info-box {
+            background: #e9f7fe;
+            border-left: 5px solid #00aaff;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        #timeline-container {
+            height: 250px;
+            margin-top: 20px;
+        }
+        .legend {
+            background: rgba(255,255,255,0.8);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            line-height: 24px;
+            color: #333;
+        }
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.7;
+        }
+        .legend-point { border-radius: 50%; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h1>The Atlantis Expedition</h1>
+    <div class="info-box">
+        <h2>The "Real" Location Hypothesis</h2>
+        <p>This map visualizes a prominent hypothesis that places the mythical Atlantis in the southern Atlantic Ocean, near the Azores microcontinent, based on interpretations of Plato's descriptions.</p>
+    </div>
+    
+    <h2>Geological Timeline</h2>
+    <p>Explore key geological and theoretical events in the timeline below. Click on events to see their location on the map.</p>
+    <div id="timeline-container"></div>
+</div>
+
+<div id="map"></div>
+
+<script>
+    // --- Configuration ---
+    // Centered on the Azores Plateau, a proposed location for "Atlantis"
+    const mapCenter = [37.5, -28.5]; 
+    const initialZoom = 5;
+
+    // --- 1. Initialize the Map ---
+    const map = L.map('map').setView(mapCenter, initialZoom);
+
+    // Use OpenStreetMap for the base layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // --- 2. Data Definitions ---
+
+    // Timeline and Map Data
+    const timelineData = [
+        { 
+            year: -12000, 
+            label: "Pre-Cataclysm", 
+            description: "Hypothesized large Atlantean landmass (Azores Plateau) above sea level, featuring the central plain and city.", 
+            location: [37.0, -29.0], 
+            type: 'geological',
+            color: '#2ca02c' // Green
+        },
+        { 
+            year: -9600, 
+            label: "The Great Cataclysm", 
+            description: "According to Plato, a massive earthquake and flood caused the island to subside beneath the ocean 'in a single day and night.'", 
+            location: [37.5, -28.5], 
+            type: 'historical',
+            color: '#d62728' // Red
+        },
+        { 
+            year: -9600, 
+            label: "Submergence", 
+            description: "The landmass rapidly sinks, creating the current bathymetry of the Azores Plateau and surrounding deep ocean basins.", 
+            location: [38.0, -28.0], 
+            type: 'geological',
+            color: '#1f77b4' // Blue
+        },
+        { 
+            year: 1427, 
+            label: "Rediscovery (Azores)", 
+            description: "Portuguese explorers rediscover the Azores archipelago, the only remaining peaks of the submerged mountain range.", 
+            location: [38.5, -28.0], 
+            type: 'historical',
+            color: '#ff7f0e' // Orange
+        },
+        { 
+            year: 2023, 
+            label: "Oceanographic Research", 
+            description: "Modern sonar mapping reveals complex underwater terrain, including seamounts and canyons, fueling speculation.", 
+            location: [37.7, -29.2], 
+            type: 'scientific',
+            color: '#9467bd' // Purple
+        }
+    ];
+
+    // --- 3. Initialize the Timeline Chart (Plotly) ---
+    
+    const trace = {
+        x: timelineData.map(d => d.year),
+        y: timelineData.map(d => 1), // All points on a single line
+        mode: 'markers+text',
+        text: timelineData.map(d => d.label),
+        textposition: 'top center',
+        marker: {
+            size: 15,
+            color: timelineData.map(d => d.color),
+            line: { width: 2, color: 'white' }
+        },
+        type: 'scatter',
+        hovertemplate: '<b>%{text}</b><br>Year: %{x}<extra></extra>'
+    };
+
+    const layout = {
+        xaxis: {
+            title: 'Timeline (Years BCE / CE)',
+            showgrid: false,
+            zeroline: true,
+            zerolinewidth: 2,
+            zerolinecolor: '#444',
+            // Reverse the axis so negative (BCE) is on the left
+            autorange: 'reversed' 
+        },
+        yaxis: {
+            showgrid: false,
+            zeroline: false,
+            showticklabels: false,
+            range: [0, 2] // Give some space for labels
+        },
+        margin: { l: 50, r: 50, t: 20, b: 50 },
+        height: 250,
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        hovermode: 'closest'
+    };
+
+    const config = { responsive: true, displayModeBar: false };
+
+    Plotly.newPlot('timeline-container', [trace], layout, config);
+
+    // --- 4. Link Chart Interactions to Map ---
+
+    let activeMarker = null;
+
+    const timelinePlot = document.getElementById('timeline-container');
+
+    timelinePlot.on('plotly_click', function(data){
+        const pointIndex = data.points[0].pointIndex;
+        const event = timelineData[pointIndex];
+        
+        // Pan the map to the event location
+        map.setView(event.location, 8); // Zoom in closer
+
+        // Highlight the corresponding marker on the map
+        highlightMarker(event);
+    });
+
+    // --- 5. Map Markers and Popups ---
+
+    const markers = [];
+
+    // Create markers for each timeline event
+    timelineData.forEach((event, index) => {
+        const marker = L.circleMarker(event.location, {
+            radius: 10,
+            fillColor: event.color,
+            color: '#fff',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.8
+        }).addTo(map);
+
+        // Create a formatted popup string
+        const popupContent = `
+            <h3 style="margin: 0 0 5px 0; color: ${event.color};">${event.label} (${event.year})</h3>
+            <p style="margin: 0; font-size: 13px;">${event.description}</p>
+        `;
+        
+        marker.bindPopup(popupContent);
+
+        // Add a click handler to the marker to select the timeline point
+        marker.on('click', function() {
+            highlightMarker(event);
+            // Select the corresponding point on the Plotly chart
+            Plotly.restyle('timeline-container', 'marker.size', [15], {indices: [index]});
+            // Reset other point sizes (this is a bit hacky in Plotly, easier to just re-plot or use a different approach)
+            // For simplicity, this click-to-chart linkage is partial. The chart-to-map link is full.
+        });
+
+        markers.push(marker);
+    });
+
+    function highlightMarker(event) {
+        // Reset previous marker
+        if (activeMarker) {
+            activeMarker.setStyle({radius: 10});
+        }
+
+        // Find the marker that matches the event location
+        const markerRef = markers.find(m => m.getLatLng().lat === event.location[0] && m.getLatLng().lng === event.location[1]);
+        
+        if (markerRef) {
+            activeMarker = markerRef;
+            activeMarker.setStyle({radius: 15}); // Enlarge to highlight
+            markerRef.openPopup();
+        }
+    }
+
+    // --- 6. Map Legend ---
+
+    const legend = L.control({position: 'bottomright'});
+
+    legend.onAdd = function (map) {
+        const div = L.DomUtil.create('div', 'legend');
+        const categories = [
+            {label: 'Geological Event', color: '#1f77b4'}, // Default to blue
+            {label: 'Historical Event (Plato)', color: '#d62728'},
+            {label: 'Scientific Theory', color: '#9467bd'}
+        ];
+
+        div.innerHTML += '<strong>Event Types</strong><br>';
+        categories.forEach(cat => {
+            div.innerHTML +=
+                `<i class="legend-point" style="background:${cat.color}"></i> ${cat.label}<br>`;
+        });
+
+        return div;
+    };
+
+    legend.addTo(map);
+
+</script>
+
+</body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Atlantis Geospatial & Chronological Explorer</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        :root {
+            --primary-dark: #0f172a;
+            --accent-blue: #0ea5e9;
+            --bg-light: #f8fafc;
+            --text-main: #334155;
+        }
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            background-color: var(--bg-light);
+            color: var(--text-main);
+            overflow: hidden;
+        }
+        #sidebar {
+            width: 420px;
+            background: white;
+            padding: 24px;
+            box-shadow: 4px 0 25px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        #map-container {
+            flex-grow: 1;
+            position: relative;
+        }
+        h1 { font-size: 22px; color: var(--primary-dark); margin-top: 0; margin-bottom: 8px; font-weight: 700; }
+        .subtitle { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+        .card {
+            background: #f1f5f9;
+            border-left: 4px solid var(--accent-blue);
+            padding: 14px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 20px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .section-title { font-size: 14px; font-weight: 600; color: var(--primary-dark); margin: 15px 0 8px 0; display: flex; justify-content: space-between; align-items: center; }
+        #timeline-graph {
+            width: 100%;
+            height: 260px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        label { display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+        select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            background: white;
+            font-size: 13px;
+            color: var(--text-main);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        select:focus { border-color: var(--accent-blue); }
+        .data-readout {
+            background: var(--primary-dark);
+            color: #f8fafc;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 15px;
+        }
+        .hud-overlay {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.85);
+            color: white;
+            padding: 12px 18px;
+            border-radius: 8px;
+            z-index: 999;
+            backdrop-filter: blur(4px);
+            font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
+        .hud-overlay span { color: var(--accent-blue); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h1>Atlantis Intelligence Hub</h1>
+    <div class="subtitle">Advanced Geospatial & Chronological Analysis Module</div>
+    
+    <div class="card">
+        <strong>Analytical Framework:</strong> This tool correlates Plato's historical timeline metrics with bathymetric data, tectonic fault lines, and alternative structural candidates (Azores Plateau vs. Richat Structure).
+    </div>
+
+    <div class="control-group">
+        <label for="hypothesis-select">Select Primary Hypothesis Profile</label>
+        <select id="hypothesis-select">
+            <option value="azores">Azores Plateau (Submerged Atlantic Island)</option>
+            <option value="richat">Richat Structure / Guelb er Richat (Mauritania)</option>
+            <option value="santorini">Thera Eruption / Minoan Hypothesis (Aegean Sea)</option>
+        </select>
+    </div>
+
+    <div class="section-title">
+        <span>Chronological Submersion Index</span>
+    </div>
+    <div id="timeline-graph"></div>
+
+    <div class="data-readout" id="telemetry-box">
+        STATUS: Synchronized<br>
+        LAT/LNG: 37.500° N, 28.500° W<br>
+        ELEVATION: -2,400 meters (Submerged)
+    </div>
+</div>
+
+<div id="map-container">
+    <div id="map" style="width: 100%; height: 100%;"></div>
+    <div class="hud-overlay" id="hud">
+        Active Vector: <span id="hud-vector">Azores Plateau</span><br>
+        Confidence Index: <span id="hud-conf">84.2%</span>
+    </div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<script>
+    // Dataset profiles mapped to hypotheses
+    const hypothesisData = {
+        azores: {
+            center: [37.5, -28.5],
+            zoom: 6,
+            name: "Azores Plateau",
+            confidence: "84.2%",
+            elevation: "-2,400 meters (Submerged)",
+            events: [
+                { year: -11500, label: "Founding Era", desc: "Stable continental shelf landmass above sea level.", coords: [37.0, -29.0], type: "Geological" },
+                { year: -9800, label: "Golden Age Peak", desc: "Metropolis architecture established according to concentric rings.", coords: [37.5, -28.5], type: "Historical" },
+                { year: -9600, label: "Cataclysmic Sinking", desc: "Seismic fracturing and rapid oceanic inundation sequence.", coords: [37.2, -28.8], type: "Cataclysm" },
+                { year: 1427, label: "Azores Rediscovery", desc: "Portuguese exploration documents surviving peaks.", coords: [38.5, -28.0], type: "Modern Exploration" }
+            ]
+        },
+        richat: {
+            center: [21.1276, -11.9.398], // adjusted close to 21.1276, -11.3983
+            zoom: 7,
+            name: "Richat Structure",
+            confidence: "68.5%",
+            elevation: "+405 meters (Arid Desert Formation)",
+            events: [
+                { year: -11500, label: "Lacustrine Plain", desc: "Hydrological erosion patterns form concentric rings.", coords: [21.1276, -11.3983], type: "Geological" },
+                { year: -9800, label: "Pluvial Maximum", desc: "Atlantic ocean waters breach outer channel structures.", coords: [21.2000, -11.4500], type: "Historical" },
+                { year: -9600, label: "Drainage & Desertification", desc: "Rapid climatic shift and tectonic uplift.", coords: [21.0500, -11.3000], type: "Cataclysm" },
+                { year: 1965, label: "Satellite Mapping", desc: "Gemini 4 mission captures eye-formation structure.", coords: [21.1276, -11.3983], type: "Modern Exploration" }
+            ]
+        },
+        santorini: {
+            center: [36.4043, 25.3963],
+            zoom: 9,
+            name: "Thera / Santorini Caldera",
+            confidence: "91.0%",
+            elevation: "-300 meters / Volcanic Caldera",
+            events: [
+                { year: -1620, label: "Minoan Prosperity", desc: "Advanced maritime civilization flourishing in the Aegean.", coords: [36.3932, 25.4615], type: "Historical" },
+                { year: -1600, label: "Cataclysmic Eruption", desc: "Plinian eruption empties magma chamber, triggering collapse.", coords: [36.4043, 25.3963], type: "Cataclysm" },
+                { year: 1967, label: "Akrotiri Excavation", desc: "Discovery of buried Bronze Age port city.", coords: [36.3514, 25.4056], type: "Modern Exploration" }
+            ]
+        }
+    };
+
+    // Correcting explicit lat/lng for Richat
+    hypothesisData.richat.center = [21.1276, -11.3983];
+
+    // Initialize Map
+    const map = L.map('map', { zoomControl: false }).setView(hypothesisData.azores.center, hypothesisData.azores.zoom);
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    // Base Tile Layer (Dark/Clean modern look)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        maxZoom: 19
+    }).addTo(map);
+
+    let activeMarkers = [];
+
+    function renderMapMarkers(profileKey) {
+        // Clear old markers
+        activeMarkers.forEach(m => map.removeLayer(m));
+        activeMarkers = [];
+
+        const profile = hypothesisData[profileKey];
+        map.setView(profile.center, profile.zoom);
+
+        // Update HUD
+        document.getElementById('hud-vector').innerText = profile.name;
+        document.getElementById('hud-conf').innerText = profile.confidence;
+
+        profile.events.forEach((ev, idx) => {
+            const marker = L.circleMarker(ev.coords, {
+                radius: 8,
+                fillColor: idx === profile.events.length - 1 ? '#0ea5e9' : '#334155',
+                color: '#ffffff',
+                weight: 2,
+                fillOpacity: 0.9
+            }).addTo(map);
+
+            marker.bindPopup(`<b>${ev.label} (${ev.year} BCE/CE)</b><br>${ev.desc}`);
+            activeMarkers.push(marker);
+        });
+
+        renderTimeline(profile);
+    }
+
+    function renderTimeline(profile) {
+        const xVals = profile.events.map(e => e.year);
+        const yVals = profile.events.map((_, i) => i + 1);
+        const textVals = profile.events.map(e => `${e.label}<br>(${e.year})`);
+
+        const trace = {
+            x: xVals,
+            y: yVals,
+            mode: 'lines+markers+text',
+            text: textVals,
+            textposition: 'top center',
+            marker: { size: 12, color: '#0ea5e9' },
+            line: { color: '#0f172a', width: 2 },
+            type: 'scatter'
+        };
+
+        const layout = {
+            xaxis: { title: 'Timeline (Years)', autorange: 'reversed', showgrid: false },
+            yaxis: { showgrid: false, showticklabels: false, range: [0, profile.events.length + 1] },
+            margin: { l: 20, r: 20, t: 30, b: 30 },
+            height: 260,
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)'
+        };
+
+        Plotly.react('timeline-graph', [trace], layout, { displayModeBar: false });
+    }
+
+    // Event listener for dropdown change
+    document.getElementById('hypothesis-select').addEventListener('change', function(e) {
+        const key = e.target.value;
+        renderMapMarkers(key);
+        const p = hypothesisData[key];
+        document.getElementById('telemetry-box').innerHTML = `
+            STATUS: Synchronized<br>
+            LAT/LNG: ${p.center[0]}° N, ${p.center[1]}° W<br>
+            ELEVATION: ${p.elevation}
+        `;
+    });
+
+    // Initial Load
+    renderMapMarkers('azores');
+
+    // Plotly click interaction syncing with map view
+    document.getElementById('timeline-graph').on('plotly_click', function(data){
+        const pointIdx = data.points[0].pointIndex;
+        const currentKey = document.getElementById('hypothesis-select').value;
+        const ev = hypothesisData[currentKey].events[pointIdx];
+        
+        map.setView(ev.coords, 10);
+        activeMarkers[pointIdx].openPopup();
+    });
+</script>
+
+</body>
+</html>
