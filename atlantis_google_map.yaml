@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atlantis Construction Chronicles - Google Maps API Integration</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.85);
+            --accent-color: #38bdf8;
+            --text-color: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-color: rgba(56, 189, 248, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+        }
+
+        #sidebar {
+            width: 420px;
+            height: 100vh;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            box-shadow: 5px 0 25px rgba(0,0,0,0.5);
+        }
+
+        .header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            color: var(--accent-color);
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .header p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.1);
+        }
+
+        .card h3 {
+            font-size: 1rem;
+            color: var(--accent-color);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        #map {
+            flex: 1;
+            height: 100vh;
+        }
+
+        .code-container {
+            padding: 15px;
+            background: #020617;
+            border-top: 1px solid var(--border-color);
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #34d399;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-color);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="header">
+            <h1>Atlantis Genesis API</h1>
+            <p>Google Maps & Information Services Framework</p>
+        </div>
+        
+        <div class="content-area">
+            <div class="card">
+                <h3>📍 WHERE (Geographic Location)</h3>
+                <p>Central Atlantic Ocean, situated just beyond the Pillars of Hercules (Strait of Gibraltar), mapped via custom tile overlays.</p>
+            </div>
+            
+            <div class="card">
+                <h3>⏳ WHEN (Historical Era)</h3>
+                <p>Circa 9000 BCE, during the pre-sinking foundation phase as detailed in historical philosophical records.</p>
+            </div>
+            
+            <div class="card">
+                <h3>🛠️ HOW (Construction Techniques)</h3>
+                <p>Advanced engineering utilizing concentric ring canals, volcanic stone extraction, underwater crystal placement, and heavy pulley systems.</p>
+            </div>
+            
+            <div class="card">
+                <h3>👥 WHO (The Builders & Workforce)</h3>
+                <p>Architectural engineers, specialized master artisans, and a coordinated multi-tiered civilian labor force guided by divine lineage.</p>
+            </div>
+        </div>
+
+        <div class="code-container" id="api-status">
+            > Initializing Google Maps JavaScript API...<br>
+            > Loading custom Atlantis bathymetric & vector layers...<br>
+            > Status: Ready.
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Google Maps JavaScript API Script Replacement Placeholder -->
+    <script>
+        // Callback function required by Google Maps API
+        function initMap() {
+            // Mythological coordinates for Atlantis in the Atlantic Ocean
+            const atlantisCoords = { lat: 24.5000, lng: -35.2433 };
+
+            // Initialize the map with custom dark styling to match oceanic theme
+            const map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 5,
+                center: atlantisCoords,
+                styles: [
+                    { elementType: "geometry", stylers: [{ color: "#0b132b" }] },
+                    { elementType: "labels.text.stroke", stylers: [{ color: "#1c2541" }] },
+                    { elementType: "labels.text.fill", stylers: [{ color: "#6fffe9" }] },
+                    {
+                        featureType: "water",
+                        elementType: "geometry",
+                        stylers: [{ color: "#03071e" }]
+                    },
+                    {
+                        featureType: "water",
+                        elementType: "labels.text.fill",
+                        stylers: [{ color: "#48cae4" }]
+                    }
+                ],
+                disableDefaultUI: false,
+                zoomControl: true,
+                mapTypeControl: false,
+                scaleControl: true,
+                streetViewControl: false,
+                rotateControl: false,
+                fullscreenControl: true
+            });
+
+            // Add marker for Atlantis Central Capital
+            const marker = new google.maps.Marker({
+                position: atlantisCoords,
+                map: map,
+                title: "Atlantis: Capital Core",
+                animation: google.maps.Animation.DROP,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 10,
+                    fillColor: "#38bdf8",
+                    fillOpacity: 0.9,
+                    strokeColor: "#ffffff",
+                    strokeWeight: 2
+                }
+            });
+
+            // Infowindow detailing the build parameters
+            const contentString = `
+                <div style="color: #0f172a; padding: 10px; max-width: 250px;">
+                    <h2 style="font-size: 14px; margin-bottom: 5px; color: #0284c7;">The City of Atlantis</h2>
+                    <p style="font-size: 12px; margin-bottom: 8px;"><strong>Who & How:</strong> Engineered by master builders using concentric rings, canals, and crystal-matrix masonry.</p>
+                    <p style="font-size: 12px;"><strong>Era:</strong> ~9000 BCE (Pre-Cataclysm)</p>
+                </div>
+            `;
+
+            const infowindow = new google.maps.InfoWindow({
+                content: contentString
+            });
+
+            marker.addListener("click", () => {
+                infowindow.open(map, marker);
+            });
+
+            // Log API execution success
+            document.getElementById('api-status').innerHTML += "<br>> Google Maps API successfully rendered Atlantis coordinates.";
+        }
+    </script>
+
+    <!-- Load Google Maps API with your actual key -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap"></script>
+</body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atlantis Advanced Genesis - Google Maps 3D & Information API Suite</title>
+    <style>
+        :root {
+            --bg-deep: #030712;
+            --panel-bg: rgba(15, 23, 42, 0.9);
+            --accent-cyan: #06b6d4;
+            --accent-blue: #3b82f6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-glow: rgba(6, 182, 212, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* HUD Overlay Control Panel */
+        #hud-sidebar {
+            width: 460px;
+            height: 100vh;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border-right: 1px solid var(--border-glow);
+            display: flex;
+            flex-direction: column;
+            z-index: 20;
+            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.8);
+        }
+
+        .hud-header {
+            padding: 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), transparent);
+        }
+
+        .hud-header h1 {
+            font-size: 1.35rem;
+            color: var(--accent-cyan);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hud-header p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .hud-grid {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .data-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .data-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--accent-cyan);
+            opacity: 0.7;
+        }
+
+        .data-card:hover {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .data-card h3 {
+            font-size: 0.95rem;
+            color: var(--accent-cyan);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .data-card p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .tag {
+            font-size: 0.65rem;
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--accent-cyan);
+            padding: 2px 8px;
+            border-radius: 20px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            text-transform: uppercase;
+        }
+
+        /* Interactive Map Canvas Container */
+        #map-container {
+            flex: 1;
+            height: 100vh;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Telemetry Status Footer */
+        .telemetry-footer {
+            padding: 14px 20px;
+            background: #020617;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.72rem;
+            color: #34d399;
+        }
+
+        /* Custom Map Info Window Styling */
+        .gm-style .gm-style-iw-c {
+            background-color: #0f172a !important;
+            color: #f8fafc !important;
+            border: 1px solid var(--accent-cyan) !important;
+            border-radius: 12px !important;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+        }
+        .gm-style .gm-style-iw-d {
+            overflow: hidden !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Advanced HUD Sidebar Control Panel -->
+    <div id="hud-sidebar">
+        <div class="hud-header">
+            <h1>⬡ Atlantis Genesis HUD</h1>
+            <p>Google Maps Enterprise 3D & Information API Matrix</p>
+        </div>
+
+        <div class="hud-grid">
+            <div class="data-card">
+                <h3>📍 WHERE <span class="tag">Geospatial Target</span></h3>
+                <p>Central Atlantic basin coordinates mapped just beyond the Pillars of Hercules (Strait of Gibraltar), utilizing high-resolution bathymetric vector overlays and spatial mesh projections.</p>
+            </div>
+
+            <div class="data-card">
+                <h3>⏳ WHEN <span class="tag">Chronological Era</span></h3>
+                <p>Circa 9000 BCE during the pre-cataclysmic foundation epoch, structured across distinct developmental timelines and historical architectural phases.</p>
+            </div>
+
+            <div class="data-card">
+                <h3>🛠️ HOW <span class="tag">Engineering Physics</span></h3>
+                <p>Advanced concentric ring excavation, hydraulic canal routing, volcanic stone extraction, and resonance crystal stabilization via heavy synchronized pulley infrastructure.</p>
+            </div>
+
+            <div class="data-card">
+                <h3>👥 WHO <span class="tag">Civilization Core</span></h3>
+                <p>Engineered under the coordination of master builders, expert structural artisans, divine-lineage planners, and a unified multi-tiered civilian workforce.</p>
+            </div>
+        </div>
+
+        <div class="telemetry-footer" id="telemetry-log">
+            > SYSTEM: Initializing Google Maps Vector & 3D Tile API...<br>
+            > MESH: Calibrating Atlantic bathymetry...<br>
+            > STATUS: Telemetry uplink active.
+        </div>
+    </div>
+
+    <!-- Map Viewport -->
+    <div id="map-container">
+        <div id="map"></div>
+    </div>
+
+    <!-- Google Maps Advanced JavaScript API Initialization -->
+    <script>
+        function initMap() {
+            // Precise coordinates for the historical Atlantis location framework in the Atlantic
+            const atlantisCenter = { lat: 24.5000, lng: -35.2433 };
+
+            // Initialize Google Map with advanced vector styling and configuration
+            const map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 5,
+                center: atlantisCenter,
+                mapId: "ATLANTIS_VECTOR_MAP_ID", // Maps ID required for Advanced Markers & Vector layers
+                styles: [
+                    { elementType: "geometry", stylers: [{ color: "#050b14" }] },
+                    { elementType: "labels.text.stroke", stylers: [{ color: "#0f172a" }] },
+                    { elementType: "labels.text.fill", stylers: [{ color: "#38bdf8" }] },
+                    {
+                        featureType: "water",
+                        elementType: "geometry",
+                        stylers: [{ color: "#020617" }]
+                    },
+                    {
+                        featureType: "water",
+                        elementType: "labels.text.fill",
+                        stylers: [{ color: "#0ea5e9" }]
+                    }
+                ],
+                disableDefaultUI: false,
+                zoomControl: true,
+                mapTypeControl: false,
+                scaleControl: true,
+                streetViewControl: false,
+                rotateControl: true,
+                fullscreenControl: true
+            });
+
+            // Create Advanced Marker for Atlantis Capital Core
+            const markerElement = document.createElement("div");
+            markerElement.innerHTML = `
+                <div style="width: 24px; height: 24px; background: rgba(6, 182, 212, 0.8); border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 15px #06b6d4; display: flex; align-items: center; justify-content: center;">
+                    <div style="width: 8px; height: 8px; background: #ffffff; border-radius: 50%;"></div>
+                </div>
+            `;
+
+            const advancedMarker = new google.maps.marker.AdvancedMarkerElement({
+                map: map,
+                position: atlantisCenter,
+                title: "Atlantis Capital Core",
+                content: markerElement
+            });
+
+            // Comprehensive Info Window with API Telemetry Details
+            const infoContent = `
+                <div style="padding: 12px; max-width: 260px; font-family: sans-serif;">
+                    <h3 style="color: #06b6d4; font-size: 14px; margin-bottom: 6px; text-transform: uppercase;">Atlantis Core Grid</h3>
+                    <p style="font-size: 12px; color: #cbd5e1; margin-bottom: 8px; line-height: 1.4;">
+                        <strong>Engineered by:</strong> Master builders and specialist labor guilds.<br>
+                        <strong>Method:</strong> Concentric canals & crystal matrices.<br>
+                        <strong>Era:</strong> ~9000 BCE.
+                    </p>
+                    <span style="font-size: 10px; background: rgba(6,182,212,0.2); color: #06b6d4; padding: 2px 6px; border-radius: 4px;">API Active</span>
+                </div>
+            `;
+
+            const infowindow = new google.maps.InfoWindow({
+                content: infoContent
+            });
+
+            // Event listener for interactive marker query
+            advancedMarker.addListener("click", () => {
+                infowindow.open({
+                    anchor: advancedMarker,
+                    map: map,
+                });
+            });
+
+            // Log successful telemetry update
+            document.getElementById('telemetry-log').innerHTML += "<br>> API: Vector layers & Advanced Marker bindings deployed successfully.";
+        }
+    </script>
+
+    <!-- Async load of Google Maps JavaScript API with Libraries (marker & maps) -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&v=weekly&libraries=marker&callback=initMap"></script>
+</body>
+</html>
