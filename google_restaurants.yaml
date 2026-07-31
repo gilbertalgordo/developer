@@ -1,0 +1,355 @@
+import os
+import requests
+
+def fetch_active_ai_food_delivery(api_key, latitude, longitude):
+    """
+    Queries Google Places API (New) for top nearby restaurants,
+    extracts active food delivery metadata, phone numbers, and web links.
+    """
+    url = "https://places.googleapis.com/v1/places:searchNearby"
+    
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": api_key,
+        "X-Goog-FieldMask": (
+            "places.displayName,"
+            "places.formattedAddress,"
+            "places.nationalPhoneNumber,"
+            "places.websiteUri,"
+            "places.rating,"
+            "places.businessStatus"
+        )
+    }
+    
+    payload = {
+        "includedTypes": ["restaurant"],
+        "maxResultCount": 5,
+        "locationRestriction": {
+            "circle": {
+                "center": {
+                    "latitude": latitude,
+                    "longitude": longitude
+                },
+                "radius": 1500.0
+            }
+        }
+    }
+    
+    response = requests.post(url, headers=headers, json=payload)
+    
+    if response.status_code != 200:
+        raise Exception(f"API Error: {response.status_code} - {response.text}")
+        
+    data = response.json()
+    places = data.get("places", [])
+    
+    print("==================================================")
+    print("       GOOGLE FOOD DELIVERY: ACTIVE AI AGENT      ")
+    print("==================================================")
+    
+    for idx, place in enumerate(places, 1):
+        name = place.get("displayName", {}).get("text", "Unknown Restaurant")
+        phone = place.get("nationalPhoneNumber", "N/A")
+        link = place.get("websiteUri", "N/A")
+        rating = place.get("rating", "N/A")
+        address = place.get("formattedAddress", "N/A")
+        
+        print(f"\n[{idx}] {name}")
+        print(f"    Rating       : {rating} ⭐")
+        print(f"    Address      : {address}")
+        print(f"    Phone Number : {phone}")
+        print(f"    Delivery Link: {link}")
+        print("    AI Status    : Active & Ready for Instant Dispatch")
+
+if __name__ == "__main__":
+    # Replace with your active Google Maps API Key
+    API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "YOUR_API_KEY")
+    
+    # Example coordinates (e.g., Downtown San Francisco / NYC)
+    LATITUDE = 37.7937
+    LONGITUDE = -122.3965
+    
+    fetch_active_ai_food_delivery(API_KEY, LATITUDE, LONGITUDE)
+
+
+
+import os
+import asyncio
+import aiohttp
+from typing import Dict, Any, List
+
+class GoogleFoodDeliveryActiveAI:
+    """
+    Advanced Asynchronous Engine for Google Restaurant Food Delivery Active AI Agent.
+    Interacts with Google Maps Places API (New) to query, structure, and dispatch 
+    nearby restaurant telemetry, phone numbers, website links, and real-time operational status.
+    """
+    
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.endpoint = "https://places.googleapis.com/v1/places:searchNearby"
+        
+    async def fetch_top_restaurants(self, latitude: float, longitude: float, radius: float = 2000.0) -> List[Dict[str, Any]]:
+        headers = {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": self.api_key,
+            "X-Goog-FieldMask": (
+                "places.displayName,"
+                "places.formattedAddress,"
+                "places.nationalPhoneNumber,"
+                "places.websiteUri,"
+                "places.rating,"
+                "places.userRatingsTotal,"
+                "places.businessStatus,"
+                "places.regularOpeningHours"
+            )
+        }
+        
+        payload = {
+            "includedTypes": ["restaurant"],
+            "maxResultCount": 10,
+            "rankPreference": "POPULARITY",
+            "locationRestriction": {
+                "circle": {
+                    "center": {
+                        "latitude": latitude,
+                        "longitude": longitude
+                    },
+                    "radius": radius
+                }
+            }
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(self.endpoint, headers=headers, json=payload) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    raise ConnectionError(f"Google Places API Error [{response.status}]: {error_text}")
+                
+                data = await response.json()
+                return data.get("places", [])
+
+    def process_ai_telemetry(self, raw_places: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+        structured_output = []
+        
+        for index, place in enumerate(raw_places, 1):
+            name = place.get("displayName", {}).get("text", "Unknown Partner Venue")
+            phone = place.get("nationalPhoneNumber", "Direct Line Unavailable")
+            link = place.get("websiteUri", "No Web Link Provided")
+            rating = place.get("rating", "N/A")
+            reviews = place.get("userRatingsTotal", 0)
+            address = place.get("formattedAddress", "Location Coordinates Only")
+            status = place.get("businessStatus", "OPERATIONAL")
+            
+            node_data = {
+                "node_id": f"NODE-{index:03d}",
+                "restaurant_name": name,
+                "operational_status": status,
+                "rating": f"{rating} ⭐ ({reviews} reviews)",
+                "address": address,
+                "phone_number": phone,
+                "delivery_link": link,
+                "active_ai_dispatch": "Ready for Instant Autonomous Order Routing"
+            }
+            structured_output.append(node_data)
+            
+        return structured_output
+
+async def main():
+    # Secure environment variable retrieval for production environments
+    API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "YOUR_GOOGLE_MAPS_API_KEY")
+    
+    # Target Coordinates (Example: Central Urban Sector)
+    LATITUDE = 14.3500
+    LONGITUDE = 121.0500
+    
+    print("Initializing Google Food Delivery Active AI Agent...")
+    agent = GoogleFoodDeliveryActiveAI(api_key=API_KEY)
+    
+    try:
+        raw_data = await agent.fetch_top_restaurants(LATITUDE, LONGITUDE)
+        processed_nodes = agent.process_ai_telemetry(raw_data)
+        
+        print("\n" + "="*80)
+        print("          GOOGLE FOOD DELIVERY: ACTIVE AI - LIVE EXTRACTION TELEMETRY          ")
+        print("="*80)
+        
+        for node in processed_nodes:
+            print(f"\n[{node['node_id']}] {node['restaurant_name']}")
+            print(f" ┣ Status       : {node['operational_status']}")
+            print(f" ┣ Rating       : {node['rating']}")
+            print(f" ┣ Address      : {node['address']}")
+            print(f" ┣ Phone Number : {node['phone_number']}")
+            print(f" ┣ Web Link     : {node['delivery_link']}")
+            print(f" ┗ AI Protocol  : {node['active_ai_dispatch']}")
+        print("\n" + "="*80)
+        
+    except Exception as e:
+        print(f"Execution Exception Encountered: {e}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+[
+  {
+    "place_id": "restaurant_001",
+    "name": "The Halal Guys",
+    "icon_image_url": "https://example.com/images/halal_guys_icon.png",
+    "rating": 4.7,
+    "total_reviews": 1400,
+    "delivery_eta_minutes": "28-35",
+    "phone_number": "+12125550123",
+    "phone_uri": "tel:+12125550123",
+    "google_maps_link": "https://goo.gl/maps/xyz",
+    "active_ai_status": true
+  },
+  {
+    "place_id": "restaurant_002",
+    "name": "Tacos El Papi",
+    "icon_image_url": "https://example.com/images/tacos_icon.png",
+    "rating": 4.9,
+    "total_reviews": 750,
+    "delivery_eta_minutes": "15-20",
+    "phone_number": "+16465550987",
+    "phone_uri": "tel:+16465550987",
+    "google_maps_link": "https://goo.gl/maps/abc",
+    "active_ai_status": true
+  },
+  {
+    "place_id": "restaurant_003",
+    "name": "Pizza Luna",
+    "icon_image_url": "https://example.com/images/pizza_icon.png",
+    "rating": 4.5,
+    "total_reviews": 2100,
+    "delivery_eta_minutes": "35-40",
+    "phone_number": "+12125557766",
+    "phone_uri": "tel:+12125557766",
+    "google_maps_link": "https://goo.gl/maps/def",
+    "active_ai_status": true
+  }
+]
+
+
+
+npm install lucide-react
+
+
+
+
+
+import React from 'react';
+import { MapPin, Phone, BotMessageSquare } from 'lucide-react';
+
+// A simple SVG component for the Google 'G' logo
+const GoogleGLogo = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <path
+      d="M23.766 12.2764c0-.846-.077-1.662-.219-2.4545H12v4.6417h6.618c-.296 1.597-1.173 2.946-2.49 3.852v3.012h3.972c2.323-2.14 3.666-5.296 3.666-9.0511z"
+      fill="#4285F4"
+    />
+    <path
+      d="M12.003 24c3.324 0 6.114-1.102 8.152-2.978l-3.972-3.012c-1.102.739-2.515 1.178-4.18 1.178-3.217 0-5.945-2.172-6.916-5.091H1.055v3.109C3.099 20.651 7.203 24 12.003 24z"
+      fill="#34A853"
+    />
+    <path
+      d="M5.087 14.0974c-.246-.739-.387-1.528-.387-2.3474 0-.819.141-1.608.387-2.3474V6.2936H1.055C.383 7.694 0 9.2749 0 10.95c0 1.675.383 3.256 1.055 4.6564l4.032-3.509z"
+      fill="#FBBC05"
+    />
+    <path
+      d="M12.003 4.8186c1.816 0 3.447.624 4.732 1.846l3.549-3.549C18.113 1.293 15.323 0 12.003 0 7.203 0 3.099 3.348 1.055 7.8414l4.032 3.509c.971-2.919 3.699-5.091 6.916-5.091z"
+      fill="#EA4335"
+    />
+  </svg>
+);
+
+/**
+ * Renders a dynamic restaurant icon.
+ * @param {object} restaurant - The restaurant data object.
+ */
+const RestaurantIcon = ({ restaurant }) => {
+  return (
+    <div className="relative group w-64 rounded-2xl border border-gray-200 p-4 hover:shadow-lg transition-shadow bg-white">
+      {/* AI Status Indicator - Top Right */}
+      {restaurant.active_ai_status && (
+        <div className="absolute -top-2 -right-2 bg-blue-600 text-white p-1.5 rounded-full shadow-md" title="AI-Powered Order Ready">
+          <BotMessageSquare size={16} />
+        </div>
+      )}
+
+      {/* Restaurant Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <img
+          src={restaurant.icon_image_url}
+          alt={restaurant.name}
+          className="w-12 h-12 rounded-lg object-cover border"
+        />
+        <div>
+          <h3 className="font-semibold text-gray-900">{restaurant.name}</h3>
+          <div className="flex items-center gap-1 text-sm text-gray-600">
+            <GoogleGLogo size={16} />
+            <span>{restaurant.rating} ⭐</span>
+            <span className="text-gray-400">|</span>
+            <span>{restaurant.delivery_eta_minutes} min</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons (Phone & Link) */}
+      <div className="flex gap-2">
+        <a
+          href={restaurant.phone_uri}
+          className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 py-2.5 px-4 rounded-lg hover:bg-gray-200 transition-colors"
+          aria-label={`Call ${restaurant.name}`}
+        >
+          <Phone size={18} />
+          Call
+        </a>
+        <a
+          href={restaurant.google_maps_link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+          aria-label={`View ${restaurant.name} on Google Maps`}
+        >
+          <MapPin size={18} />
+          Order
+        </a>
+      </div>
+    </div>
+  );
+};
+
+export default RestaurantIcon;
+
+
+
+import React from 'react';
+import RestaurantIcon from './RestaurantIcon';
+
+// Import the JSON data defined in step 1
+import nearbyRestaurants from './restaurantData.json';
+
+const App = () => {
+  return (
+    <div className="p-8 bg-gray-50 min-h-screen">
+      <header className="mb-10">
+        <h1 className="text-3xl font-bold text-gray-900">
+          Google Food Delivery: Active AI
+        </h1>
+        <p className="text-gray-600">Top restaurants nearby, ready for instant dispatch.</p>
+      </header>
+
+      {/* Grid container for the restaurant icons */}
+      <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {nearbyRestaurants.map((restaurant) => (
+          <RestaurantIcon key={restaurant.place_id} restaurant={restaurant} />
+        ))}
+      </main>
+    </div>
+  );
+};
+
+export default App;
+
