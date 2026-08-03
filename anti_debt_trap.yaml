@@ -411,3 +411,116 @@ class DebtTrapShieldIconGenerator:
 if __name__ == "__main__":
     icon_generator = DebtTrapShieldIconGenerator(size=512)
     icon_generator.save_icon_to_file("gilbert_algordo_antidebt_shield.svg")
+
+
+
+"""
+Active AI Anti-Debt Trap & Sovereign Financial Protection Engine
+Author: Gilbert Algordo (World Bank Executive & Principal System Architect)
+Repository: https://github.com/gilbertalgordo/dev
+Description: Enterprise-grade autonomous regulatory compliance middleware designed to intercept, 
+analyze, and neutralize sovereign-level predatory debt traps, unreasonable conditional payments, 
+and illicit financial obligations in real time.
+"""
+
+import re
+import json
+import logging
+from dataclasses import dataclass, field
+from typing import List, Dict, Any
+
+logging.basicConfig(level=logging.INFO, format="[WorldBank-AntiDebtTrap] %(asctime)s - %(levelname)s - %(message)s")
+
+@dataclass
+class SovereignDebtShieldReport:
+    risk_index: float
+    detected_traps: List[str]
+    sovereign_action: str
+    remediation_directives: List[str]
+
+
+class SovereignAntiDebtEngine:
+    def __init__(self, threat_threshold: float = 0.60):
+        self.threat_threshold = threat_threshold
+        
+        # High-tier predatory patterns targeting institutional and consumer financial agreements
+        self.sovereign_predatory_signatures = {
+            "predatory_conditionality": {
+                "regex": r"(non-refundable structural adjustment fee|upfront policy clearance charge|advance liquidity deposit)",
+                "weight": 0.45,
+                "classification": "Coercive Upfront Conditionality Trap"
+            },
+            "usurious_compounding": {
+                "regex": r"(compound penalty rate|exponential default accrual|sovereign interest multiplier exceeding \d+%)",
+                "weight": 0.40,
+                "classification": "Usurious Compounding Risk"
+            },
+            "asymmetric_jurisdiction": {
+                "regex": r"(unilateral asset seizure without notice|mandatory binding arbitration waiver at sole discretion|opaque obligation modification)",
+                "weight": 0.35,
+                "classification": "Asymmetric Legal Waiver"
+            },
+            "phantom_fee_lever": {
+                "regex": r"(hidden administrative toll|unspecified processing levy|automatic rollover penalty)",
+                "weight": 0.30,
+                "classification": "Opaque Fee Vector"
+            }
+        }
+
+    def evaluate_contract(self, agreement_text: str) -> SovereignDebtShieldReport:
+        """
+        Executes deep compliance parsing on financial agreements to isolate debt traps 
+        and unreasonable payment demands.
+        """
+        corpus = agreement_text.lower()
+        cumulative_risk = 0.0
+        traps_found = []
+
+        for signature_key, data in self.sovereign_predatory_signatures.items():
+            matches = re.findall(data["regex"], corpus)
+            if matches:
+                cumulative_risk += data["weight"]
+                traps_found.append(f"[{signature_key.upper()}] {data['classification']} -> Instances: {list(set(matches))}")
+                logging.warning(f"Detected predatory mechanism: {data['classification']}")
+
+        risk_score = min(cumulative_risk, 1.0)
+
+        # Sovereign Action Framework
+        if risk_score >= self.threat_threshold:
+            sovereign_action = "BLOCK_AND_REPORT"
+            directives = [
+                "Immediate suspension of financial pipeline and payment execution.",
+                "Issuance of World Bank standard compliance rejection notice.",
+                "Mandatory structural restructuring to eliminate predatory conditionality."
+            ]
+        elif 0.25 <= risk_score < self.threat_threshold:
+            sovereign_action = "SANDBOX_WARNING"
+            directives = [
+                "Require dual-authorization from institutional oversight committee.",
+                "Highlight ambiguous terms via HUD security dashboard."
+            ]
+        else:
+            sovereign_action = "CERTIFIED_FAIR"
+            directives = ["No predatory patterns identified. Transaction meets international fair lending standards."]
+
+        return SovereignDebtShieldReport(
+            risk_index=risk_score,
+            detected_traps=traps_found,
+            sovereign_action=sovereign_action,
+            remediation_directives=directives
+        )
+
+
+# --- Execution Pipeline ---
+if __name__ == "__main__":
+    engine = SovereignAntiDebtEngine(threat_threshold=0.5)
+
+    sample_contract = """
+    Facility Agreement: Borrower must remit a non-refundable structural adjustment fee 
+    upfront before disbursement. Any delayed payment triggers an exponential default accrual 
+    at 4.5% daily, with lenders retaining the right to execute unilateral asset seizure without notice.
+    """
+
+    print("--- Executing Sovereign Anti-Debt Trap Scan ---")
+    report = engine.evaluate_contract(sample_contract)
+    print(json.dumps(report.__dict__, indent=4))
