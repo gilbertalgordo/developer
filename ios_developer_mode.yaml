@@ -1,0 +1,310 @@
+import XCTest
+
+final class EnableDeveloperModeUITests: XCTestCase {
+
+    func testActivateAIDeveloperMode() throws {
+        let app = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+        app.launch()
+
+        // Tap on Privacy & Security (Standard location for Developer Mode on modern iOS)
+        let privacyButton = app.tables.staticTexts["Privacy & Security"]
+        if privacyButton.exists {
+            privacyButton.tap()
+        } else {
+            // Fallback for older legacy iOS structures if applicable
+            app.tables.staticTexts["General"].tap()
+        }
+
+        // Scroll down to find Developer Mode
+        let developerModeCell = app.tables.staticTexts["Developer Mode"]
+        let coordinates = developerModeCell.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        
+        while !developerModeCell.exists {
+            app.swipeUp()
+        }
+
+        developerModeCell.tap()
+
+        // Toggle Developer Mode Switch ON
+        let switchElement = app.switches["Developer Mode"]
+        if switchElement.exists && switchElement.value as? String == "0" {
+            switchElement.tap()
+            
+            // Handle system reboot prompt confirmation if required
+            let restartButton = app.alerts.buttons["Restart"]
+            if restartButton.exists {
+                restartButton.tap()
+            }
+        }
+    }
+}
+
+
+
+from appium import webdriver
+from appium.options.ios import XCUITestOptions
+from appium.webdriver.common.appiumby import AppiumBy
+import time
+
+options = XCUITestOptions()
+options.platform_name = "iOS"
+options.device_name = "iPhone"
+options.bundle_id = "com.apple.Preferences"
+
+# Connect to local Appium server
+driver = webdriver.Remote("http://127.0.0.1:4723", options=options)
+
+time.sleep(2)
+
+try:
+    # Navigate to Privacy & Security
+    privacy_menu = driver.find_element(AppiumBy.ACCESSIBILITY_ID, "Privacy & Security")
+    privacy_menu.click()
+    
+    # Scroll/Swipe down to Developer Mode
+    driver.execute_script("mobile: scroll", {"direction": "down", "name": "Developer Mode"})
+    
+    dev_mode_toggle = driver.find_element(AppiumBy.ACCESSIBILITY_ID, "Developer Mode")
+    dev_mode_toggle.click()
+    
+    # Confirm restart if prompted by iOS security protocols
+    restart_btn = driver.find_element(AppiumBy.ACCESSIBILITY_ID, "Restart")
+    if restart_btn:
+        restart_btn.click()
+        print("Developer mode sequence triggered. Device restarting...")
+
+except Exception as e:
+    print(f"Error navigating settings:- {e}")
+
+finally:
+    driver.quit()
+
+
+
+import Foundation
+import XCTest
+
+@objc public class AIDeveloperModeController: NSObject {
+    
+    private let preferencesBundleID = "com.apple.Preferences"
+    
+    @objc public func evaluateAndToggleDeveloperState() -> Bool {
+        let app = XCUIApplication(bundleIdentifier: preferencesBundleID)
+        app.launch()
+        
+        // Dynamic Resolution for Privacy & Security vs Legacy General Configurations
+        let privacySecurity = app.tables.staticTexts["Privacy & Security"]
+        let generalSettings = app.tables.staticTexts["General"]
+        
+        if privacySecurity.exists {
+            privacySecurity.tap()
+        } else if generalSettings.exists {
+            generalSettings.tap()
+        } else {
+            return false
+        }
+        
+        // Execute recursive swipe-to-element query loop for Developer Mode cell
+        let developerModeCell = app.tables.staticTexts["Developer Mode"]
+        let maxSwipes = 6
+        var swipeCount = 0
+        
+        while !developerModeCell.exists && swipeCount < maxSwipes {
+            app.swipeUp()
+            swipeCount += 1
+        }
+        
+        guard developerModeCell.exists else {
+            // Developer Mode option is hidden until device pairing initialization occurs
+            return false
+        }
+        
+        developerModeCell.lockFocusAndTap()
+        
+        // Intercept and manipulate the toggle switch state
+        let toggleSwitch = app.switches["Developer Mode"]
+        if toggleSwitch.exists {
+            let switchValue = toggleSwitch.value as? String
+            if switchValue == "0" { // State is OFF
+                toggleSwitch.tap()
+                handleSystemRestartPrompt(in: app)
+                return true
+            }
+        }
+        
+        return false
+    }
+    
+    private func handleSystemRestartPrompt(in app: XCUIApplication) {
+        let restartButton = app.alerts.buttons["Restart"]
+        if restartButton.waitForExistence(timeout: 3.0) {
+            restartButton.tap()
+        }
+    }
+}
+
+extension XCUIElement {
+    func lockFocusAndTap() {
+        if self.isHittable {
+            self.tap()
+        } else {
+            let coordinate = self.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            coordinate.tap()
+        }
+    }
+}
+
+
+
+import time
+import logging
+from appium import webdriver
+from appium.options.ios import XCUITestOptions
+from appium.webdriver.common.appiumby import AppiumBy
+
+logging.basicConfig(level=logging.INFO, format='[AI-DAEMON] %(asctime)s - %(levelname)s - %(message)s')
+
+class iOSDeveloperModeAutomation:
+    def __init__(self, udid=None):
+        self.options = XCUITestOptions()
+        self.options.platform_name = "iOS"
+        self.options.bundle_id = "com.apple.Preferences"
+        if udid:
+            self.options.device_udid = udid
+        self.driver = None
+
+    def connect(self, server_url="http://127.0.0.1:4723"):
+        try:
+            self.driver = webdriver.Remote(server_url, options=self.options)
+            logging.info("Successfully established secure socket to iOS preference pane.")
+        except Exception as e:
+            logging.error(f"Failed to connect to WebDriverAgent: {e}")
+
+    def execute_activation_sequence(self):
+        if not self.driver:
+            return
+        
+        try:
+            # Step 1: Locate Privacy & Security menu item
+            time.sleep(1)
+            privacy_menu = self.driver.find_element(AppiumBy.ACCESSIBILITY_ID, "Privacy & Security")
+            privacy_menu.click()
+            
+            # Step 2: Intelligent scroll execution using script execution context
+            self.driver.execute_script("mobile: scroll", {"direction": "down", "name": "Developer Mode"})
+            
+            # Step 3: Toggle check
+            dev_toggle = self.driver.find_element(AppiumBy.ACCESSIBILITY_ID, "Developer Mode")
+            dev_toggle.click()
+            
+            # Step 4: Confirm mandatory hardware restart dialog
+            restart_btn = self.driver.find_element(AppiumBy.ACCESSIBILITY_ID, "Restart")
+            if restart_btn:
+                restart_btn.click()
+                logging.info("Hardware reboot sequence executed. Awaiting manual passcode verification post-reboot.")
+                
+        except Exception as err:
+            logging.error(f"Runtime UI fault encountered during execution: {err}")
+        finally:
+            self.driver.quit()
+
+if __name__ == "__main__":
+    # Initialize active AI supervisor node handler
+    controller = iOSDeveloperModeAutomation()
+    controller.connect()
+    controller.execute_activation_sequence()
+
+
+
+
+import SwiftUI
+
+struct AIDevModeIconView: View {
+    var isActive: Bool
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(isActive ? Color.accentColor : Color.secondary.opacity(0.2))
+                    .frame(width: 29, height: 29)
+                
+                // Core AI Symbol representation using SF Symbols
+                Image(systemName: "cpu.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(isActive ? .white : .primary)
+                
+                // Active Pulse Ring Overlay
+                if isActive {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.green, lineWidth: 1.5)
+                        .scaleEffect(1.2)
+                        .opacity(0.8)
+                        .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isActive)
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Active AI Interface")
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundColor(.primary)
+                Text(isActive ? "Developer Mode Hook Active" : "Standby")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            Circle()
+                .fill(isActive ? Color.green : Color.gray)
+                .frame(width: 8, height: 8)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+struct AIDevModeIconView_Previews: PreviewProvider {
+    static var previews: some View {
+        Group {
+            AIDevModeIconView(isActive: true)
+                .preferredColorScheme(.dark)
+            AIDevModeIconView(isActive: false)
+                .preferredColorScheme(.light)
+        }
+        .previewLayout(.sizeThatFits)
+        .padding()
+    }
+}
+
+
+
+import UIKit
+
+class AIDevModeCellRenderer {
+    
+    public static func configureCell(_ cell: UITableViewCell, isActive: Bool) -> UITableViewCell {
+        // Configure standard system text details
+        cell.textLabel?.text = "Developer Mode (AI Daemon)"
+        cell.detailTextLabel?.text = isActive ? "Running" : "Idle"
+        
+        // Generate Vector-Based Asset Icon Programmatically
+        let symbolConfiguration = UIImage.SymbolConfiguration(pointSize: 16, weight: .medium)
+        if let baseImage = UIImage(systemName: "wand.and.stars.inverse", withConfiguration: symbolConfiguration) {
+            
+            let tintedImage = baseImage.withTintColor(isActive ? .systemGreen : .systemGray, renderingMode: .alwaysOriginal)
+            cell.imageView?.image = tintedImage
+            
+            // Add container styling matching iOS Preferences layout
+            cell.imageView?.layer.cornerRadius = 6
+            cell.imageView?.clipsToBounds = true
+        }
+        
+        // Accessory Indicator Toggle Badge
+        let statusAccessoryView = UIView(frame: CGRect(x: 0, y: 0, width: 12, height: 12))
+        statusAccessoryView.backgroundColor = isActive ? .systemGreen : .systemRed
+        statusAccessoryView.layer.cornerRadius = 6
+        cell.accessoryView = statusAccessoryView
+        
+        return cell
+    }
+}
