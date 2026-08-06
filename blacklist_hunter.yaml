@@ -1,0 +1,569 @@
+import asyncio
+import ipaddress
+import json
+import logging
+import aiohttp
+from datetime import datetime
+
+# Configure structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("BlacklistHunterAI")
+
+class ActiveAIBlacklistHunter:
+    def __init__(self, threshold: float = 0.75):
+        self.threshold = threshold
+        self.active_blocklist = set()
+        self.susposity_scores = {}
+
+    def analyze_heuristics(self, log_entry: dict) -> float:
+        """
+        Lightweight active AI scoring mechanism evaluating multiple vectors:
+        - Failed authentication attempts
+        - Request frequency anomalies
+        - Malicious user-agent signatures
+        """
+        score = 0.0
+        
+        # Factor 1: Failed logins or unauthorized actions
+        if log_entry.get("status_code") in [401, 403]:
+            score += 0.3
+            
+        # Factor 2: Known exploit scanners / suspicious user agents
+        ua = log_entry.get("user_agent", "").lower()
+        malicious_keywords = ["sqlmap", "nikto", "nmap", "masscan", "zgrab", "dirbuster"]
+        if any(keyword in malicious_keywords for keyword in malicious_keywords if keyword in ua):
+            score += 0.5
+
+        # Factor 3: Rapid-fire requests (simulated rate-spike indicator)
+        if log_entry.get("request_rate_per_min", 0) > 120:
+            score += 0.4
+
+        return min(score, 1.0)
+
+    async def verify_external_threat_intel(self, ip_address: str) -> bool:
+        """
+        Optional asynchronous check against public or custom threat intel feeds.
+        Placeholder hook for live API integration.
+        """
+        try:
+            # Example asynchronous HTTP lookup simulation
+            async with aiohttp.ClientSession() as session:
+                # Replace with real API endpoint e.g., AbuseIPDB or custom intel gateway
+                # async with session.get(f"https://api.threatintel.example/v1/check/{ip_address}") as resp:
+                #     data = await resp.json()
+                #     return data.get("is_blacklisted", False)
+            return False
+        except Exception as e:
+            logger.error(f"Threat intel lookup failed for {ip_address}: {e}")
+            return False
+
+    async def evaluate_and_hunt(self, log_entry: dict):
+        """
+        Core active processing loop for incoming traffic signals.
+        """
+        ip = log_entry.get("ip")
+        if not ip:
+            return
+
+        try:
+            # Validate IP format
+            ip_obj = ipaddress.ip_address(ip)
+            if ip_obj.is_private or ip_obj.is_loopback:
+                return  # Skip internal network traffic
+        except ValueError:
+            logger.warning(f"Malformed IP received: {ip}")
+            return
+
+        if ip in self.active_blocklist:
+            return
+
+        # Calculate AI heuristic score
+        ai_score = self.analyze_heuristics(log_entry)
+        
+        # Accumulate score state
+        current_score = self.susposity_scores.get(ip, 0.0) + ai_score
+        self.susposity_scores[ip] = current_score
+
+        logger.debug(f"Evaluated IP {ip} | Score Increment: {ai_score} | Cumulative: {current_score}")
+
+        # Trigger active hunt response if threshold crossed
+        if current_score >= self.threshold or await self.verify_external_threat_intel(ip):
+            await self.enforce_blacklist(ip, current_score)
+
+    async def enforce_blacklist(self, ip: str, score: float):
+        """
+        Action layer: Adds IP to active blocklist and pushes defensive rules.
+        """
+        if ip not in self.active_blocklist:
+            self.active_blocklist.add(ip)
+            logger.critical(f"🔒 [BLOCKLIST APPLIED] Threat isolated: IP {ip} with risk score {score:.2f}")
+            
+            # Hook into system-level firewalls (e.g., iptables, Cloudflare API, or Nginx map files)
+            await self.sync_firewall_rule(ip)
+
+    async def sync_firewall_rule(self, ip: str):
+        """
+        Simulates writing/syncing rules to edge firewalls or blocklist configurations.
+        """
+        rule_payload = {
+            "action": "BLOCK",
+            "ip": ip,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        # In production, write to an automated JSON/YAML ruleset or execute subprocess shell command:
+        # e.g., subprocess.run(["iptables", "-A", "INPUT", "-s", ip, "-j", "DROP"])
+        logger.info(f"Firewall synchronization completed for target: {json.dumps(rule_payload)}")
+
+# Simulation Harness
+async def simulate_traffic_stream(hunter: ActiveAIBlacklistHunter):
+    sample_traffic = [
+        {"ip": "192.0.2.45", "status_code": 200, "user_agent": "Mozilla/5.0", "request_rate_per_min": 10},
+        {"ip": "203.0.113.88", "status_code": 403, "user_agent": "sqlmap/1.6-dev", "request_rate_per_min": 150},
+        {"ip": "198.51.100.14", "status_code": 401, "user_agent": "Nikto scanner", "request_rate_per_min": 90},
+        {"ip": "203.0.113.88", "status_code": 403, "user_agent": "sqlmap/1.6-dev", "request_rate_per_min": 200},
+    ]
+
+    for log in sample_traffic:
+        await hunter.evaluate_and_hunt(log)
+        await asyncio.sleep(0.5)
+
+if __name__ == "__main__":
+    hunter_ai = ActiveAIBlacklistHunter(threshold=0.75)
+    asyncio.run(simulate_traffic_stream(hunter_ai))
+
+
+
+import asyncio
+import ipaddress
+import json
+import logging
+import time
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Set
+import aiohttp
+from cachetools import TTLCache
+
+# Configure advanced structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] [%(name)s] (Thread-ID: %(thread)d): %(message)s"
+)
+logger = logging.getLogger("AdvancedBlacklistHunterAI")
+
+@dataclass
+class ThreatEvent:
+    ip: str
+    status_code: int
+    user_agent: str
+    request_rate_per_min: int
+    endpoint: str
+    payload_size: int
+    timestamp: float = field(default_factory=time.time)
+
+@dataclass
+class ThreatProfile:
+    ip: str
+    risk_score: float
+    incident_count: int
+    first_seen: float
+    last_seen: float
+    vectors: Set[str] = field(default_factory=set)
+
+class AdvancedActiveAIHunter:
+    def __init__(self, 
+                 score_threshold: float = 0.80, 
+                 decay_window_seconds: int = 3600,
+                 max_tracked_ips: int = 50000):
+        self.score_threshold = score_threshold
+        self.decay_window = decay_window_seconds
+        
+        # High-performance TTL cache for tracking active scores and sliding window memory
+        self.threat_cache: TTLCache = TTLCache(maxsize=max_tracked_ips, ttl=self.decay_window)
+        self.active_blocklist: Set[str] = set()
+        
+        # Asynchronous session pool for external intelligence feeds
+        self.session: Optional[aiohttp.ClientSession] = None
+
+    async class AsyncSessionManager:
+        def __init__(self, outer):
+            self.outer = outer
+        async def __aenter__(self):
+            self.outer.session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=3.5),
+                headers={"User-Agent": "AdvancedBlacklistHunterAI/2.6"}
+            )
+            return self.outer
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            if self.outer.session:
+                await self.outer.session.close()
+
+    def _calculate_vector_heuristics(self, event: ThreatEvent) -> tuple[float, Set[str]]:
+        """
+        Advanced Multi-Vector Heuristics & ML Feature Extraction Simulation.
+        Evaluates structural deviations, signature matrices, and behavioral velocity.
+        """
+        score = 0.0
+        vectors = set()
+
+        # Vector 1: Protocol Signature Anomaly (Scanner/Bot signatures)
+        ua = event.user_agent.lower()
+        exploit_signatures = ["sqlmap", "nikto", "nmap", "masscan", "zgrab", "dirbuster", "nuclei", "gobuster"]
+        if any(sig in ua for sig in exploit_signatures):
+            score += 0.55
+            vectors.add("MALICIOUS_SIGNATURE_AGENT")
+
+        # Vector 2: Volumetric Traffic Spike (DDoS / Brute Force indicator)
+        if event.request_rate_per_min > 100:
+            rate_factor = min((event.request_rate_per_min / 300.0), 0.4)
+            score += rate_factor
+            vectors.add("VOLUMETRIC_ANOMALY_RATE")
+
+        # Vector 3: Error Rate Probing (Unauthorized or Forbidden traversal attempts)
+        if event.status_code in {401, 403, 404, 429}:
+            score += 0.25
+            vectors.add("PROBING_ERROR_TRAVERSAL")
+
+        # Vector 4: Suspicious Payload Profiling (Exfiltration or Injection vector sizes)
+        if event.payload_size > 4096 and event.endpoint in {"/api/v1/auth", "/login", "/execute"}:
+            score += 0.30
+            vectors.add("SUSPICIOUS_PAYLOAD_STRUCTURE")
+
+        return min(score, 1.0), vectors
+
+    async def query_reputation_networks(self, ip: str) -> bool:
+        """
+        Queries live external threat intel feeds asynchronously with circuit breaking.
+        """
+        if not self.session:
+            return False
+        
+        try:
+            # Enterprise Threat Feed API integration hook (e.g., AbuseIPDB / AlienVault OTX)
+            api_endpoint = f"https://httpbin.org/delay/0.1" # Simulation placeholder target
+            async with self.session.get(api_endpoint) as response:
+                if response.status == 200:
+                    # Implement actual threat intel evaluation logic here
+                    return False
+        except asyncio.TimeoutError:
+            logger.warning(f"Threat Intelligence Feed timeout for IP: {ip}")
+        except Exception as e:
+            logger.error(f"Error communicating with reputation engine for {ip}: {e}")
+        
+        return False
+
+    async def ingest_event(self, event: ThreatEvent):
+        """
+        Core asynchronous ingestion pipeline processing traffic streams with stateful memory.
+        """
+        try:
+            ip_obj = ipaddress.ip_address(event.ip)
+            if ip_obj.is_private or ip_obj.is_loopback:
+                return
+        except ValueError:
+            logger.warning(f"Discarding malformed IP address format: {event.ip}")
+            return
+
+        if event.ip in self.active_blocklist:
+            return
+
+        # Compute heuristic increments
+        heuristic_score, vectors = self._calculate_vector_heuristics(event)
+        
+        # Retrieve or initialize sliding window profile
+        current_time = time.time()
+        profile: ThreatProfile = self.threat_cache.get(event.ip)
+        
+        if profile is None:
+            profile = ThreatProfile(
+                ip=event.ip,
+                risk_score=heuristic_score,
+                incident_count=1,
+                first_seen=current_time,
+                last_seen=current_time,
+                vectors=vectors
+            )
+        else:
+            profile.risk_score = min(profile.risk_score + heuristic_score, 2.0) # Accumulative state
+            profile.incident_count += 1
+            profile.last_seen = current_time
+            profile.vectors.update(vectors)
+
+        # Update cache state
+        self.threat_cache[event.ip] = profile
+
+        logger.debug(
+            f"Evaluated Target: {event.ip} | Vector Score: {heuristic_score:.2f} | "
+            f"Cumulative Risk: {profile.risk_score:.2f} | Signatures: {list(profile.vectors)}"
+        )
+
+        # Active Enforcement Evaluation Trigger
+        external_flag = await self.query_reputation_networks(event.ip)
+        if profile.risk_score >= self.score_threshold or external_flag:
+            await self.execute_active_mitigation(profile)
+
+    async def execute_active_mitigation(self, profile: ThreatProfile):
+        """
+        Applies real-time active countermeasures, updates edge blocklists, and logs telemetry.
+        """
+        if profile.ip not in self.active_blocklist:
+            self.active_blocklist.add(profile.ip)
+            
+            mitigation_telemetry = {
+                "action": "AUTOMATED_EDGE_BLOCK",
+                "target_ip": profile.ip,
+                "cumulative_risk_score": round(profile.risk_score, 3),
+                "total_incidents": profile.incident_count,
+                "attack_vectors": list(profile.vectors),
+                "epoch_timestamp": profile.last_seen
+            }
+
+            logger.critical(f"🛡️ [ACTIVE MITIGATION ENFORCED] ➔ {json.dumps(mitigation_telemetry)}")
+            
+            # Asynchronous hooks for edge firewalls (e.g., Cloudflare API, AWS WAF, or nftables)
+            await self._push_edge_firewall_rule(mitigation_telemetry)
+
+    async def _push_edge_firewall_rule(self, telemetry: dict):
+        """
+        Simulates atomic network synchronization to edge protection nodes.
+        """
+        await asyncio.sleep(0.05) # Simulated non-blocking network I/O
+        logger.info(f"Edge firewall successfully synchronized rule update for: {telemetry['target_ip']}")
+
+# Advanced Simulation Harness
+async def run_advanced_simulation():
+    hunter = AdvancedActiveAIHunter(score_threshold=0.75)
+    
+    async with hunter.AsyncSessionManager() as active_hunter:
+        live_stream = [
+            ThreatEvent(ip="185.199.108.153", status_code=200, user_agent="Mozilla/5.0", request_rate_per_min=12, endpoint="/index", payload_size=512),
+            ThreatEvent(ip="45.154.255.88", status_code=403, user_agent="sqlmap/1.7-dev (http://sqlmap.org)", request_rate_per_min=180, endpoint="/api/v1/users", payload_size=8192),
+            ThreatEvent(ip="45.154.255.88", status_code=401, user_agent="sqlmap/1.7-dev (http://sqlmap.org)", request_rate_per_min=240, endpoint="/login", payload_size=10240),
+            ThreatEvent(ip="198.51.100.99", status_code=404, user_agent="Nuclei - Open-Source Vulnerability Scanner", request_rate_per_min=95, endpoint="/admin/config.env", payload_size=128),
+        ]
+
+        # Process stream concurrently using asyncio.gather
+        tasks = [active_hunter.ingest_event(event) for event in live_stream]
+        await asyncio.gather(*tasks)
+
+if __name__ == "__main__":
+    asyncio.run(run_advanced_simulation())
+
+
+
+import asyncio
+import ipaddress
+import json
+import logging
+import time
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Set
+import aiohttp
+from cachetools import TTLCache
+
+# Configure advanced structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] [%(name)s] (Thread-ID: %(thread)d): %(message)s"
+)
+logger = logging.getLogger("AdvancedBlacklistHunterAI")
+
+@dataclass
+class ThreatEvent:
+    ip: str
+    status_code: int
+    user_agent: str
+    request_rate_per_min: int
+    endpoint: str
+    payload_size: int
+    timestamp: float = field(default_factory=time.time)
+
+@dataclass
+class ThreatProfile:
+    ip: str
+    risk_score: float
+    incident_count: int
+    first_seen: float
+    last_seen: float
+    vectors: Set[str] = field(default_factory=set)
+
+class AdvancedActiveAIHunter:
+    def __init__(self, 
+                 score_threshold: float = 0.80, 
+                 decay_window_seconds: int = 3600,
+                 max_tracked_ips: int = 50000):
+        self.score_threshold = score_threshold
+        self.decay_window = decay_window_seconds
+        
+        # High-performance TTL cache for tracking active scores and sliding window memory
+        self.threat_cache: TTLCache = TTLCache(maxsize=max_tracked_ips, ttl=self.decay_window)
+        self.active_blocklist: Set[str] = set()
+        
+        # Asynchronous session pool for external intelligence feeds
+        self.session: Optional[aiohttp.ClientSession] = None
+
+    async class AsyncSessionManager:
+        def __init__(self, outer):
+            self.outer = outer
+        async def __aenter__(self):
+            self.outer.session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=3.5),
+                headers={"User-Agent": "AdvancedBlacklistHunterAI/2.6"}
+            )
+            return self.outer
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            if self.outer.session:
+                await self.outer.session.close()
+
+    def _calculate_vector_heuristics(self, event: ThreatEvent) -> tuple[float, Set[str]]:
+        """
+        Advanced Multi-Vector Heuristics & ML Feature Extraction Simulation.
+        Evaluates structural deviations, signature matrices, and behavioral velocity.
+        """
+        score = 0.0
+        vectors = set()
+
+        # Vector 1: Protocol Signature Anomaly (Scanner/Bot signatures)
+        ua = event.user_agent.lower()
+        exploit_signatures = ["sqlmap", "nikto", "nmap", "masscan", "zgrab", "dirbuster", "nuclei", "gobuster"]
+        if any(sig in ua for sig in exploit_signatures):
+            score += 0.55
+            vectors.add("MALICIOUS_SIGNATURE_AGENT")
+
+        # Vector 2: Volumetric Traffic Spike (DDoS / Brute Force indicator)
+        if event.request_rate_per_min > 100:
+            rate_factor = min((event.request_rate_per_min / 300.0), 0.4)
+            score += rate_factor
+            vectors.add("VOLUMETRIC_ANOMALY_RATE")
+
+        # Vector 3: Error Rate Probing (Unauthorized or Forbidden traversal attempts)
+        if event.status_code in {401, 403, 404, 429}:
+            score += 0.25
+            vectors.add("PROBING_ERROR_TRAVERSAL")
+
+        # Vector 4: Suspicious Payload Profiling (Exfiltration or Injection vector sizes)
+        if event.payload_size > 4096 and event.endpoint in {"/api/v1/auth", "/login", "/execute"}:
+            score += 0.30
+            vectors.add("SUSPICIOUS_PAYLOAD_STRUCTURE")
+
+        return min(score, 1.0), vectors
+
+    async def query_reputation_networks(self, ip: str) -> bool:
+        """
+        Queries live external threat intel feeds asynchronously with circuit breaking.
+        """
+        if not self.session:
+            return False
+        
+        try:
+            # Enterprise Threat Feed API integration hook (e.g., AbuseIPDB / AlienVault OTX)
+            api_endpoint = f"https://httpbin.org/delay/0.1" # Simulation placeholder target
+            async with self.session.get(api_endpoint) as response:
+                if response.status == 200:
+                    # Implement actual threat intel evaluation logic here
+                    return False
+        except asyncio.TimeoutError:
+            logger.warning(f"Threat Intelligence Feed timeout for IP: {ip}")
+        except Exception as e:
+            logger.error(f"Error communicating with reputation engine for {ip}: {e}")
+        
+        return False
+
+    async def ingest_event(self, event: ThreatEvent):
+        """
+        Core asynchronous ingestion pipeline processing traffic streams with stateful memory.
+        """
+        try:
+            ip_obj = ipaddress.ip_address(event.ip)
+            if ip_obj.is_private or ip_obj.is_loopback:
+                return
+        except ValueError:
+            logger.warning(f"Discarding malformed IP address format: {event.ip}")
+            return
+
+        if event.ip in self.active_blocklist:
+            return
+
+        # Compute heuristic increments
+        heuristic_score, vectors = self._calculate_vector_heuristics(event)
+        
+        # Retrieve or initialize sliding window profile
+        current_time = time.time()
+        profile: ThreatProfile = self.threat_cache.get(event.ip)
+        
+        if profile is None:
+            profile = ThreatProfile(
+                ip=event.ip,
+                risk_score=heuristic_score,
+                incident_count=1,
+                first_seen=current_time,
+                last_seen=current_time,
+                vectors=vectors
+            )
+        else:
+            profile.risk_score = min(profile.risk_score + heuristic_score, 2.0) # Accumulative state
+            profile.incident_count += 1
+            profile.last_seen = current_time
+            profile.vectors.update(vectors)
+
+        # Update cache state
+        self.threat_cache[event.ip] = profile
+
+        logger.debug(
+            f"Evaluated Target: {event.ip} | Vector Score: {heuristic_score:.2f} | "
+            f"Cumulative Risk: {profile.risk_score:.2f} | Signatures: {list(profile.vectors)}"
+        )
+
+        # Active Enforcement Evaluation Trigger
+        external_flag = await self.query_reputation_networks(event.ip)
+        if profile.risk_score >= self.score_threshold or external_flag:
+            await self.execute_active_mitigation(profile)
+
+    async def execute_active_mitigation(self, profile: ThreatProfile):
+        """
+        Applies real-time active countermeasures, updates edge blocklists, and logs telemetry.
+        """
+        if profile.ip not in self.active_blocklist:
+            self.active_blocklist.add(profile.ip)
+            
+            mitigation_telemetry = {
+                "action": "AUTOMATED_EDGE_BLOCK",
+                "target_ip": profile.ip,
+                "cumulative_risk_score": round(profile.risk_score, 3),
+                "total_incidents": profile.incident_count,
+                "attack_vectors": list(profile.vectors),
+                "epoch_timestamp": profile.last_seen
+            }
+
+            logger.critical(f"🛡️ [ACTIVE MITIGATION ENFORCED] ➔ {json.dumps(mitigation_telemetry)}")
+            
+            # Asynchronous hooks for edge firewalls (e.g., Cloudflare API, AWS WAF, or nftables)
+            await self._push_edge_firewall_rule(mitigation_telemetry)
+
+    async def _push_edge_firewall_rule(self, telemetry: dict):
+        """
+        Simulates atomic network synchronization to edge protection nodes.
+        """
+        await asyncio.sleep(0.05) # Simulated non-blocking network I/O
+        logger.info(f"Edge firewall successfully synchronized rule update for: {telemetry['target_ip']}")
+
+# Advanced Simulation Harness
+async def run_advanced_simulation():
+    hunter = AdvancedActiveAIHunter(score_threshold=0.75)
+    
+    async with hunter.AsyncSessionManager() as active_hunter:
+        live_stream = [
+            ThreatEvent(ip="185.199.108.153", status_code=200, user_agent="Mozilla/5.0", request_rate_per_min=12, endpoint="/index", payload_size=512),
+            ThreatEvent(ip="45.154.255.88", status_code=403, user_agent="sqlmap/1.7-dev (http://sqlmap.org)", request_rate_per_min=180, endpoint="/api/v1/users", payload_size=8192),
+            ThreatEvent(ip="45.154.255.88", status_code=401, user_agent="sqlmap/1.7-dev (http://sqlmap.org)", request_rate_per_min=240, endpoint="/login", payload_size=10240),
+            ThreatEvent(ip="198.51.100.99", status_code=404, user_agent="Nuclei - Open-Source Vulnerability Scanner", request_rate_per_min=95, endpoint="/admin/config.env", payload_size=128),
+        ]
+
+        # Process stream concurrently using asyncio.gather
+        tasks = [active_hunter.ingest_event(event) for event in live_stream]
+        await asyncio.gather(*tasks)
+
+if __name__ == "__main__":
+    asyncio.run(run_advanced_simulation())
