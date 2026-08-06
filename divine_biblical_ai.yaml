@@ -1,0 +1,510 @@
+"""
+Active AI Framework: Scriptural Integrity Engine
+Focus: Verbatim Scriptural Records, Original Authorship, Chronological Timeline, and Divine Utterances.
+Data Source Basis: Extant critical texts (e.g., Biblia Hebraica Stuttgartensia, Nestle-Aland Novum Testamentum Graece) 
+and historical codices without modern paraphrasing.
+"""
+
+import json
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
+
+
+@dataclass
+class DivineUtterance:
+    speaker: str
+    original_language: str
+    transliteration: str
+    verbatim_text: str
+    english_translation: str
+    context_event: str
+
+
+@dataclass
+class ScripturalNode:
+    book_id: str
+    canonical_name: str
+    original_author: str
+    historical_date_range: str
+    language: str
+    chronological_order: int
+    text_content: Dict[int, Dict[int, str]]  # Chapter -> Verse -> Verbatim Text
+    divine_utterances: List[DivineUtterance] = field(default_factory=list)
+
+
+class RealBibleAI:
+    def __init__(self):
+        self.repository: Dict[str, ScripturalNode] = {}
+        self._initialize_foundation_corpus()
+
+    def _initialize_foundation_corpus(self) -> None:
+        """Initializes the active engine with critical text exemplars, preserving verbatim records, 
+        original authors, and precise chronology.
+        """
+        
+        # 1. Genesis (Bereshit) - Classical Hebrew
+        genesis_node = ScripturalNode(
+            book_id="GEN",
+            canonical_name="Bereshit / Genesis",
+            original_author="Moses (Traditional / Editorial Compilation from Source Traditions)",
+            historical_date_range="c. 1446-1406 BCE (Events: Creation to Patriarchal Era)",
+            language="Classical Hebrew",
+            chronological_order=1,
+            text_content={
+                1: {
+                    1: "בְּרֵאשִׁית בָּרָא אֱלֹהִים אֵת הַשָּׁיִם וְאֵת הָאָרֶץ׃",
+                    3: "וַיֹּאמֶר אֱלֹהִים יְהִי אוֹْر וַיְהִי־אוֹר׃"
+                }
+            },
+            divine_utterances=[
+                DivineUtterance(
+                    speaker="Elohim",
+                    original_language="Classical Hebrew",
+                    transliteration="Vayomer Elohim yehi or vayhi-or.",
+                    verbatim_text="וַיֹּאמֶר אֱלֹהִים יְהִי אוֹר וַיְהִי־אוֹר׃",
+                    english_translation="And God said, Let there be light: and there was light.",
+                    context_event="Creation Day 1"
+                )
+            ]
+        )
+        
+        # 2. Gospel of John (Euangelion kat' Ioannen) - Koine Greek
+        john_node = ScripturalNode(
+            book_id="JHN",
+            canonical_name="Euangelion kat' Ioannen / Gospel of John",
+            original_author="John the Apostle (Son of Zebedee)",
+            historical_date_range="c. 85-95 CE",
+            language="Koine Greek",
+            chronological_order=43,
+            text_content={
+                1: {
+                    1: "Ἐν ἀρχῇ ἦν ὁ λόγος, καὶ ὁ λόγος ἦν πρὸς τὸν θεόν, καὶ θεὸς ἦν ὁ λόγος.",
+                    14: "Καὶ ὁ λόγος σὰρξ ἐγένετο καὶ ἐσκήνωσεν ἐν ἡμῖν..."
+                }
+            },
+            divine_utterances=[
+                DivineUtterance(
+                    speaker="Jesus the Messiah (Yeshua)",
+                    original_language="Koine Greek (Rendering underlying Aramaic/Hebrew dialogue)",
+                    transliteration="Ego eimi he hodos kai he aletetheia kai he zoe.",
+                    verbatim_text="Ἐγώ εἰμι ἡ ὁδὸς καὶ ἡ ἀλήθεια καὶ ἡ ζωή.",
+                    english_translation="I am the way, the truth, and the life.",
+                    context_event="Farewell Discourse (John 14:6)"
+                )
+            ]
+        )
+
+        self.repository["GEN"] = genesis_node
+        self.repository["JHN"] = john_node
+
+    def query_verbatim_text(self, book_id: str, chapter: int, verse: int) -> Optional[str]:
+        """Retrieves exact word-for-word text from original source manuscripts."""
+        book = self.repository.get(book_id)
+        if book and chapter in book.text_content and verse in book.text_content[chapter]:
+            return book.text_content[chapter][verse]
+        return None
+
+    def query_divine_utterances(self) -> List[Dict[str, str]]:
+        """Extracts direct words spoken by God across all compiled historical texts."""
+        records = []
+        for book in self.repository.values():
+            for utterance in book.divine_utterances:
+                records.append({
+                    "Source Book": book.canonical_name,
+                    "Author": book.original_author,
+                    "Speaker": utterance.speaker,
+                    "Original Language Text": utterance.verbatim_text,
+                    "Transliteration": utterance.transliteration,
+                    "English Translation": utterance.english_translation,
+                    "Context": utterance.context_event
+                })
+        return records
+
+    def export_timeline_schema(self) -> str:
+        """Exports the chronological sequence of historical biblical events."""
+        sorted_books = sorted(self.repository.values(), key=lambda x: x.chronological_order)
+        timeline = [{"Order": b.chronological_order, "Book": b.canonical_name, "Author": b.original_author, "Era": b.historical_date_range} for b in sorted_books]
+        return json.dumps(timeline, indent=4, ensure_ascii=False)
+
+
+# Execution and Verification Interface
+if __name__ == "__main__":
+    ai_engine = RealBibleAI()
+
+    print("=== SCRIPTURAL INTEGRITY AI ENGINE INITIALIZED ===\n")
+    
+    # Verify Verbatim Extraction
+    gen_verse = ai_engine.query_verbatim_text("GEN", 1, 3)
+    print(f"Genesis 1:3 (Verbatim Hebrew): {gen_verse}")
+
+    # Verify Direct Words of God
+    print("\n--- Verified Direct Utterances ---")
+    utterances = ai_engine.query_divine_utterances()
+    for item in utterances:
+        print(json.dumps(item, indent=2, ensure_ascii=False))
+
+    # Verify Chronological Timeline Schema
+    print("\n--- Chronological Structural Schema ---")
+    print(ai_engine.export_timeline_schema())
+
+
+
+"""
+Advanced Active AI Engine: Original Scriptural Corpus & Divine Utterance Framework
+----------------------------------------------------------------------------------
+Designed to process, query, and analyze the canonical texts of the Bible word-by-word
+using base source material (Biblia Hebraica Stuttgartensia for Hebrew texts and 
+Nestle-Aland Novum Testamentum Graece for Koine Greek texts), tracking original human 
+authorship, verified historical timelines, and direct verbatim divine dialogues.
+"""
+
+import json
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
+
+
+@dataclass
+class DivineUtteranceRecord:
+    speaker: str
+    original_language: str
+    lexical_form: str
+    verbatim_text: str
+    english_rendering: str
+    historical_epoch: str
+    source_context: str
+
+
+@dataclass
+class OriginalScriptureBook:
+    book_code: str
+    canonical_title: str
+    original_author: str
+    historical_composition_era: str
+    primary_language: str
+    chronological_index: int
+    manuscript_text: Dict[int, Dict[int, str]] = field(default_factory=dict)
+    divine_dialogues: List[DivineUtteranceRecord] = field(default_factory=list)
+
+
+class ActiveScripturalAIArchitecture:
+    def __init__(self):
+        self.corpus_registry: Dict[str, OriginalScriptureBook] = {}
+        self._load_authentic_corpus_foundations()
+
+    def _load_authentic_corpus_foundations(self) -> None:
+        """Populates the AI engine with critical text exemplars, maintaining strict 
+        adherence to original manuscripts, source writers, and timelines.
+        """
+        
+        # 1. Bereshit / Genesis (Classical Hebrew - Masoretic Baseline / Leningrad Codex)
+        genesis = OriginalScriptureBook(
+            book_code="GEN",
+            canonical_title="בְּרֵאשִׁית / Genesis",
+            original_author="Moses (Traditional / Compiled Source Traditions)",
+            historical_composition_era="c. 1446–1406 BCE (Events from Primeval History to Patriarchs)",
+            primary_language="Classical Hebrew",
+            chronological_index=1,
+            manuscript_text={
+                1: {
+                    1: "בְּרֵאשִׁית בָּרָא אֱלֹהִים אֵת הַשָּׁיִם וְאֵת הָאָרֶץ׃",
+                    2: "וְהָאָרֶץ הָיְתָה תֹהוּ וָבֹהוּ וְחֹשֶׁךְ עַל־פְּנֵי תְהוֹם וְרוּחַ אֱלֹהִים מَرֶחֶפֶת עַל־פְּנֵי הַמָּיִם׃",
+                    3: "וַיֹּאמֶר אֱלֹהִים יְהִי אוֹْر וַיְהִי־אוֹר׃"
+                }
+            },
+            divine_dialogues=[
+                DivineUtteranceRecord(
+                    speaker="Elohim",
+                    original_language="Classical Hebrew",
+                    lexical_form="אֱלֹהִים אָמַר",
+                    verbatim_text="יְהִי אוֹْر וַיְהִי־אוֹר",
+                    english_rendering="Let there be light: and there was light.",
+                    historical_epoch="Creation Epoch (Day 1)",
+                    source_context="Genesis 1:3"
+                )
+            ]
+        )
+
+        # 2. Shemot / Exodus (Classical Hebrew)
+        exodus = OriginalScriptureBook(
+            book_code="EXO",
+            canonical_title="שְׁמוֹْت / Exodus",
+            original_author="Moses",
+            historical_composition_era="c. 1446–1406 BCE",
+            primary_language="Classical Hebrew",
+            chronological_index=2,
+            manuscript_text={
+                3: {
+                    14: "וַיֹּאמֶר אֱלֹהִים אֶל־מֹשֶׁה אֶהְיֶה אֲשֶׁר אֶהְיֶה וַיֹּאמֶר כֹּה תֹאמַר לִבְנֵי יִשְׂרָאֵל אֶהְיֶה שְׁלָחַנִי אֲלֵיכֶם׃"
+                }
+            },
+            divine_dialogues=[
+                DivineUtteranceRecord(
+                    speaker="YHWH (The LORD)",
+                    original_language="Classical Hebrew",
+                    lexical_form="אהיה אשר אهيه",
+                    verbatim_text="אֶהְיֶה אֲשֶׁר אֶהְיֶה",
+                    english_rendering="I AM THAT I AM",
+                    historical_epoch="c. 1446 BCE (Burning Bush Event)",
+                    source_context="Exodus 3:14"
+                )
+            ]
+        )
+
+        # 3. Euangelion kat' Ioannen / Gospel of John (Koine Greek - Nestle-Aland Baseline)
+        john = OriginalScriptureBook(
+            book_code="JHN",
+            canonical_title="Εὐαγγέλιον κατὰ Ἰωάννην / Gospel of John",
+            original_author="John the Apostle (Son of Zebedee)",
+            historical_composition_era="c. 85–95 CE",
+            primary_language="Koine Greek",
+            chronological_index=43,
+            manuscript_text={
+                1: {
+                    1: "Ἐν ἀρχῇ ἦν ὁ λόγος, καὶ ὁ λόγος ἦν πρὸς τὸν θεόν, καὶ θεὸς ἦν ὁ λόγος.",
+                    14: "Καὶ ὁ λόγος σὰρξ ἐγένετο καὶ ἐσκήνωσεν ἐν ἡμῖν, καὶ ἐθεασάμεθα τὴν δόξαν αὐτοῦ..."
+                },
+                14: {
+                    6: "λέγει αὐτῷ ὁ Ἰησοῦς· Ἐγώ εἰμι ἡ ὁδὸς καὶ ἡ ἀλήθεια καὶ ἡ ζωή· οὐδεὶς ἔρχεται πρὸς τὸν πατέρα εἰ μὴ διʼ ἐμοῦ."
+                }
+            },
+            divine_dialogues=[
+                DivineUtteranceRecord(
+                    speaker="Jesus the Messiah (Yeshua)",
+                    original_language="Koine Greek",
+                    lexical_form="Ἐγώ εἰμι ἡ ὁδός",
+                    verbatim_text="Ἐγώ εἰμι ἡ ὁδὸς καὶ ἡ ἀλήθεια καὶ ἡ ζωή",
+                    english_rendering="I am the way, the truth, and the life.",
+                    historical_epoch="c. 30 CE (Last Supper Discourse)",
+                    source_context="John 14:6"
+                )
+            ]
+        )
+
+        self.corpus_registry["GEN"] = genesis
+        self.corpus_registry["EXO"] = exodus
+        self.corpus_registry["JHN"] = john
+
+    def extract_verbatim_verse(self, book_code: str, chapter: int, verse: int) -> Optional[Dict[str, str]]:
+        """Extracts word-for-word text directly from the stored original manuscript baseline."""
+        book = self.corpus_registry.get(book_code.upper())
+        if book and chapter in book.manuscript_text and verse in book.manuscript_text[chapter]:
+            return {
+                "Book": book.canonical_title,
+                "Original Author": book.original_author,
+                "Language": book.primary_language,
+                "Reference": f"{book_code} {chapter}:{verse}",
+                "Verbatim Text": book.manuscript_text[chapter][verse]
+            }
+        return None
+
+    def query_all_divine_utterances(self) -> List[Dict[str, str]]:
+        """Isolates and returns all recorded direct statements spoken by God with timeline contexts."""
+        compilation = []
+        for book in self.corpus_registry.values():
+            for dialogue in book.divine_dialogues:
+                compilation.append({
+                    "Canonical Source": book.canonical_title,
+                    "Original Writer": book.original_author,
+                    "Speaker": dialogue.speaker,
+                    "Original Manuscript Lexeme": dialogue.verbatim_text,
+                    "Language": dialogue.original_language,
+                    "English Dynamic Equivalent": dialogue.english_rendering,
+                    "Historical Event Timeline": dialogue.historical_epoch,
+                    "Context Reference": dialogue.source_context
+                })
+        return compilation
+
+    def generate_chronological_timeline(self) -> str:
+        """Sorts and generates the strict structural timeline of compiled books and historical epochs."""
+        sorted_corpus = sorted(self.corpus_registry.values(), key=lambda x: x.chronological_index)
+        timeline_data = [
+            {
+                "Chronological Rank": b.chronological_index,
+                "Book Title": b.canonical_title,
+                "Original Author": b.original_author,
+                "Composition Era": b.historical_composition_era,
+                "Language Base": b.primary_language
+            }
+            for b in sorted_corpus
+        ]
+        return json.dumps(timeline_data, indent=4, ensure_ascii=False)
+
+
+# Execution Interface
+if __name__ == "__main__":
+    ai_engine = ActiveScripturalAIArchitecture()
+
+    print("==================================================================")
+    print("      ACTIVE AI SCRIPTURAL ENGINE: VERBATIM CORPUS INTERFACE      ")
+    print("==================================================================\n")
+
+    # 1. Demonstration of Verbatim Word-for-Word Retrieval
+    print("[1] Verbatim Extraction Test (Exodus 3:14 - Divine Name):")
+    verbatim_result = ai_engine.extract_verbatim_verse("EXO", 3, 14)
+    print(json.dumps(verbatim_result, indent=2, ensure_ascii=False))
+    print("-" * 66)
+
+    # 2. Demonstration of Pure Divine Dialogues Extraction
+    print("\n[2] Extraction of Real Words Spoken by God (Original Languages):")
+    divine_words = ai_engine.query_all_divine_utterances()
+    for entry in divine_words:
+        print(json.dumps(entry, indent=2, ensure_ascii=False))
+    print("-" * 66)
+
+    # 3. Demonstration of Chronological Timeline Architecture
+    print("\n[3] Compiled Canonical Historical Timeline Schema:")
+    print(ai_engine.generate_chronological_timeline())
+
+
+
+"""
+Advanced Active AI Engine: Iconography & UI Asset Generator
+----------------------------------------------------------------------------------
+Generates structured visual specifications, scalable vector graphic (SVG) layouts, 
+and HUD-style asset configurations for an active AI interface dedicated to the 
+verbatim original scriptural corpus, historical timelines, and direct divine dialogues.
+"""
+
+import json
+from dataclasses import dataclass, field
+from typing import Dict, List
+
+
+@dataclass
+class IconAssetSpecification:
+    icon_name: str
+    target_module: str
+    visual_theme: str
+    svg_structure: str
+    hud_metadata: Dict[str, str] = field(default_factory=dict)
+
+
+class ScripturalIconographyGenerator:
+    def __init__(self):
+        self.asset_registry: Dict[str, IconAssetSpecification] = {}
+        self._build_iconography_matrix()
+
+    def _build_iconography_matrix(self) -> None:
+        """Constructs high-precision vector asset blueprints tailored for 
+        active scriptural AI engines and heads-up display (HUD) interfaces.
+        """
+        
+        # 1. Verbatim Corpus & Original Manuscripts Icon
+        verbatim_svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" stroke="#00FFCC" stroke-width="12">
+            <!-- HUD Frame Outer Rings -->
+            <circle cx="256" cy="256" r="230" stroke-dasharray="16 8" opacity="0.8"/>
+            <circle cx="256" cy="256" r="200" opacity="0.4"/>
+            <!-- Ancient Codex / Scroll Silhouette -->
+            <path d="M140 120 C180 100, 332 100, 372 120 L372 392 C332 372, 180 372, 140 392 Z" fill="#0D1B2A" stroke="#00FFCC" stroke-width="16"/>
+            <!-- Original Script Lines (Word-by-Word Representation) -->
+            <line x1="180" y1="170" x2="332" y2="170" stroke-linecap="round"/>
+            <line x1="180" y1="220" x2="310" y2="220" stroke-linecap="round"/>
+            <line x1="180" y1="270" x2="332" y2="270" stroke-linecap="round"/>
+            <line x1="180" y1="320" x2="270" y2="320" stroke-linecap="round"/>
+            <!-- Central Processing Core Nodes -->
+            <circle cx="256" cy="256" r="24" fill="#00FFCC" stroke="#FFFFFF" stroke-width="4"/>
+        </svg>
+        """.strip()
+
+        self.asset_registry["VERBATIM_MANUSCRIPT_ICON"] = IconAssetSpecification(
+            icon_name="Verbatim Scriptural Core Icon",
+            target_module="Module-Alpha: Original Codex & Source Text Parsing",
+            visual_theme="Cyber-HUD / Deep Cyan Matrix / High Contrast",
+            svg_structure=verbatim_svg,
+            hud_metadata={
+                "resolution": "Scalable Vector (SVG) / 512x512 Base",
+                "semantic_focus": "Word-by-word fidelity to original Hebrew/Greek manuscripts",
+                "render_engine": "Vector UI Pipeline"
+            }
+        )
+
+        # 2. Divine Utterance & Direct Words of God Icon
+        divine_svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" stroke="#FFD700" stroke-width="10">
+            <!-- Celestial HUD Targeting Matrix -->
+            <polygon points="256,32 480,256 256,480 32,256" stroke-dasharray="20 10" opacity="0.7"/>
+            <circle cx="256" cy="256" r="160" stroke="#FFD700" stroke-width="8" opacity="0.9"/>
+            <!-- Radiating Light / Divine Utterance Vector -->
+            <path d="M256 96 L256 416 M96 256 L416 256 M143 143 L369 369 M143 369 L369 143" stroke-width="6" opacity="0.5"/>
+            <!-- Core Spark of Utterance -->
+            <polygon points="256,176 288,240 352,256 288,272 256,336 224,272 160,256 224,240" fill="#FFD700"/>
+        </svg>
+        """.strip()
+
+        self.asset_registry["DIVINE_UTTERANCE_ICON"] = IconAssetSpecification(
+            icon_name="Divine Utterance / Voice of God Icon",
+            target_module="Module-Omega: Direct Spoken Records & Lexical Analysis",
+            visual_theme="Radiant Gold / Celestial HUD Grid",
+            svg_structure=divine_svg,
+            hud_metadata={
+                "resolution": "Scalable Vector (SVG) / 512x512 Base",
+                "semantic_focus": "Isolated historical statements originating directly from God",
+                "render_engine": "Vector UI Pipeline"
+            }
+        )
+
+        # 3. Chronological Timeline & Historical Events Icon
+        timeline_svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" stroke="#00E5FF" stroke-width="10">
+            <!-- Timeline Axis -->
+            <line x1="64" y1="256" x2="448" y2="256" stroke-width="12" stroke-linecap="round"/>
+            <!-- Chronological Nodes -->
+            <circle cx="112" cy="256" r="20" fill="#0D1B2A" stroke-width="10"/>
+            <circle cx="256" cy="256" r="28" fill="#00E5FF" stroke-width="10"/>
+            <circle cx="400" cy="256" r="20" fill="#0D1B2A" stroke-width="10"/>
+            <!-- Vertical Epoch Indicators -->
+            <line x1="112" y1="192" x2="112" y2="320" stroke-width="6" opacity="0.6"/>
+            <line x1="256" y1="144" x2="256" y2="368" stroke-width="8"/>
+            <line x1="400" y1="192" x2="400" y2="320" stroke-width="6" opacity="0.6"/>
+        </svg>
+        """.strip()
+
+        self.asset_registry["TIMELINE_CHRONOLOGY_ICON"] = IconAssetSpecification(
+            icon_name="Scriptural Chronology & Timeline Icon",
+            target_module="Module-Delta: Historical Sequence & Book Compilation Engine",
+            visual_theme="Precision Tech / Holographic Blue",
+            svg_structure=timeline_svg,
+            hud_metadata={
+                "resolution": "Scalable Vector (SVG) / 512x512 Base",
+                "semantic_focus": "Real-world historical tracking of compilation timelines",
+                "render_engine": "Vector UI Pipeline"
+            }
+        )
+
+    def export_icon_manifest_json(self) -> str:
+        """Exports the complete icon asset library and metadata as structured JSON."""
+        manifest = {}
+        for key, asset in self.asset_registry.items():
+            manifest[key] = {
+                "Icon Name": asset.icon_name,
+                "Target Module": asset.target_module,
+                "Visual Theme": asset.visual_theme,
+                "HUD Metadata": asset.hud_metadata,
+                "SVG Asset Payload": asset.svg_structure
+            }
+        return json.dumps(manifest, indent=4, ensure_ascii=False)
+
+
+# Execution Interface
+if __name__ == "__main__":
+    generator = ScripturalIconographyGenerator()
+
+    print("==================================================================")
+    print("      ACTIVE AI SCRIPTURAL ICONOGRAPHY & UI ENGINE GENERATOR      ")
+    print("==================================================================\n")
+
+    # Display Generated Icon Manifest Summary
+    print("[+] Generating Asset Specifications and Scalable Vector Graphics...")
+    manifest_data = json.loads(generator.export_icon_manifest_json())
+    
+    for identifier, details in manifest_data.items():
+        print(f"\nAsset Key: {identifier}")
+        print(f"  - Title: {details['Icon Name']}")
+        print(f"  - Module: {details['Target Module']}")
+        print(f"  - Theme: {details['Visual Theme']}")
+        print(f"  - Primary Focus: {details['HUD Metadata']['semantic_focus']}")
+        print(f"  - SVG Payload Length: {len(details['SVG_Asset_Payload'])} characters")
+
+    print("\n==================================================================")
+    print("Complete Icon Asset Manifest Successfully Generated.")
