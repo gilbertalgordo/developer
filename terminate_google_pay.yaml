@@ -1,0 +1,122 @@
+# Force-stop the Google Wallet/Pay package
+adb shell am force-stop com.google.android.apps.walletnfcrel
+
+
+
+
+import android.app.ActivityManager
+import android.content.Context
+
+fun terminateGooglePay(context: Context) {
+    val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+    // Requires KILL_BACKGROUND_PROCESSES permission in AndroidManifest.xml
+    am.killBackgroundProcesses("com.google.android.apps.walletnfcrel")
+}
+
+
+
+// Example using standard Payment Request API wrapper
+function cancelPaymentSession(paymentRequest) {
+  if (paymentRequest) {
+    paymentRequest.abort()
+      .then(() => {
+        console.log('Google Pay transaction sheet terminated.');
+      })
+      .catch((err) => {
+        console.error('Failed to abort payment request:', err);
+      });
+  }
+}
+
+
+
+
+package com.example.systemcontrol
+
+import android.app.ActivityManager
+import android.content.Context
+import android.os.Build
+import androidx.annotation.RequiresApi
+
+class PackageTerminationManager(private val context: Context) {
+
+    companion object {
+        private const val GOOGLE_PAY_PACKAGE = "com.google.android.apps.walletnfcrel"
+    }
+
+    /**
+     * Terminates background processes associated with Google Pay/Wallet.
+     * Requires <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
+     */
+    fun killGooglePayProcess() {
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        activityManager.killBackgroundProcesses(GOOGLE_PAY_PACKAGE)
+    }
+
+    /**
+     * Executes shell force-stop command on rooted or Device Owner devices.
+     */
+    fun forceStopSystemPackage(): Boolean {
+        return try {
+            val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "am force-stop $GOOGLE_PAY_PACKAGE"))
+            val exitCode = process.waitFor()
+            exitCode == 0
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+}
+
+
+
+interface PaymentState {
+  client: google.payments.api.PaymentsClient | null;
+  request: PaymentRequest | null;
+}
+
+class GooglePaySessionController {
+  private state: PaymentState = { client: null, request: null };
+
+  constructor(private environment: 'TEST' | 'PRODUCTION') {
+    this.initClient();
+  }
+
+  private initClient(): void {
+    this.state.client = new google.payments.api.PaymentsClient({
+      environment: this.environment
+    });
+  }
+
+  /**
+   * Aborts an active W3C PaymentRequest session.
+   */
+  public async terminateActiveSession(): Promise<void> {
+    if (this.state.request) {
+      try {
+        await this.state.request.abort();
+        console.log('Google Pay UI sheet terminated successfully.');
+      } catch (error) {
+        console.error('Error aborting Google Pay session:', error);
+      } finally {
+        this.state.request = null;
+      }
+    }
+  }
+}
+
+
+
+
+#!/usr/bin/env bash
+
+# Package Identifier for Google Wallet / Google Pay
+PACKAGE_NAME="com.google.android.apps.walletnfcrel"
+
+# 1. Force Stop the application
+adb shell am force-stop $PACKAGE_NAME
+
+# 2. Clear application runtime memory cache (optional reset)
+adb shell pm clear $PACKAGE_NAME
+
+echo "Google Pay process terminated on connected device."
