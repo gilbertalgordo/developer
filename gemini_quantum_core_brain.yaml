@@ -1,0 +1,394 @@
+pip install google-genai
+
+
+
+
+import os
+import time
+from typing import AsyncGenerator
+from google import genai
+from google.genai import types
+
+class ActiveAICore:
+    """
+    Active AI Core engine leveraging Gemini for real-time, high-speed 
+    multimodal understanding and agentic task orchestration.
+    """
+    def __init__(self, api_key: str = None, model: str = "gemini-2.5-flash"):
+        self.api_key = api_key or os.environ.get("GEMINI_API_KEY")
+        if not self.api_key:
+            raise ValueError("GEMINI_API_KEY must be provided or set in environment variables.")
+        
+        # Initialize official GenAI client
+        self.client = genai.Client(api_key=self.api_key)
+        self.model = model
+        self.active_session = None
+
+    def initialize_active_session(self, system_instruction: str = None):
+        """Initializes a persistent interactive chat session."""
+        default_instruction = (
+            "You are an Active Core AI agent. Provide precise, highly analytical, "
+            "and structured real-time reasoning for complex technical tasks."
+        )
+        config = types.GenerateContentConfig(
+            system_instruction=system_instruction or default_instruction,
+            temperature=0.2,
+        )
+        self.active_session = self.client.chats.create(
+            model=self.model,
+            config=config
+        )
+        print(f"[{time.strftime('%H:%M:%S')}] Active AI Core session initialized with model: {self.model}")
+
+    def execute_reasoning(self, prompt: str) -> str:
+        """Executes a single reasoning step and returns structured output."""
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=prompt
+        )
+        return response.text
+
+    async def stream_active_core(self, prompt: str) -> AsyncGenerator[str, None]:
+        """Streams response tokens in real-time for continuous processing."""
+        response = self.client.models.generate_content_stream(
+            model=self.model,
+            contents=prompt
+        )
+        for chunk in response:
+            if chunk.text:
+                yield chunk.text
+
+if __name__ == "__main__":
+    # Example Usage
+    core = ActiveAICore()
+    core.initialize_active_session()
+    
+    prompt = "Analyze the key parameters for low-latency active agent orchestration."
+    print("\n--- Direct Inference ---")
+    output = core.execute_reasoning(prompt)
+    print(output)
+
+
+
+
+pip install google-genai pydantic asyncio
+
+
+
+
+import asyncio
+import json
+import os
+import time
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
+from pydantic import BaseModel, Field
+
+from google import genai
+from google.genai import types
+
+# ---------------------------------------------------------------------------
+# Telemetry & Structured Output Schemas
+# ---------------------------------------------------------------------------
+
+class CognitiveTelemetry(BaseModel):
+    """Schema for structured reasoning telemetry and state logging."""
+    step_id: str = Field(description="Unique identifier for the processing cycle")
+    confidence_score: float = Field(description="Execution confidence index from 0.0 to 1.0")
+    primary_vector: str = Field(description="Dominant action or reasoning vector")
+    subtasks: List[str] = Field(default_factory=list, description="Decomposed tasks")
+
+class QuantumCoreState:
+    """Tracks active system telemetry and execution state."""
+    def __init__(self):
+        self.active_cycles: int = 0
+        self.metrics_history: List[Dict[str, Any]] = []
+
+    def log_event(self, event_type: str, payload: Dict[str, Any]):
+        entry = {
+            "timestamp": time.time(),
+            "event": event_type,
+            "payload": payload
+        }
+        self.metrics_history.append(entry)
+        print(f"│ [HUD TELEMETRY] {event_type} -> {json.dumps(payload)}")
+
+
+# ---------------------------------------------------------------------------
+# Tool Specifications (Native Python Callables)
+# ---------------------------------------------------------------------------
+
+def system_diagnostics_node(component: str) -> Dict[str, Any]:
+    """Retrieves simulated telemetry status for specified AI core nodes."""
+    return {
+        "component": component,
+        "status": "NOMINAL",
+        "latency_ms": 1.42,
+        "quantum_coherence": "99.98%"
+    }
+
+# Registered tool registry for automated dispatching
+TOOL_REGISTRY: Dict[str, Callable] = {
+    "system_diagnostics_node": system_diagnostics_node
+}
+
+
+# ---------------------------------------------------------------------------
+# Quantum Active Core Class
+# ---------------------------------------------------------------------------
+
+class AdvancedQuantumCore:
+    """
+    Advanced Gemini-powered Active AI Core Engine featuring:
+    - Parallel tool dispatch
+    - Continuous response streaming
+    - Real-time search grounding integration
+    - Structured JSON execution schemas
+    """
+    def __init__(
+        self, 
+        api_key: Optional[str] = None, 
+        model_name: str = "gemini-2.5-flash"
+    ):
+        self.api_key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        if not self.api_key:
+            raise ValueError("API Key missing. Set GOOGLE_API_KEY environment variable.")
+
+        self.client = genai.Client(api_key=self.api_key)
+        self.model = model_name
+        self.telemetry = QuantumCoreState()
+
+    def _get_system_instructions(self) -> str:
+        return (
+            "You are the Gemini Quantum Core Super Brain Active AI Engine. "
+            "Execute technical requests with high precision, modular architecture, "
+            "and active tool dispatching. Optimize for ultra-low latency and clarity."
+        )
+
+    async def execute_parallel_agent_cycle(self, user_prompt: str) -> AsyncGenerator[str, None]:
+        """
+        Executes real-time streaming with live Google Search Grounding and 
+        structured tool integration.
+        """
+        self.telemetry.active_cycles += 1
+        cycle_id = f"CYC-{self.telemetry.active_cycles:04d}"
+        self.telemetry.log_event("CYCLE_START", {"cycle_id": cycle_id, "prompt": user_prompt})
+
+        config = types.GenerateContentConfig(
+            system_instruction=self._get_system_instructions(),
+            temperature=0.15,
+            # Integrated live search grounding + python native tools
+            tools=[
+                types.Tool(google_search=types.GoogleSearch()),
+                system_diagnostics_node
+            ]
+        )
+
+        try:
+            # Stream response content from Gemini API
+            response_stream = self.client.models.generate_content_stream(
+                model=self.model,
+                contents=user_prompt,
+                config=config
+            )
+
+            for chunk in response_stream:
+                # Handle active function calls requested by the model
+                if chunk.function_calls:
+                    for fc in chunk.function_calls:
+                        self.telemetry.log_event("FUNCTION_CALL_DISPATCH", {"name": fc.name, "args": fc.args})
+                        if fc.name in TOOL_REGISTRY:
+                            tool_result = TOOL_REGISTRY[fc.name](**fc.args)
+                            self.telemetry.log_event("FUNCTION_RESULT", tool_result)
+
+                if chunk.text:
+                    yield chunk.text
+
+        except Exception as e:
+            self.telemetry.log_event("ENGINE_ERROR", {"error": str(e)})
+            yield f"\n[Core Execution Exception: {str(e)}]"
+
+    async def generate_structured_telemetry(self, task_description: str) -> CognitiveTelemetry:
+        """
+        Uses Structured Outputs (Pydantic Schema) to return guaranteed JSON responses.
+        """
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=CognitiveTelemetry,
+            temperature=0.1,
+        )
+
+        prompt = f"Analyze and structure execution plan for task: {task_description}"
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=prompt,
+            config=config
+        )
+
+        return CognitiveTelemetry.model_validate_json(response.text)
+
+
+# ---------------------------------------------------------------------------
+# Real-Time Execution Runner
+# ---------------------------------------------------------------------------
+
+async def main():
+    # Initialize Engine Core
+    core = AdvancedQuantumCore()
+
+    print("┌────────────────────────────────────────────────────────┐")
+    print("│ GEMINI QUANTUM CORE SUPER BRAIN ACTIVE AI INITIALIZED  │")
+    print("└────────────────────────────────────────────────────────┘\n")
+
+    # 1. Structured Telemetry Analysis Example
+    print(">>> 1. Generating Structured Cognitive Telemetry Schema...")
+    analysis = await core.generate_structured_telemetry("Deploy automated multi-node streaming pipeline")
+    print(f"Step ID: {analysis.step_id}")
+    print(f"Confidence: {analysis.confidence_score * 100:.1f}%")
+    print(f"Primary Vector: {analysis.primary_vector}")
+    print(f"Subtasks: {analysis.subtasks}\n")
+
+    # 2. Async Streaming Cycle Example
+    prompt = "Check status for component 'quantum_array_01' and provide an architectural summary for active agent loop."
+    print(f">>> 2. Executing Active Streaming Loop for: '{prompt}'\n")
+
+    async for token in core.execute_parallel_agent_cycle(prompt):
+        print(token, end="", flush=True)
+    print("\n\n--- Execution Cycle Complete ---")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%" style="background: #020712;">
+  <defs>
+    <!-- Glowing Radial Gradients -->
+    <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00ffff" stop-opacity="0.9"/>
+      <stop offset="50%" stop-color="#7000ff" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#020712" stop-opacity="0"/>
+    </radialGradient>
+    
+    <linearGradient id="cyanPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f3ff"/>
+      <stop offset="100%" stop-color="#b000ff"/>
+    </linearGradient>
+
+    <!-- Glow Filter -->
+    <filter id="neonFilter" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background Quantum Array HUD Grid -->
+  <g stroke="#00f3ff" stroke-width="1" opacity="0.15" fill="none">
+    <circle cx="256" cy="256" r="220" stroke-dasharray="8 8"/>
+    <circle cx="256" cy="256" r="180"/>
+    <circle cx="256" cy="256" r="140" stroke-dasharray="4 4"/>
+    <line x1="36" y1="256" x2="476" y2="256"/>
+    <line x1="256" y1="36" x2="256" y2="476"/>
+  </g>
+
+  <!-- Core Active Ambient Aura -->
+  <circle cx="256" cy="256" r="120" fill="url(#coreGlow)" />
+
+  <!-- Quantum Core Outer Orbit Ring -->
+  <circle cx="256" cy="256" r="150" fill="none" stroke="url(#cyanPurple)" stroke-width="3" stroke-dasharray="180 40" filter="url(#neonFilter)">
+    <animateTransform attributeName="transform" type="rotate" from="0 256 256" to="360 256 256" dur="12s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Neural Brain Mesh Vector -->
+  <g fill="none" stroke="#00f3ff" stroke-width="2.5" stroke-linecap="round" filter="url(#neonFilter)">
+    <!-- Hemisphere Circuits -->
+    <path d="M 256 160 C 210 160 170 190 170 240 C 170 280 200 310 230 330 C 245 340 256 352 256 352" />
+    <path d="M 256 160 C 302 160 342 190 342 240 C 342 280 312 310 282 330 C 267 340 256 352 256 352" />
+    <path d="M 210 200 C 240 220 272 220 302 200" stroke-dasharray="3 3"/>
+    <path d="M 190 256 C 230 270 282 270 322 256"/>
+    <path d="M 220 300 C 240 310 272 310 292 300"/>
+  </g>
+
+  <!-- Quantum Nodes -->
+  <g fill="#ffffff" filter="url(#neonFilter)">
+    <circle cx="256" cy="160" r="5"/>
+    <circle cx="170" cy="240" r="4"/>
+    <circle cx="342" cy="240" r="4"/>
+    <circle cx="230" cy="330" r="4"/>
+    <circle cx="282" cy="330" r="4"/>
+    <circle cx="256" cy="352" r="5"/>
+  </g>
+
+  <!-- Active Central Core Pulse -->
+  <circle cx="256" cy="256" r="18" fill="#ffffff" filter="url(#neonFilter)">
+    <animate attributeName="r" values="14;22;14" dur="2.5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.7;1;0.7" dur="2.5s" repeatCount="indefinite"/>
+  </circle>
+</svg>
+
+
+
+from PIL import Image, ImageDraw, ImageFilter
+
+def create_quantum_brain_icon(size: int = 512, output_path: str = "quantum_ai_core.png"):
+    """
+    Generates a high-definition, glowing Quantum Core AI Brain icon image.
+    """
+    # Base Image canvas with deep blue/black background
+    img = Image.new("RGBA", (size, size), (2, 7, 18, 255))
+    draw = ImageDraw.Draw(img)
+    center = size // 2
+
+    # Layer 1: Ambient Glow Effect
+    glow_canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    glow_draw = ImageDraw.Draw(glow_canvas)
+    
+    for r in range(160, 20, -10):
+        alpha = int(255 * (1 - (r / 160)) * 0.25)
+        glow_draw.ellipse(
+            [center - r, center - r, center + r, center + r],
+            fill=(0, 243, 255, alpha)
+        )
+    glow_canvas = glow_canvas.filter(ImageFilter.GaussianBlur(15))
+    img.paste(glow_canvas, (0, 0), glow_canvas)
+
+    # Layer 2: HUD Orbital Rings
+    # Outer dashed HUD ring
+    draw.arc([center - 200, center - 200, center + 200, center + 200], start=0, end=270, fill=(0, 243, 255, 180), width=3)
+    draw.arc([center - 200, center - 200, center + 200, center + 200], start=285, end=340, fill=(176, 0, 255, 220), width=3)
+    
+    # Inner Tech ring
+    draw.ellipse([center - 150, center - 150, center + 150, center + 150], outline=(0, 243, 255, 80), width=2)
+
+    # Layer 3: Central Brain Circuit Schematic
+    nodes = [
+        (center, center - 90),
+        (center - 85, center - 10),
+        (center + 85, center - 10),
+        (center - 55, center + 75),
+        (center + 55, center + 75),
+        (center, center + 110)
+    ]
+
+    # Draw Circuit Connectivity
+    for i in range(len(nodes)):
+        for j in range(i + 1, len(nodes)):
+            draw.line([nodes[i], nodes[j]], fill=(0, 243, 255, 100), width=2)
+
+    # Layer 4: Node Highlights & Core Nucleus
+    for x, y in nodes:
+        draw.ellipse([x - 7, y - 7, x + 7, y + 7], fill=(255, 255, 255, 255), outline=(0, 243, 255, 255), width=2)
+
+    # Glowing Core Center
+    draw.ellipse([center - 22, center - 22, center + 22, center + 22], fill=(255, 255, 255, 255))
+    draw.ellipse([center - 32, center - 32, center + 32, center + 32], outline=(0, 243, 255, 255), width=3)
+
+    # Save output
+    img.save(output_path, "PNG")
+    print(f"Quantum Core Icon generated successfully: {output_path}")
+
+if __name__ == "__main__":
+    create_quantum_brain_icon()
