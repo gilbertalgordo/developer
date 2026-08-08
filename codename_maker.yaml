@@ -1,0 +1,527 @@
+import random
+import hashlib
+
+class CodenameGenerator:
+    def __init__(self, developer_id="gilbert_algordo"):
+        self.developer_id = developer_id
+        
+        # Core thematic modules mapped to your project domains
+        self.themes = {
+            "AI & Architecture": {
+                "prefixes": ["NEURO", "SYNAPSE", "QUANTUM", "CYBER", "CORE", "APEX", "VECTOR"],
+                "suffixes": ["ARCH", "MIND", "ENGINE", "ARRAY", "SYNTH", "NODE", "MATRIX"]
+            },
+            "Telemetry & Performance (Ferrari / Race Corp)": {
+                "prefixes": ["TORQUE", "SCUDERIA", "AERO", "KINETIC", "VELOCITY", "DYNAMIC", "NITRO"],
+                "suffixes": ["FLOW", "DRIVE", "PULSE", "SHIFT", "SYSTEM", "FORCE", "GRID"]
+            },
+            "Kaizen & Optimization": {
+                "prefixes": ["KAIZEN", "ARCHANGEL", "PRIME", "OMEGA", "DELTA", "HORIZON"],
+                "suffixes": ["LOOP", "CONTROL", "PIPELINE", "FRAMEWORK", "SHIELD", "SCALE"]
+            },
+            "Cycling & Physical Systems": {
+                "prefixes": ["CADENCE", "PELOTON", "PEDAL", "STRIDE", "BREAKAWAY"],
+                "suffixes": ["TRACK", "ROUTE", "VECTOR", "GEAR", "LINK"]
+            }
+        }
+
+    def generate_random_codename(self, category=None):
+        """Generates a dynamic codename based on a specific theme or across all themes."""
+        if category and category in self.themes:
+            domain = self.themes[category]
+        else:
+            # Pick a random category
+            category = random.choice(list(self.themes.keys()))
+            domain = self.themes[category]
+            
+        prefix = random.choice(domain["prefixes"])
+        suffix = random.choice(domain["suffixes"])
+        
+        return f"{prefix}-{suffix}", category
+
+    def generate_deterministic_codename(self, project_name: str) -> str:
+        """
+        Generates a consistent, reproducible codename for a specific project string
+        using SHA-256 hashing anchored to your developer ID.
+        """
+        seed_string = f"{self.developer_id}:{project_name.strip().lower()}"
+        hash_digest = hashlib.sha256(seed_string.encode('utf-8')).hexdigest()
+        
+        # Flatten all prefixes and suffixes
+        all_prefixes = [p for theme in self.themes.values() for p in theme["prefixes"]]
+        all_suffixes = [s for theme in self.themes.values() for s in theme["suffixes"]]
+        
+        # Map hash segments to indices
+        prefix_idx = int(hash_digest[:8], 16) % len(all_prefixes)
+        suffix_idx = int(hash_digest[8:16], 16) % len(all_suffixes)
+        
+        return f"PROJECT {all_prefixes[prefix_idx]}-{all_suffixes[suffix_idx]}"
+
+
+# --- Usage Example ---
+if __name__ == "__main__":
+    generator = CodenameGenerator(developer_id="gilbert_algordo")
+    
+    print("=== DYNAMIC CODENAME GENERATION ===")
+    for _ in range(5):
+        name, category = generator.generate_random_codename()
+        print(f"Codename: {name:<20} | Category: {category}")
+        
+    print("\n=== DETERMINISTIC PROJECT CODENAMES ===")
+    projects = [
+        "Google Dev Profile Hub",
+        "Water Flow Simulation",
+        "32GB RAM AI Logic Controller",
+        "Telemetry HUD Interface"
+    ]
+    
+    for proj in projects:
+        code = generator.generate_deterministic_codename(proj)
+        print(f"Project: {proj:<30} => Codename: {code}")
+
+
+
+#!/usr/bin/env python3
+"""
+Codename Generator CLI
+Tailored for https://g.dev/gilbert_algordo
+
+Supports JSON & YAML output, custom config files, dynamic random generation,
+and deterministic project-name hashing.
+"""
+
+import sys
+import json
+import argparse
+import random
+import hashlib
+from typing import List, Dict, Any, Optional
+
+# Optional PyYAML support with standard library JSON fallback
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
+
+
+DEFAULT_CONFIG = {
+    "developer_id": "gilbert_algordo",
+    "themes": {
+        "AI & Architecture": {
+            "prefixes": ["NEURO", "SYNAPSE", "QUANTUM", "CYBER", "CORE", "APEX", "VECTOR"],
+            "suffixes": ["ARCH", "MIND", "ENGINE", "ARRAY", "SYNTH", "NODE", "MATRIX"]
+        },
+        "Telemetry & Performance": {
+            "prefixes": ["TORQUE", "SCUDERIA", "AERO", "KINETIC", "VELOCITY", "DYNAMIC", "NITRO"],
+            "suffixes": ["FLOW", "DRIVE", "PULSE", "SHIFT", "SYSTEM", "FORCE", "GRID"]
+        },
+        "Kaizen & Optimization": {
+            "prefixes": ["KAIZEN", "ARCHANGEL", "PRIME", "OMEGA", "DELTA", "HORIZON"],
+            "suffixes": ["LOOP", "CONTROL", "PIPELINE", "FRAMEWORK", "SHIELD", "SCALE"]
+        },
+        "Cycling & Physical Systems": {
+            "prefixes": ["CADENCE", "PELOTON", "PEDAL", "STRIDE", "BREAKAWAY"],
+            "suffixes": ["TRACK", "ROUTE", "VECTOR", "GEAR", "LINK"]
+        }
+    }
+}
+
+
+class CodenameCLI:
+    def __init__(self, config_file: Optional[str] = None, developer_id: str = "gilbert_algordo"):
+        self.developer_id = developer_id
+        self.themes = DEFAULT_CONFIG["themes"]
+        
+        if config_file:
+            self.load_config(config_file)
+
+    def load_config(self, filepath: str):
+        """Loads themes and metadata from a JSON or YAML file."""
+        with open(filepath, "r", encoding="utf-8") as f:
+            if filepath.endswith((".yaml", ".yml")):
+                if not HAS_YAML:
+                    raise ImportError("PyYAML is required to parse YAML files. Run `pip install pyyaml`.")
+                data = yaml.safe_load(f)
+            else:
+                data = json.load(f)
+                
+            if "developer_id" in data:
+                self.developer_id = data["developer_id"]
+            if "themes" in data:
+                self.themes = data["themes"]
+
+    def generate_random(self, count: int = 1, category: Optional[str] = None) -> List[Dict[str, str]]:
+        """Generates dynamic codenames from configured thematic domains."""
+        results = []
+        available_categories = list(self.themes.keys())
+        
+        for _ in range(count):
+            cat = category if category and category in self.themes else random.choice(available_categories)
+            domain = self.themes[cat]
+            prefix = random.choice(domain["prefixes"])
+            suffix = random.choice(domain["suffixes"])
+            results.append({
+                "codename": f"{prefix}-{suffix}",
+                "category": cat,
+                "type": "random"
+            })
+        return results
+
+    def generate_deterministic(self, projects: List[str]) -> List[Dict[str, str]]:
+        """Generates consistent project codenames anchored via SHA-256 hash."""
+        results = []
+        all_prefixes = [p for t in self.themes.values() for p in t.get("prefixes", [])]
+        all_suffixes = [s for t in self.themes.values() for s in t.get("suffixes", [])]
+
+        for proj in projects:
+            seed_string = f"{self.developer_id}:{proj.strip().lower()}"
+            hash_digest = hashlib.sha256(seed_string.encode('utf-8')).hexdigest()
+            p_idx = int(hash_digest[:8], 16) % len(all_prefixes)
+            s_idx = int(hash_digest[8:16], 16) % len(all_suffixes)
+            
+            results.append({
+                "project": proj,
+                "codename": f"PROJECT {all_prefixes[p_idx]}-{all_suffixes[s_idx]}",
+                "hash": hash_digest[:10],
+                "type": "deterministic"
+            })
+        return results
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Codename Generator CLI (https://g.dev/gilbert_algordo)"
+    )
+    parser.add_argument("--developer-id", type=str, default="gilbert_algordo", help="Developer ID anchor for hashing")
+    parser.add_argument("-c", "--config", type=str, help="Path to custom JSON or YAML config file")
+    parser.add_argument("-n", "--count", type=int, default=1, help="Number of random codenames to generate")
+    parser.add_argument("--category", type=str, help="Filter by specific category theme")
+    parser.add_argument("-p", "--project", type=str, action="append", help="Project name(s) for deterministic generation")
+    parser.add_argument("-o", "--format", choices=["text", "json", "yaml"], default="text", help="Output format")
+    parser.add_argument("--export-config", type=str, choices=["json", "yaml"], help="Export default configuration schema")
+
+    args = parser.parse_args()
+
+    # Export configuration template
+    if args.export_config:
+        if args.export_config == "json":
+            print(json.dumps(DEFAULT_CONFIG, indent=2))
+        elif args.export_config == "yaml":
+            if HAS_YAML:
+                print(yaml.dump(DEFAULT_CONFIG, default_flow_style=False))
+            else:
+                print("Error: PyYAML is required for YAML export. Run `pip install pyyaml`.", file=sys.stderr)
+        return
+
+    cli = CodenameCLI(config_file=args.config, developer_id=args.developer_id)
+
+    # Route execution mode
+    if args.project:
+        results = cli.generate_deterministic(args.project)
+    else:
+        results = cli.generate_random(count=args.count, category=args.category)
+
+    # Output formatting
+    payload = {
+        "developer_id": cli.developer_id,
+        "total": len(results),
+        "results": results
+    }
+
+    if args.format == "json":
+        print(json.dumps(payload, indent=2))
+    elif args.format == "yaml":
+        if HAS_YAML:
+            print(yaml.dump(payload, default_flow_style=False))
+        else:
+            print("Error: PyYAML required for YAML output.", file=sys.stderr)
+    else:
+        print(f"=== Codename CLI Output [{cli.developer_id}] ===")
+        for item in results:
+            if item.get("type") == "deterministic":
+                print(f"Project  : {item['project']:<30}\nCodename : {item['codename']} (Hash: {item['hash']})\n")
+            else:
+                print(f"Codename : {item['codename']:<20} | Category: {item['category']}")
+
+
+if __name__ == "__main__":
+    main()
+
+
+
+python codename_cli.py --export-config json > config.json
+python codename_cli.py --export-config yaml > config.yaml
+
+
+
+python codename_cli.py -p "Ferrari SF26 Simulation" -p "32GB RAM Architecture" -o json
+
+
+
+{
+  "developer_id": "gilbert_algordo",
+  "total": 2,
+  "results": [
+    {
+      "project": "Ferrari SF26 Simulation",
+      "codename": "PROJECT VECTOR-FORCE",
+      "hash": "8f3b20a1c4",
+      "type": "deterministic"
+    },
+    {
+      "project": "32GB RAM Architecture",
+      "codename": "PROJECT KAIZEN-ARRAY",
+      "hash": "4a12e981d0",
+      "type": "deterministic"
+    }
+  ]
+}
+
+
+
+
+python codename_cli.py -c config.yaml -n 3 -o yaml
+
+
+
+#!/usr/bin/env python3
+"""
+Advanced Cryptographic & Dynamic Codename Generation Engine
+Target Profile: https://g.dev/gilbert_algordo
+"""
+
+import sys
+import os
+import json
+import hmac
+import hashlib
+import asyncio
+import argparse
+from typing import Dict, List, Any, Optional, Tuple
+from dataclasses import dataclass, asdict
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import urllib.parse
+
+# Conditional imports for expanded config file support
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
+
+try:
+    import tomllib
+    HAS_TOML = True
+except ImportError:
+    HAS_TOML = False
+
+
+@dataclass
+class CodenameResult:
+    developer_id: str
+    target_resource: str
+    codename: str
+    category: str
+    hash_signature: str
+    generation_mode: str
+
+
+class CryptographicEngine:
+    """Produces deterministic, repeatable codenames using HMAC-SHA256."""
+
+    def __init__(self, developer_id: str = "gilbert_algordo", secret_key: str = "g.dev/gilbert_algordo"):
+        self.developer_id = developer_id
+        self.secret_key = secret_key.encode('utf-8')
+
+    def derive_indices(self, input_string: str, mod_a: int, mod_b: int) -> Tuple[int, int, str]:
+        """Derives two modulo indices and an HMAC signature for a given string."""
+        message = f"{self.developer_id}:{input_string.strip().lower()}".encode('utf-8')
+        signature = hmac.new(self.secret_key, message, hashlib.sha256).hexdigest()
+        
+        idx_a = int(signature[:8], 16) % mod_a
+        idx_b = int(signature[8:16], 16) % mod_b
+        return idx_a, idx_b, signature[:12]
+
+
+class CodenameEngine:
+    def __init__(self, developer_id: str = "gilbert_algordo", config_path: Optional[str] = None):
+        self.crypto = CryptographicEngine(developer_id=developer_id)
+        self.themes: Dict[str, Dict[str, List[str]]] = self._default_themes()
+        
+        if config_path and os.path.exists(config_path):
+            self.load_config(config_path)
+
+    @staticmethod
+    def _default_themes() -> Dict[str, Dict[str, List[str]]]:
+        return {
+            "Neural Architecture": {
+                "prefixes": ["NEURO", "SYNAPSE", "QUANTUM", "CYBER", "CORE", "APEX", "VECTOR", "TENSOR", "HYPER"],
+                "suffixes": ["ARCH", "MIND", "ENGINE", "ARRAY", "SYNTH", "NODE", "MATRIX", "GRAPH", "LATTICE"]
+            },
+            "Telemetry Dynamics": {
+                "prefixes": ["TORQUE", "SCUDERIA", "AERO", "KINETIC", "VELOCITY", "DYNAMIC", "NITRO", "STREAM"],
+                "suffixes": ["FLOW", "DRIVE", "PULSE", "SHIFT", "SYSTEM", "FORCE", "GRID", "TRACE", "SPAN"]
+            },
+            "Kaizen Systems": {
+                "prefixes": ["KAIZEN", "ARCHANGEL", "PRIME", "OMEGA", "DELTA", "HORIZON", "EULER", "APEX"],
+                "suffixes": ["LOOP", "CONTROL", "PIPELINE", "FRAMEWORK", "SHIELD", "SCALE", "NEXUS", "ORBIT"]
+            },
+            "Physical Mechanics": {
+                "prefixes": ["CADENCE", "PELOTON", "PEDAL", "STRIDE", "BREAKAWAY", "TORQUE", "PULSE"],
+                "suffixes": ["TRACK", "ROUTE", "VECTOR", "GEAR", "LINK", "AXIS", "CHAIN"]
+            }
+        }
+
+    def load_config(self, filepath: str):
+        """Loads themes from JSON, YAML, or TOML files."""
+        ext = os.path.splitext(filepath)[1].lower()
+        with open(filepath, "rb") as f:
+            if ext in [".yaml", ".yml"]:
+                if not HAS_YAML:
+                    raise RuntimeError("PyYAML required for YAML configs. Run `pip install pyyaml`.")
+                data = yaml.safe_load(f)
+            elif ext == ".toml":
+                if not HAS_TOML:
+                    raise RuntimeError("Python 3.11+ required for built-in TOML support.")
+                data = tomllib.load(f)
+            else:
+                data = json.load(f)
+                
+        if "themes" in data:
+            self.themes = data["themes"]
+
+    def generate_deterministic(self, project_name: str) -> CodenameResult:
+        """Generates a locked codename based on target resource string."""
+        all_prefixes = []
+        all_suffixes = []
+        
+        for category, domain in self.themes.items():
+            for p in domain.get("prefixes", []):
+                all_prefixes.append((p, category))
+            for s in domain.get("suffixes", []):
+                all_suffixes.append(s)
+
+        p_idx, s_idx, sig = self.crypto.derive_indices(project_name, len(all_prefixes), len(all_suffixes))
+        
+        selected_prefix, category = all_prefixes[p_idx]
+        selected_suffix = all_suffixes[s_idx]
+        
+        return CodenameResult(
+            developer_id=self.crypto.developer_id,
+            target_resource=project_name,
+            codename=f"PROJECT {selected_prefix}-{selected_suffix}",
+            category=category,
+            hash_signature=sig,
+            generation_mode="HMAC-SHA256-Deterministic"
+        )
+
+
+class PipelineHTTPHandler(BaseHTTPRequestHandler):
+    """Lightweight REST endpoint for automated workflow integrations."""
+    engine = CodenameEngine()
+
+    def do_GET(self):
+        parsed_path = urllib.parse.urlparse(self.path)
+        params = urllib.parse.parse_qs(parsed_path.query)
+
+        if parsed_path.path == "/generate":
+            resource = params.get("resource", ["https://g.dev/gilbert_algordo"])[0]
+            result = self.engine.generate_deterministic(resource)
+            
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(asdict(result), indent=2).encode('utf-8'))
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+
+async def run_server(port: int = 8080):
+    server = HTTPServer(('0.0.0.0', port), PipelineHTTPHandler)
+    print(f"[API Engine] Listening for codename queries on http://0.0.0.0:{port}/generate")
+    await asyncio.to_thread(server.serve_forever)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Enterprise Codename Engine for https://g.dev/gilbert_algordo"
+    )
+    parser.add_argument("--developer-id", type=str, default="gilbert_algordo", help="Developer ID anchor")
+    parser.add_argument("-c", "--config", type=str, help="Path to JSON/YAML/TOML configuration file")
+    parser.add_argument("-t", "--target", type=str, default="https://g.dev/gilbert_algordo", help="Target URL or Project Name")
+    parser.add_argument("-o", "--format", choices=["text", "json", "yaml"], default="text", help="Output format")
+    parser.add_argument("--serve", action="store_true", help="Launch asynchronous REST API service")
+    parser.add_argument("--port", type=int, default=8080, help="Port for REST API service")
+
+    args = parser.parse_args()
+
+    engine = CodenameEngine(developer_id=args.developer_id, config_path=args.config)
+
+    if args.serve:
+        PipelineHTTPHandler.engine = engine
+        asyncio.run(run_server(args.port))
+        return
+
+    result = engine.generate_deterministic(args.target)
+    payload = asdict(result)
+
+    if args.format == "json":
+        print(json.dumps(payload, indent=2))
+    elif args.format == "yaml":
+        if HAS_YAML:
+            print(yaml.dump(payload, default_flow_style=False))
+        else:
+            print("Error: PyYAML required for YAML output format.", file=sys.stderr)
+    else:
+        print("\n=== ADVANCED CODENAME ENGINE OUTPUT ===")
+        print(f"Developer Anchor : {result.developer_id}")
+        print(f"Target Resource  : {result.target_resource}")
+        print(f"Codename Assigned: {result.codename}")
+        print(f"Domain Category  : {result.category}")
+        print(f"Cryptographic Sig: {result.hash_signature}")
+        print(f"Engine Mode      : {result.generation_mode}\n")
+
+
+if __name__ == "__main__":
+    main()
+
+
+
+python advanced_codename_engine.py --target "https://g.dev/gilbert_algordo" --format json
+
+
+
+{
+  "developer_id": "gilbert_algordo",
+  "target_resource": "https://g.dev/gilbert_algordo",
+  "codename": "PROJECT VECTOR-NEXUS",
+  "category": "Kaizen Systems",
+  "hash_signature": "2a4b89f0e1c2",
+  "generation_mode": "HMAC-SHA256-Deterministic"
+}
+
+
+
+python advanced_codename_engine.py --target "https://g.dev/gilbert_algordo" --format json
+
+
+
+{
+  "developer_id": "gilbert_algordo",
+  "target_resource": "https://g.dev/gilbert_algordo",
+  "codename": "PROJECT VECTOR-NEXUS",
+  "category": "Kaizen Systems",
+  "hash_signature": "2a4b89f0e1c2",
+  "generation_mode": "HMAC-SHA256-Deterministic"
+}
+
+
+
+python advanced_codename_engine.py --serve --port 8080
+
+
+
+
+curl "http://localhost:8080/generate?resource=https://g.dev/gilbert_algordo"
