@@ -1,0 +1,283 @@
+import requests
+
+# Configure requests to route through a local Tor proxy (e.g., Tor service running on 9050)
+proxies = {
+    'http': 'socks5h://127.0.0.1:9050',
+    'https': 'socks5h://127.0.0.1:9050'
+}
+
+def check_onion_status(onion_url):
+    """
+    Checks if a target hidden service is active and retrieves header metadata.
+    Used by threat intelligence platforms to monitor site uptime.
+    """
+    try:
+        response = requests.get(onion_url, proxies=proxies, timeout=15)
+        print(f"[*] Target: {onion_url}")
+        print(f"[*] Status Code: {response.status_code}")
+        print(f"[*] Server Info: {response.headers.get('Server', 'Unknown')}")
+        
+        # Threat intel tools would pass response.text to an NLP/LLM pipeline here for analysis
+        return response.status_code == 200
+    except requests.exceptions.RequestException as e:
+        print(f"[-] Failed to reach service: {e}")
+        return False
+
+# Example: Checking Tor network connection check service
+if __name__ == "__main__":
+    test_url = "http://check.torproject.org"
+    check_onion_status(test_url)
+
+
+
+
+import time
+import json
+import logging
+import requests
+from sklearn.feature_extraction.text import TfidfVectorizer
+from bs4 import BeautifulSoup
+
+# Configure logging telemetry
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(message)s")
+
+class ActiveDarkwebAIAgent:
+    def __init__(self, tor_proxy_port=9050, soar_webhook_url=None):
+        self.tor_proxy_port = tor_proxy_port
+        self.soar_webhook_url = soar_webhook_url
+        self.proxies = {
+            'http': f'socks5h://127.0.0.1:{self.tor_proxy_port}',
+            'https': f'socks5h://127.0.0.1:{self.tor_proxy_port}'
+        }
+        
+        # High-risk threat vectors for AI vector analysis
+        self.risk_keywords = [
+            "zero-day exploit", "database leak", "ransomware payment",
+            "c2 server", "botnet master", "stolen credentials", "ddos service"
+        ]
+        self.vectorizer = TfidfVectorizer().fit(self.risk_keywords)
+
+    def verify_tor_connection(self):
+        """Verifies that traffic is anonymized and routed through Tor."""
+        try:
+            res = requests.get("https://check.torproject.org/api/ip", proxies=self.proxies, timeout=10)
+            data = res.json()
+            if data.get("IsTor", False):
+                logging.info(f"Tor Connection Established. IP: {data.get('IP')}")
+                return True
+            else:
+                logging.warning("Traffic is not routed through Tor. Disconnecting.")
+                return False
+        except Exception as e:
+            logging.error(f"Failed to connect to Tor proxy: {e}")
+            return False
+
+    def scrape_onion_target(self, onion_url):
+        """Scrapes text content and metadata from an active .onion target."""
+        logging.info(f"Analyzing target: {onion_url}")
+        try:
+            response = requests.get(onion_url, proxies=self.proxies, timeout=20)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                # Extract visible body text
+                text_content = ' '.join([p.text for p in soup.find_all(['p', 'h1', 'h2', 'h3', 'code'])])
+                return {
+                    "status": "ACTIVE",
+                    "headers": dict(response.headers),
+                    "content": text_content
+                }
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Target reachability error: {e}")
+        return {"status": "UNREACHABLE", "headers": {}, "content": ""}
+
+    def analyze_threat_level(self, text_content):
+        """Uses NLP Vectorization to score the threat level of raw site content."""
+        if not text_content:
+            return 0.0
+            
+        # Transform extracted text using threat vector space
+        matrix = self.vectorizer.transform([text_content])
+        score = matrix.sum()
+        normalized_score = min(float(score * 10), 1.0)
+        return round(normalized_score, 2)
+
+    def trigger_takedown_action(self, onion_url, threat_score, target_metadata):
+        """Dispatches automated takedown playbooks and alert vectors to CERT/SOAR platforms."""
+        payload = {
+            "timestamp": time.time(),
+            "target": onion_url,
+            "threat_score": threat_score,
+            "action": "TAKEDOWN_REQUEST_DISPATCHED",
+            "metadata": target_metadata
+        }
+        
+        logging.warning(f"HIGH THREAT DETECTED ({threat_score}). Dispatching Incident Mitigation Payload...")
+        
+        if self.soar_webhook_url:
+            try:
+                # Dispatch payload to automated incident response webhook (e.g., Shuffle, Palo Alto XSOAR)
+                headers = {'Content-Type': 'application/json'}
+                requests.post(self.soar_webhook_url, data=json.dumps(payload), headers=headers, timeout=5)
+                logging.info("SOAR Mitigation Playbook Successfully Triggered.")
+            except Exception as e:
+                logging.error(f"Failed to dispatch SOAR payload: {e}")
+        else:
+            logging.info(f"Local Alert Payload Formatted:\n{json.dumps(payload, indent=2)}")
+
+    def run_agent_cycle(self, target_onion_urls):
+        """Executes full intelligence gathering and threat disruption loop."""
+        if not self.verify_tor_connection():
+            return
+
+        for target in target_onion_urls:
+            scraped_data = self.scrape_onion_target(target)
+            if scraped_data["status"] == "ACTIVE":
+                score = self.analyze_threat_level(scraped_data["content"])
+                logging.info(f"Target: {target} | Calculated Risk Score: {score}")
+                
+                # Trigger automated response for high risk targets
+                if score >= 0.35:
+                    self.trigger_takedown_action(target, score, scraped_data["headers"])
+            else:
+                logging.info(f"Target {target} is offline or blocked.")
+
+
+if __name__ == "__main__":
+    # Target listing (Replace with actual target .onion addresses)
+    target_onion_list = [
+        "http://check.torproject.org",
+        "http://expyuz4wqqyqhjnchbh2222.onion"  # Example invalid/inactive test onion
+    ]
+    
+    agent = ActiveDarkwebAIAgent(tor_proxy_port=9050)
+    agent.run_agent_cycle(target_onion_list)
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="100%" height="100%" style="background-color: #080c14;">
+  <defs>
+    <!-- Neon Gradients -->
+    <linearGradient id="cyan-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe" stop-opacity="1" />
+      <stop offset="100%" stop-color="#4facfe" stop-opacity="1" />
+    </linearGradient>
+
+    <linearGradient id="red-alert" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff0844" stop-opacity="1" />
+      <stop offset="100%" stop-color="#ffb199" stop-opacity="1" />
+    </linearGradient>
+
+    <linearGradient id="shield-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#00f2fe" stop-opacity="0.0" />
+    </linearGradient>
+
+    <!-- Glow Filter -->
+    <filter id="neon-filter" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- ICON 1: AI SHIELD CORE (Threat Suppression) -->
+  <g transform="translate(100, 50)">
+    <!-- Shield Outer Boundary -->
+    <path d="M 100 20 L 180 50 V 130 C 180 200 100 250 100 250 C 100 250 20 200 20 130 V 50 Z" 
+          fill="url(#shield-grad)" stroke="url(#cyan-glow)" stroke-width="3" filter="url(#neon-filter)"/>
+    
+    <!-- HUD Target Reticle Rings -->
+    <circle cx="100" cy="130" r="55" fill="none" stroke="#00f2fe" stroke-width="1.5" stroke-dasharray="8 4" opacity="0.6"/>
+    <circle cx="100" cy="130" r="35" fill="none" stroke="#ff0844" stroke-width="1.5" stroke-dasharray="12 6" filter="url(#neon-filter)"/>
+
+    <!-- Neural Core Center -->
+    <circle cx="100" cy="130" r="12" fill="#ff0844" filter="url(#neon-filter)"/>
+    
+    <!-- Crosshair Lines -->
+    <line x1="100" y1="60" x2="100" y2="80" stroke="#00f2fe" stroke-width="2"/>
+    <line x1="100" y1="180" x2="100" y2="200" stroke="#00f2fe" stroke-width="2"/>
+    <line x1="30" y1="130" x2="50" y2="130" stroke="#00f2fe" stroke-width="2"/>
+    <line x1="150" y1="130" x2="170" y2="130" stroke="#00f2fe" stroke-width="2"/>
+    
+    <text x="100" y="280" font-family="monospace" font-size="14" fill="#00f2fe" text-anchor="middle" font-weight="bold">AI_SHIELD_NODE</text>
+  </g>
+
+  <!-- ICON 2: DARKWEB ONION INTERCEPTOR -->
+  <g transform="translate(500, 50)">
+    <!-- Layered Onion Network Nodes (Outer to Inner) -->
+    <circle cx="100" cy="130" r="80" fill="none" stroke="#2a3b5c" stroke-width="2" stroke-dasharray="4 4"/>
+    <circle cx="100" cy="130" r="60" fill="none" stroke="#00f2fe" stroke-width="1.5" opacity="0.5"/>
+    <circle cx="100" cy="130" r="40" fill="none" stroke="#00f2fe" stroke-width="2" stroke-dasharray="20 10"/>
+
+    <!-- Termination / Severing Vectors (X-Strike) -->
+    <path d="M 60 90 L 140 170" stroke="url(#red-alert)" stroke-width="5" stroke-linecap="round" filter="url(#neon-filter)"/>
+    <path d="M 140 90 L 60 170" stroke="url(#red-alert)" stroke-width="5" stroke-linecap="round" filter="url(#neon-filter)"/>
+
+    <!-- Intercepted Node Pins -->
+    <circle cx="100" cy="50" r="5" fill="#00f2fe"/>
+    <circle cx="180" cy="130" r="5" fill="#00f2fe"/>
+    <circle cx="100" cy="210" r="5" fill="#00f2fe"/>
+    <circle cx="20" cy="130" r="5" fill="#00f2fe"/>
+
+    <text x="100" y="280" font-family="monospace" font-size="14" fill="#00f2fe" text-anchor="middle" font-weight="bold">NODE_TERMINATOR</text>
+  </g>
+
+  <!-- ICON 3: QUANTUM SENTINEL EYE -->
+  <g transform="translate(900, 50)">
+    <!-- Outer Cyber Eye Aperture -->
+    <path d="M 10 130 Q 100 40 190 130 Q 100 220 1 130 Z" fill="none" stroke="url(#cyan-glow)" stroke-width="3" filter="url(#neon-filter)"/>
+    
+    <!-- Tech Iris Bracket -->
+    <circle cx="100" cy="130" r="40" fill="none" stroke="#00f2fe" stroke-width="2"/>
+    <polygon points="100,100 125,115 125,145 100,160 75,145 75,115" fill="none" stroke="url(#red-alert)" stroke-width="2" filter="url(#neon-filter)"/>
+    
+    <!-- Pupil / Laser Core -->
+    <circle cx="100" cy="130" r="10" fill="#ff0844" filter="url(#neon-filter)"/>
+
+    <!-- Corner HUD Brackets -->
+    <path d="M 10 70 V 50 H 30" stroke="#00f2fe" stroke-width="2" fill="none"/>
+    <path d="M 190 70 V 50 H 170" stroke="#00f2fe" stroke-width="2" fill="none"/>
+    <path d="M 10 190 V 210 H 30" stroke="#00f2fe" stroke-width="2" fill="none"/>
+    <path d="M 190 190 V 210 H 170" stroke="#00f2fe" stroke-width="2" fill="none"/>
+
+    <text x="100" y="280" font-family="monospace" font-size="14" fill="#00f2fe" text-anchor="middle" font-weight="bold">QUANTUM_SENTINEL</text>
+  </g>
+</svg>
+
+
+
+import React from 'react';
+import { ShieldAlert, Cpu, Terminal, Zap, Activity } from 'lucide-react';
+
+export const ThreatTerminationIcon = () => {
+  return (
+    <div className="flex items-center justify-center p-6 bg-slate-950 rounded-xl border border-cyan-500/30 shadow-[0_0_15px_rgba(0,242,254,0.15)]">
+      <div className="relative flex items-center justify-center">
+        {/* Animated Background Ring */}
+        <div className="absolute w-20 h-20 rounded-full border-2 border-dashed border-cyan-400 animate-spin-slow opacity-40"></div>
+        
+        {/* Red Alert Overlay Ring */}
+        <div className="absolute w-14 h-14 rounded-full border border-red-500 animate-ping opacity-25"></div>
+
+        {/* Central Core Icon */}
+        <div className="relative z-10 p-3 bg-slate-900 rounded-lg border border-red-500/50 text-red-500 shadow-[0_0_10px_rgba(255,8,68,0.5)]">
+          <ShieldAlert size={36} />
+        </div>
+        
+        {/* HUD Satellite Indicators */}
+        <Cpu size={14} className="absolute -top-2 -right-2 text-cyan-400" />
+        <Terminal size={14} className="absolute -bottom-2 -left-2 text-cyan-400" />
+      </div>
+      
+      <div className="ml-4 font-mono">
+        <div className="flex items-center gap-2">
+          <Activity size={14} className="text-red-500 animate-pulse" />
+          <span className="text-xs text-red-400 font-bold tracking-wider">ACTIVE INTERCEPT</span>
+        </div>
+        <div className="text-sm font-semibold text-cyan-300">AI_KILL_CHAIN_ACTIVE</div>
+      </div>
+    </div>
+  );
+};
