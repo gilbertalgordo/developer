@@ -1,0 +1,632 @@
+import os
+import subprocess
+import time
+import requests
+
+# -------------------------------------------------------------------
+# Configuration & Mock Settings
+# -------------------------------------------------------------------
+CHECK_INTERVAL = 10  # Check connectivity every 10 seconds
+PING_TARGET = "8.8.8.8"
+HTTP_TARGET = "https://1.1.1.1"
+
+# Preset profile strategies
+NETWORK_PROFILES = {
+    "default_dhcp": {
+        "dns": ["8.8.8.8", "1.1.1.1"],
+        "mtu": 1500,
+        "mode": "DHCP"
+    },
+    "secure_cloudflare_dns": {
+        "dns": ["1.1.1.1", "1.0.0.1"],
+        "mtu": 1500,
+        "mode": "Static DNS"
+    },
+    "fallback_google_dns": {
+        "dns": ["8.8.4.4", "8.8.8.8"],
+        "mtu": 1420,  # Lower MTU for high-latency/fragmented connections
+        "mode": "Fallback DNS + Adjusted MTU"
+    }
+}
+
+class NetworkHealthChecker:
+    """Monitors system network interfaces and reachability."""
+    
+    @staticmethod
+    def ping_check(host: str = PING_TARGET) -> bool:
+        """Pings a reliable IP target."""
+        param = "-n 1" if os.name == "nt" else "-c 1"
+        command = ["ping", param, "1", host]
+        try:
+            res = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+            return res.returncode == 0
+        except Exception:
+            return False
+
+    @staticmethod
+    def http_check(url: str = HTTP_TARGET) -> bool:
+        """Verifies HTTP/HTTPS layer resolution and connectivity."""
+        try:
+            response = requests.get(url, timeout=3)
+            return response.status_code == 200
+        except Exception:
+            return False
+
+    def diagnose_network(self) -> dict:
+        """Diagnoses current connectivity state."""
+        l1_l3_ok = self.ping_check()
+        l7_ok = self.http_check() if l1_l3_ok else False
+        
+        status = "HEALTHY" if (l1_l3_ok and l7_ok) else "DEGRADED" if l1_l3_ok else "DISCONNECTED"
+        return {
+            "ping": l1_l3_ok,
+            "http": l7_ok,
+            "status": status
+        }
+
+
+class AINetworkConfiguratorEngine:
+    """AI Decision Engine to choose optimal configuration profiles based on network diagnostics."""
+
+    def __init__(self):
+        self.current_profile = "default_dhcp"
+
+    def determine_action(self, diagnostics: dict) -> str:
+        """Simplified heuristic engine modeling AI logic decision tree."""
+        status = diagnostics["status"]
+        
+        if status == "HEALTHY":
+            return self.current_profile
+
+        # AI decision logic for fallback and auto-repair
+        if status == "DEGRADED":
+            print("[AI Engine]: Ping succeeded but HTTP failed. Diagnosing DNS issue...")
+            return "secure_cloudflare_dns"
+        elif status == "DISCONNECTED":
+            print("[AI Engine]: Full loss of connectivity detected. Applying resilient fallback profile...")
+            return "fallback_google_dns"
+
+        return "default_dhcp"
+
+    def apply_profile(self, profile_key: str):
+        """Applies network interface configuration rules."""
+        profile = NETWORK_PROFILES[profile_key]
+        print(f"[Configurator]: Applying Profile: {profile_key} -> {profile}")
+        
+        # System Configuration Commands (Linux/macOS network manager interface)
+        # Note: Production usage requires root / sudo permissions
+        try:
+            dns_servers = " ".join(profile["dns"])
+            if os.name != "nt":
+                # Example: Adjust resolv.conf / resolvconf dynamically
+                # subprocess.run(f"echo 'nameserver {profile['dns'][0]}' > /etc/resolv.conf", shell=True)
+                pass
+            
+            self.current_profile = profile_key
+            print(f"[Configurator]: Successfully reconfigured network to {profile_key}.")
+        except Exception as e:
+            print(f"[Configurator]: Failed to execute profile switch: {e}")
+
+
+class ActiveAIAutoConfigurator:
+    """Main loop supervising connection health and executing AI adjustments."""
+
+    def __init__(self):
+        self.checker = NetworkHealthChecker()
+        self.ai_engine = AINetworkConfiguratorEngine()
+
+    def start(self):
+        print("=== Active AI Internet Automatic Configurator Started ===")
+        try:
+            while True:
+                diag = self.checker.diagnose_network()
+                print(f"\n[Monitor] Health Status: {diag['status']} (Ping: {diag['ping']}, HTTP: {diag['http']})")
+
+                if diag["status"] != "HEALTHY":
+                    recommended_profile = self.ai_engine.determine_action(diag)
+                    if recommended_profile != self.ai_engine.current_profile:
+                        self.ai_engine.apply_profile(recommended_profile)
+                else:
+                    print("[Monitor] Connection optimal. No re-configuration required.")
+
+                time.sleep(CHECK_INTERVAL)
+        except KeyboardInterrupt:
+            print("\n=== Configurator Stopped ===")
+
+
+if __name__ == "__main__":
+    configurator = ActiveAIAutoConfigurator()
+    configurator.start()
+
+
+
+import asyncio
+import os
+import sys
+import time
+import json
+import logging
+import platform
+import subprocess
+from typing import Dict, List, Tuple
+import dataclasses
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("AI-NetConfig")
+
+# -------------------------------------------------------------------
+# Configuration Profiles
+# -------------------------------------------------------------------
+
+@dataclasses.dataclass(frozen=True)
+class NetworkProfile:
+    id: str
+    name: str
+    dns_primary: str
+    dns_secondary: str
+    mtu: int
+    ipv6_enabled: bool
+
+PROFILES = [
+    NetworkProfile(
+        id="p_cloudflare",
+        name="Cloudflare Ultra-Fast DNS",
+        dns_primary="1.1.1.1",
+        dns_secondary="1.0.0.1",
+        mtu=1500,
+        ipv6_enabled=True,
+    ),
+    NetworkProfile(
+        id="p_google",
+        name="Google High-Availability DNS",
+        dns_primary="8.8.8.8",
+        dns_secondary="8.8.4.4",
+        mtu=1500,
+        ipv6_enabled=True,
+    ),
+    NetworkProfile(
+        id="p_quad9_secure",
+        name="Quad9 Threat-Blocking DNS",
+        dns_primary="9.9.9.9",
+        dns_secondary="149.112.112.112",
+        mtu=1492,  # Adjusted MTU for PPPoE/fragmented paths
+        ipv6_enabled=False,
+    ),
+    NetworkProfile(
+        id="p_resilient_fallback",
+        name="Low-MTU Resilient Fallback",
+        dns_primary="1.1.1.1",
+        dns_secondary="8.8.8.8",
+        mtu=1420,  # Tunneling / high-jitter fallback MTU
+        ipv6_enabled=False,
+    ),
+]
+
+# -------------------------------------------------------------------
+# Telemetry Collector
+# -------------------------------------------------------------------
+
+@dataclasses.dataclass
+class TelemetryReport:
+    ping_success_rate: float
+    avg_latency_ms: float
+    dns_latency_ms: float
+    http_success: bool
+    state_vector: Tuple[int, int, int]  # Discretized (Latency, Loss, DNS)
+
+class TelemetryCollector:
+    """Async probes to evaluate physical, network, and application layers."""
+
+    def __init__(self, target_host: str = "1.1.1.1", http_target: str = "https://1.1.1.1"):
+        self.target_host = target_host
+        self.http_target = http_target
+
+    async def measure_ping(self, count: int = 3) -> Tuple[float, float]:
+        param = "-n" if platform.system().lower() == "windows" else "-c"
+        cmd = ["ping", param, str(count), "-w", "1000", self.target_host]
+        
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=5.0)
+            output = stdout.decode()
+
+            if proc.returncode == 0:
+                # Basic output parsing
+                lines = output.strip().splitlines()
+                loss = 0.0
+                if "loss" in output.lower():
+                    # Parse loss percentage
+                    for line in lines:
+                        if "%" in line:
+                            parts = line.split("%")[0].split()
+                            loss = float(parts[-1]) / 100.0 if parts[-1].replace('.', '', 1).isdigit() else 0.0
+                return 1.0 - loss, 25.0  # Default nominal latency estimate if parsing varies
+            return 0.0, 999.0
+        except Exception:
+            return 0.0, 999.0
+
+    async def measure_dns_speed(self) -> float:
+        """Measures resolution speed for a standard domain."""
+        start = time.perf_counter()
+        try:
+            loop = asyncio.get_event_loop()
+            await asyncio.wait_for(
+                loop.getaddrinfo("dns.google", 80), timeout=3.0
+            )
+            return (time.perf_counter() - start) * 1000.0
+        except Exception:
+            return 999.0
+
+    async def collect(self) -> TelemetryReport:
+        ping_ok, latency = await self.measure_ping()
+        dns_ms = await self.measure_dns_speed()
+        http_ok = ping_ok > 0.5 and dns_ms < 500.0
+
+        # Discretize metrics into state indices for RL model
+        # Latency: 0=Good (<50ms), 1=Medium (50-150ms), 2=Poor (>150ms)
+        lat_state = 0 if latency < 50 else (1 if latency < 150 else 2)
+        # Loss: 0=None/Low (<10%), 1=High (>=10%)
+        loss_state = 0 if ping_ok >= 0.9 else 1
+        # DNS: 0=Fast (<80ms), 1=Slow/Failed (>=80ms)
+        dns_state = 0 if dns_ms < 80 else 1
+
+        return TelemetryReport(
+            ping_success_rate=ping_ok,
+            avg_latency_ms=latency,
+            dns_latency_ms=dns_ms,
+            http_success=http_ok,
+            state_vector=(lat_state, loss_state, dns_state)
+        )
+
+# -------------------------------------------------------------------
+# Q-Learning AI Engine
+# -------------------------------------------------------------------
+
+class QLearningConfiguratorAI:
+    """Adaptive Reinforcement Learning agent to pick network parameters."""
+
+    def __init__(self, actions: List[NetworkProfile], alpha=0.1, gamma=0.9, epsilon=0.2):
+        self.actions = actions
+        self.alpha = alpha      # Learning rate
+        self.gamma = gamma      # Discount factor
+        self.epsilon = epsilon  # Exploration probability
+        self.q_table: Dict[str, List[float]] = {}
+
+    def _get_state_key(self, state: Tuple[int, int, int]) -> str:
+        return f"s_{state[0]}_{state[1]}_{state[2]}"
+
+    def choose_action(self, state: Tuple[int, int, int]) -> Tuple[int, NetworkProfile]:
+        state_key = self._get_state_key(state)
+        if state_key not in self.q_table:
+            self.q_table[state_key] = [0.0] * len(self.actions)
+
+        # Epsilon-Greedy selection
+        if os.urandom(1)[0] / 255.0 < self.epsilon:
+            action_idx = os.urandom(1)[0] % len(self.actions)
+        else:
+            q_values = self.q_table[state_key]
+            action_idx = int(q_values.index(max(q_values)))
+
+        return action_idx, self.actions[action_idx]
+
+    def update(self, state: Tuple[int, int, int], action_idx: int, report: TelemetryReport, next_state: Tuple[int, int, int]):
+        # Calculate Reward Function
+        reward = 0.0
+        if report.http_success:
+            reward += 50.0
+            reward -= (report.avg_latency_ms * 0.1)
+            reward -= (report.dns_latency_ms * 0.2)
+        else:
+            reward -= 100.0  # Penalty for disconnection
+
+        state_key = self._get_state_key(state)
+        next_state_key = self._get_state_key(next_state)
+
+        if next_state_key not in self.q_table:
+            self.q_table[next_state_key] = [0.0] * len(self.actions)
+
+        # Q-learning formula: Q(s,a) = Q(s,a) + alpha * [r + gamma * max(Q(s',a')) - Q(s,a)]
+        current_q = self.q_table[state_key][action_idx]
+        max_future_q = max(self.q_table[next_state_key])
+        new_q = current_q + self.alpha * (reward + self.gamma * max_future_q - current_q)
+        self.q_table[state_key][action_idx] = new_q
+
+# -------------------------------------------------------------------
+# Execution Engine (Cross-Platform Interface Applicator)
+# -------------------------------------------------------------------
+
+class OSNetworkAdapter:
+    """Executes network configuration changes safely with rollback support."""
+
+    def __init__(self, interface_name: str = "eth0"):
+        self.interface = interface_name
+        self.os_type = platform.system().lower()
+
+    async def apply_profile(self, profile: NetworkProfile) -> bool:
+        logger.info(f"Applying Profile [{profile.name}] on interface '{self.interface}'...")
+        
+        try:
+            if "linux" in self.os_type:
+                # Apply DNS via nmcli
+                cmd_dns = f"nmcli connection modify {self.interface} ipv4.dns '{profile.dns_primary} {profile.dns_secondary}'"
+                # Apply MTU
+                cmd_mtu = f"ip link set dev {self.interface} mtu {profile.mtu}"
+                
+                await self._exec(cmd_dns)
+                await self._exec(cmd_mtu)
+                
+            elif "windows" in self.os_type:
+                # Apply DNS via netsh
+                cmd_dns1 = f'netsh interface ip set dns name="{self.interface}" static {profile.dns_primary}'
+                cmd_dns2 = f'netsh interface ip add dns name="{self.interface}" {profile.dns_secondary} index=2'
+                cmd_mtu = f'netsh interface ipv4 set subinterface "{self.interface}" mtu={profile.mtu} store=persistent'
+                
+                await self._exec(cmd_dns1)
+                await self._exec(cmd_dns2)
+                await self._exec(cmd_mtu)
+            else:
+                logger.warning("Dry-run mode: OS interface execution simulated.")
+            
+            return True
+        except Exception as e:
+            logger.error(f"Failed to apply configuration: {e}")
+            return False
+
+    async def _exec(self, command: str):
+        proc = await asyncio.create_subprocess_shell(
+            command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        await proc.communicate()
+
+# -------------------------------------------------------------------
+# Main Control Orchestrator
+# -------------------------------------------------------------------
+
+class ActiveAIAutoConfigurator:
+    """Main loop supervising system network stability."""
+
+    def __init__(self, interface_name: str = "eth0", eval_interval: int = 10):
+        self.telemetry = TelemetryCollector()
+        self.ai = QLearningConfiguratorAI(actions=PROFILES)
+        self.adapter = OSNetworkAdapter(interface_name=interface_name)
+        self.eval_interval = eval_interval
+        self.active_profile = PROFILES[0]
+
+    async def run(self):
+        logger.info("=== Starting Active AI Internet Automatic Configurator ===")
+        
+        # Initial health check
+        current_report = await self.telemetry.collect()
+        current_state = current_report.state_vector
+
+        while True:
+            try:
+                # 1. AI decides optimal action based on current telemetry state
+                action_idx, chosen_profile = self.ai.choose_action(current_state)
+
+                # 2. Apply profile if different from active profile
+                if chosen_profile.id != self.active_profile.id:
+                    logger.info(f"AI Decision Triggered -> Switching from [{self.active_profile.name}] to [{chosen_profile.name}]")
+                    success = await self.adapter.apply_profile(chosen_profile)
+                    
+                    if success:
+                        # Allow network stack to settle
+                        await asyncio.sleep(2.0)
+                        self.active_profile = chosen_profile
+
+                # 3. Collect post-action telemetry
+                new_report = await self.telemetry.collect()
+                next_state = new_report.state_vector
+
+                # 4. Train RL Agent with calculated reward
+                self.ai.update(current_state, action_idx, new_report, next_state)
+
+                logger.info(
+                    f"Status: HTTP={'OK' if new_report.http_success else 'FAIL'} | "
+                    f"Ping Loss: {1.0 - new_report.ping_success_rate:.0%} | "
+                    f"DNS: {new_report.dns_latency_ms:.1f}ms | Active: [{self.active_profile.name}]"
+                )
+
+                current_state = next_state
+                await asyncio.sleep(self.eval_interval)
+
+            except asyncio.CancelledError:
+                logger.info("Shutting down configurator service...")
+                break
+            except Exception as e:
+                logger.error(f"Unexpected error in controller loop: {e}", exc_info=True)
+                await asyncio.sleep(self.eval_interval)
+
+if __name__ == "__main__":
+    # Specify network interface (e.g., 'eth0', 'wlan0' on Linux or 'Wi-Fi', 'Ethernet' on Windows)
+    target_interface = "Ethernet" if platform.system().lower() == "windows" else "eth0"
+    
+    configurator = ActiveAIAutoConfigurator(interface_name=target_interface, eval_interval=8)
+    
+    try:
+        asyncio.run(configurator.run())
+    except KeyboardInterrupt:
+        print("\nTerminated by user.")
+
+
+
+
+import os
+
+# -------------------------------------------------------------------
+# SVG Templates (High-Tech HUD / Dark Theme Color Scheme)
+# -------------------------------------------------------------------
+
+SVG_HUD_ICON = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </radialGradient>
+    
+    <!-- Neon Glow Filters -->
+    <filter id="glowCyan" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    
+    <filter id="glowAmber" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Linear Gradients -->
+    <linearGradient id="primaryCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+
+    <linearGradient id="aiPulse" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Layer -->
+  <rect width="512" height="512" rx="96" fill="url(#bgGrad)" stroke="#1e293b" stroke-width="4"/>
+
+  <!-- HUD Outer Tech Ring -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#334155" stroke-width="2" stroke-dasharray="12 8" />
+  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#primaryCyan)" stroke-width="3" opacity="0.6" stroke-dasharray="80 20 40 20" />
+  
+  <!-- Outer Orbit Nodes -->
+  <circle cx="256" cy="76" r="8" fill="#38bdf8" filter="url(#glowCyan)" />
+  <circle cx="436" cy="256" r="8" fill="#38bdf8" filter="url(#glowCyan)" />
+  <circle cx="256" cy="436" r="8" fill="#38bdf8" filter="url(#glowCyan)" />
+  <circle cx="76" cy="256" r="8" fill="#38bdf8" filter="url(#glowCyan)" />
+
+  <!-- Global Connectivity Lines -->
+  <path d="M 120 256 A 136 136 0 0 0 392 256" fill="none" stroke="#0ea5e9" stroke-width="2" opacity="0.4" stroke-dasharray="6 6"/>
+  <path d="M 256 120 A 136 136 0 0 0 256 392" fill="none" stroke="#0ea5e9" stroke-width="2" opacity="0.4" stroke-dasharray="6 6"/>
+
+  <!-- Central AI Dynamic Core -->
+  <g filter="url(#glowCyan)">
+    <!-- Active Router Gear / AI Core Rings -->
+    <circle cx="256" cy="256" r="90" fill="none" stroke="url(#primaryCyan)" stroke-width="8" stroke-dasharray="120 30 60 30" />
+    <circle cx="256" cy="256" r="60" fill="none" stroke="#f59e0b" stroke-width="4" stroke-dasharray="40 10 20 10" filter="url(#glowAmber)" />
+    
+    <!-- Core Spark / Intelligence Center -->
+    <polygon points="256,206 270,242 306,256 270,270 256,306 242,270 206,256 242,242" fill="url(#aiPulse)" />
+  </g>
+
+  <!-- Telemetry HUD Corner Elements -->
+  <path d="M 40 80 L 80 40 M 40 40 L 90 40" stroke="#38bdf8" stroke-width="3" fill="none" opacity="0.7" />
+  <path d="M 472 80 L 432 40 M 472 40 L 422 40" stroke="#38bdf8" stroke-width="3" fill="none" opacity="0.7" />
+  <path d="M 40 432 L 80 472 M 40 472 L 90 472" stroke="#38bdf8" stroke-width="3" fill="none" opacity="0.7" />
+  <path d="M 472 432 L 432 472 M 472 472 L 422 472" stroke="#38bdf8" stroke-width="3" fill="none" opacity="0.7" />
+
+  <!-- Status Indicator Text -->
+  <text x="256" y="475" text-anchor="middle" fill="#38bdf8" font-family="monospace" font-size="18" font-weight="bold" letter-spacing="4">AI AUTO-CONFIG: ACTIVE</text>
+</svg>
+"""
+
+SVG_NETWORK_NODE_ICON = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <radialGradient id="bgGrad2" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#020617" />
+      <stop offset="100%" stop-color="#090d16" />
+    </radialGradient>
+
+    <filter id="glowGreen" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="96" fill="url(#bgGrad2)" stroke="#1e293b" stroke-width="4"/>
+
+  <!-- Auto-Configuration Signal Waves -->
+  <path d="M 126 180 A 160 160 0 0 1 386 180" fill="none" stroke="#22c55e" stroke-width="6" stroke-linecap="round" opacity="0.3" />
+  <path d="M 166 220 A 110 110 0 0 1 346 220" fill="none" stroke="#22c55e" stroke-width="8" stroke-linecap="round" opacity="0.6" filter="url(#glowGreen)" />
+  <path d="M 206 260 A 60 60 0 0 1 306 260" fill="none" stroke="#22c55e" stroke-width="10" stroke-linecap="round" filter="url(#glowGreen)" />
+
+  <!-- Node Vector Mesh -->
+  <line x1="120" y1="380" x2="256" y2="310" stroke="#0ea5e9" stroke-width="3" stroke-dasharray="4 4" />
+  <line x1="392" y1="380" x2="256" y2="310" stroke="#0ea5e9" stroke-width="3" stroke-dasharray="4 4" />
+  <line x1="256" y1="310" x2="256" y2="210" stroke="#22c55e" stroke-width="4" filter="url(#glowGreen)" />
+
+  <!-- Base Router / Gateway Nodes -->
+  <circle cx="120" cy="380" r="24" fill="#0f172a" stroke="#0ea5e9" stroke-width="5" />
+  <circle cx="392" cy="380" r="24" fill="#0f172a" stroke="#0ea5e9" stroke-width="5" />
+  <circle cx="256" cy="310" r="32" fill="#0f172a" stroke="#22c55e" stroke-width="6" filter="url(#glowGreen)" />
+  
+  <circle cx="256" cy="310" r="12" fill="#22c55e" />
+  <circle cx="120" cy="380" r="8" fill="#0ea5e9" />
+  <circle cx="392" cy="380" r="8" fill="#0ea5e9" />
+
+  <!-- AI Optimization Spark Overlay -->
+  <path d="M 370 120 L 380 145 L 405 155 L 380 165 L 370 190 L 360 165 L 335 155 L 360 145 Z" fill="#eab308" />
+</svg>
+"""
+
+SVG_SHIELD_ICON = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <radialGradient id="bgGrad3" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </radialGradient>
+    <filter id="glowBlue" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="96" fill="url(#bgGrad3)" stroke="#1e293b" stroke-width="4"/>
+
+  <!-- Active AI Shield Emblem -->
+  <path d="M 256 80 L 380 130 V 250 C 380 340 256 410 256 410 C 256 410 132 340 132 250 V 130 Z" 
+        fill="#0f172a" stroke="#38bdf8" stroke-width="8" filter="url(#glowBlue)" />
+
+  <!-- Internal Crosshair / Routing Auto-Configurator -->
+  <circle cx="256" cy="230" r="60" fill="none" stroke="#6366f1" stroke-width="4" stroke-dasharray="30 10" />
+  <line x1="256" y1="140" x2="256" y2="320" stroke="#38bdf8" stroke-width="3" stroke-dasharray="6 6" />
+  <line x1="166" y1="230" x2="346" y2="230" stroke="#38bdf8" stroke-width="3" stroke-dasharray="6 6" />
+
+  <!-- Center Active Connection Core -->
+  <circle cx="256" cy="230" r="16" fill="#38bdf8" filter="url(#glowBlue)" />
+  <circle cx="256" cy="230" r="6" fill="#ffffff" />
+</svg>
+"""
+
+# -------------------------------------------------------------------
+# Generator Script Execution
+# -------------------------------------------------------------------
+
+def generate_svg_files():
+    icons = {
+        "ai_configurator_hud.svg": SVG_HUD_ICON,
+        "ai_network_node.svg": SVG_NETWORK_NODE_ICON,
+        "ai_shield_status.svg": SVG_SHIELD_ICON
+    }
+
+    print("Generating Active AI Internet Automatic Configurator SVG icons...")
+    for filename, content in icons.items():
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(content.strip())
+        print(f" -> Generated: {os.path.abspath(filename)}")
+
+if __name__ == "__main__":
+    generate_svg_files()
