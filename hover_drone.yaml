@@ -1,0 +1,383 @@
+import time
+import random
+from dataclasses import dataclass, field
+from enum import Enum
+
+class FlightMode(Enum):
+    HOVER = "VTOL Multi-Rotor Hover"
+    TRANSITION = "Hybrid Transition"
+    CRUISE = "High-Speed Jet Cruise"
+
+class StealthLevel(Enum):
+    OFF = 0
+    RADAR_ONLY = 1
+    OPTICAL_CLOAK = 2
+    FULL_SPECTRUM = 3
+
+@dataclass
+class HullMatrixStatus:
+    sector_alpha_integrity: float = 100.0  # Percentage
+    sector_beta_integrity: float = 100.0
+    nanobot_reservoir_level: float = 100.0 # Percentage
+
+class NanotechStealthManager:
+    def __init__(self):
+        self.current_stealth_mode = StealthLevel.OFF
+        self.power_draw_kw = 0.0
+
+    def set_stealth_mode(self, level: StealthLevel):
+        self.current_stealth_mode = level
+        if level == StealthLevel.OFF:
+            self.power_draw_kw = 0.0
+        elif level == StealthLevel.RADAR_ONLY:
+            self.power_draw_kw = 15.0
+        elif level == StealthLevel.OPTICAL_CLOAK:
+            self.power_draw_kw = 45.0
+        elif level == StealthLevel.FULL_SPECTRUM:
+            self.power_draw_kw = 75.0
+        
+        print(f"[STEALTH] Metamaterial alignment updated -> Mode: {self.current_stealth_mode.name} ({self.power_draw_kw} kW)")
+
+class NanotechRepairSubsystem:
+    def __init__(self, hull_status: HullMatrixStatus):
+        self.hull = hull_status
+
+    def inspect_and_repair(self):
+        """Scans hull matrices and deploys nano-assemblers to repair damaged zones."""
+        sectors = {
+            "Sector Alpha": self.hull.sector_alpha_integrity,
+            "Sector Beta": self.hull.sector_beta_integrity
+        }
+        
+        for sector_name, integrity in sectors.items():
+            if integrity < 95.0 and self.hull.nanobot_reservoir_level > 5.0:
+                needed_repair = 100.0 - integrity
+                nanobot_cost = needed_repair * 0.2
+                
+                print(f"[REPAIR] {sector_name} compromised ({integrity:.1f}%). Deploying nanobot swarm...")
+                time.sleep(0.5)
+                
+                # Apply structural reconstruction
+                if sector_name == "Sector Alpha":
+                    self.hull.sector_alpha_integrity = 100.0
+                else:
+                    self.hull.sector_beta_integrity = 100.0
+                    
+                self.hull.nanobot_reservoir_level -= nanobot_cost
+                print(f"[REPAIR] {sector_name} fully restored to 100.0%. Nanobot Reservoir: {self.hull.nanobot_reservoir_level:.1f}%")
+
+class HybridFlightController:
+    def __init__(self):
+        self.mode = FlightMode.HOVER
+        self.target_altitude_m = 0.0
+        self.current_altitude_m = 0.0
+        self.hull_status = HullMatrixStatus()
+        self.stealth = NanotechStealthManager()
+        self.repair = NanotechRepairSubsystem(self.hull_status)
+
+    def initiate_hover(self, target_altitude: float):
+        self.target_altitude_m = target_altitude
+        print(f"[FLIGHT] Initiating VTOL Hover to target altitude: {self.target_altitude_m}m")
+        
+        while self.current_altitude_m < self.target_altitude_m:
+            self.current_altitude_m += min(10.0, self.target_altitude_m - self.current_altitude_m)
+            print(f"[FLIGHT] Altitude: {self.current_altitude_m:.1f}m | Mode: {self.mode.value}")
+            time.sleep(0.2)
+
+    def simulate_telemetry_tick(self):
+        """Simulates external environmental impact and automated subsystems."""
+        # Random micro-damage simulation
+        if random.random() < 0.4:
+            impact = random.uniform(2.0, 12.0)
+            self.hull_status.sector_alpha_integrity -= impact
+            print(f"\n[ALERT] Atmospheric debris impact on Sector Alpha! Integrity reduced by {impact:.1f}%")
+
+        # Run nanotech automated repair cycle
+        self.repair.inspect_and_repair()
+
+
+# --- Demonstration Run ---
+if __name__ == "__main__":
+    drone = HybridFlightController()
+    
+    # 1. Takeoff & Hover
+    drone.initiate_hover(target_altitude=30.0)
+    
+    # 2. Engage Full Stealth
+    drone.stealth.set_stealth_mode(StealthLevel.FULL_SPECTRUM)
+    
+    # 3. Telemetry & Nanotech Repair Loop
+    print("\n--- Entering Autonomous Flight & Monitoring ---")
+    for _ in range(3):
+        drone.simulate_telemetry_tick()
+        time.sleep(0.5)
+
+
+
+
+import asyncio
+import numpy as np
+import logging
+from dataclasses import dataclass, field
+from typing import Dict, List, Tuple
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+# --- Math & State Definitions ---
+
+@dataclass
+class DroneState:
+    position: np.ndarray = field(default_factory=lambda: np.zeros(3))    # [x, y, z] in meters
+    velocity: np.ndarray = field(default_factory=lambda: np.zeros(3))    # [vx, vy, vz] in m/s
+    orientation: np.ndarray = field(default_factory=lambda: np.zeros(3)) # [roll, pitch, yaw] in rad
+    mass_kg: float = 1450.0                                             # Car-sized vehicle baseline
+    battery_charge_pct: float = 100.0
+
+class NanotechStealthController:
+    def __init__(self):
+        # Refractive Index Delta (n - n0) for dynamic cloaking phase adjustment
+        self.refractive_index_delta: float = 0.0
+        self.radar_absorption_db: float = 0.0
+        self.active_power_kw: float = 0.0
+
+    async def update_stealth_profile(self, target_cloak_pct: float) -> None:
+        """Dynamically tunes metamaterial lattice resonance for adaptive stealth."""
+        clamped_cloak = max(0.0, min(100.0, target_cloak_pct))
+        self.refractive_index_delta = (clamped_cloak / 100.0) * 1.45
+        self.radar_absorption_db = (clamped_cloak / 100.0) * -40.0 # -40 dB reduction
+        self.active_power_kw = (clamped_cloak / 100.0) * 85.0     # Up to 85 kW draw
+        
+        logging.info(
+            f"[STEALTH] Cloak: {clamped_cloak:.1f}% | Δn: {self.refractive_index_delta:.2f} | "
+            f"RCS Attenuation: {self.radar_absorption_db:.1f}dB | Power: {self.active_power_kw:.1f}kW"
+        )
+        await asyncio.sleep(0.01)
+
+class NanotechSelfRepairLattice:
+    def __init__(self, grid_size: Tuple[int, int] = (10, 10)):
+        self.grid_size = grid_size
+        # 1.0 = Intact structural cell, 0.0 = Severely damaged/ruptured
+        self.hull_integrity_matrix: np.ndarray = np.ones(grid_size, dtype=np.float64)
+        self.nanobot_density_matrix: np.ndarray = np.ones(grid_size, dtype=np.float64) * 100.0
+
+    def apply_structural_damage(self, row: int, col: int, damage_amount: float) -> None:
+        self.hull_integrity_matrix[row, col] = max(0.0, self.hull_integrity_matrix[row, col] - damage_amount)
+        logging.warning(f"[DAMAGE] Hull sector ({row}, {col}) damaged. Integrity: {self.hull_integrity_matrix[row, col]*100:.1f}%")
+
+    async def execute_repair_cycle((self) -> float:
+        """Cellular Automata-driven micro-repair using deployed nanobot swarms."""
+        damaged_indices = np.where(self.hull_integrity_matrix < 0.99)
+        if len(damaged_indices[0]) == 0:
+            return 100.0
+
+        for r, c in zip(damaged_indices[0], damaged_indices[1]):
+            if self.nanobot_density_matrix[r, c] > 5.0:
+                repair_delta = 0.15  # Re-weaving yield rate
+                cost = repair_delta * 12.0
+                
+                self.hull_integrity_matrix[r, c] = min(1.0, self.hull_integrity_matrix[r, c] + repair_delta)
+                self.nanobot_density_matrix[r, c] -= cost
+                logging.info(
+                    f"[REPAIR] Reconstructed Sector ({r}, {c}) -> Integrity: "
+                    f"{self.hull_integrity_matrix[r, c]*100:.1f}% | Nano Reserve: {self.nanobot_density_matrix[r, c]:.1f}%"
+                )
+        await asyncio.sleep(0.05)
+        return float(np.mean(self.hull_integrity_matrix) * 100)
+
+class HybridDroneSystem:
+    def __init__(self):
+        self.state = DroneState()
+        self.stealth = NanotechStealthController()
+        self.repair = NanotechSelfRepairLattice()
+        self.is_running = True
+
+    async def vtol_hover_controller(self, target_z: float) -> None:
+        """PID Hover Stabilization loop driving hybrid rotors."""
+        kp, ki, kd = 2.5, 0.1, 1.2
+        integral = 0.0
+        last_error = 0.0
+        dt = 0.1
+
+        logging.info(f"[FLIGHT] Initiating VTOL Hover Sequence to Z={target_z}m")
+        while self.is_running and abs(self.state.position[2] - target_z) > 0.05:
+            error = target_z - self.state.position[2]
+            integral += error * dt
+            derivative = (error - last_error) / dt
+            last_error = error
+
+            # Compute vertical thrust thrust_accel (m/s^2)
+            thrust_accel = (kp * error) + (ki * integral) + (kd * derivative)
+            
+            # Simple Euler integration for state update
+            self.state.velocity[2] += (thrust_accel - 9.81) * dt
+            self.state.position[2] += self.state.velocity[2] * dt
+            
+            logging.info(f"[TELEMETRY] Pos Z: {self.state.position[2]:.2f}m | Vel Z: {self.state.velocity[2]:.2f}m/s")
+            await asyncio.sleep(dt)
+
+    async def main_loop(self):
+        # 1. Start Hover Sequence concurrently
+        hover_task = asyncio.create_task(self.vtol_hover_controller(target_z=25.0))
+        
+        # 2. Engage Nanotech Stealth Matrix
+        await asyncio.sleep(0.5)
+        await self.stealth.update_stealth_profile(target_cloak_pct=95.0)
+
+        # 3. Simulate external Hull Impact
+        await asyncio.sleep(1.0)
+        self.repair.apply_structural_damage(row=3, col=4, damage_amount=0.45)
+
+        # 4. Process Repair Cycles
+        for _ in range(4):
+            avg_integrity = await self.repair.execute_repair_cycle()
+            logging.info(f"[STATUS] Total Hull Integrity: {avg_integrity:.2f}%")
+
+        await hover_task
+        self.is_running = False
+
+# --- Execution ---
+if __name__ == "__main__":
+    drone = HybridDroneSystem()
+    asyncio.run(drone.main_loop())
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid Drone Technology Icons</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --card-bg: #161b22;
+            --border-color: #30363d;
+            --accent-cyan: #00f2fe;
+            --accent-green: #39ff14;
+            --text-main: #f0f6fc;
+            --text-muted: #8b949e;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .icon-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .icon-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 8px 24px rgba(0, 242, 254, 0.15);
+        }
+
+        .svg-icon {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 16px;
+        }
+
+        .icon-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+            color: var(--text-main);
+        }
+
+        .icon-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        /* SVG Specific Animations & Styles */
+        .glow-cyan { filter: drop-shadow(0 0 6px rgba(0, 242, 254, 0.6)); }
+        .glow-green { filter: drop-shadow(0 0 6px rgba(57, 255, 20, 0.6)); }
+        
+        .pulse {
+            animation: pulse-animation 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-animation {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="icon-grid">
+
+    <div class="icon-card">
+        <svg class="svg-icon glow-cyan" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="16" cy="18" r="10" stroke="#00f2fe" stroke-width="2" stroke-dasharray="4 2"/>
+            <circle cx="48" cy="18" r="10" stroke="#00f2fe" stroke-width="2" stroke-dasharray="4 2"/>
+            <circle cx="16" cy="46" r="10" stroke="#00f2fe" stroke-width="2" stroke-dasharray="4 2"/>
+            <circle cx="48" cy="46" r="10" stroke="#00f2fe" stroke-width="2" stroke-dasharray="4 2"/>
+            <path d="M24 22H40L44 32L40 42H24L20 32L24 22Z" fill="#30363d" stroke="#f0f6fc" stroke-width="2"/>
+            <ellipse cx="32" cy="32" rx="5" ry="7" fill="#00f2fe" opacity="0.8"/>
+            <line x1="16" y1="28" x2="16" y2="36" stroke="#00f2fe" stroke-width="2" class="pulse"/>
+            <line x1="48" y1="28" x2="48" y2="36" stroke="#00f2fe" stroke-width="2" class="pulse"/>
+        </svg>
+        <h3 class="icon-title">VTOL Hover</h3>
+        <p class="icon-desc">Car-sized passenger and cargo transport unit with quad-vector rotors.</p>
+    </div>
+
+    <div class="icon-card">
+        <svg class="svg-icon glow-cyan" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M32 6L54 16V34C54 46.8 44.6 58.2 32 62C19.4 58.2 10 46.8 10 34V16L32 6Z" fill="#161b22" stroke="#00f2fe" stroke-width="2"/>
+            <path d="M32 16L38 20V26L32 30L26 26V20L32 16Z" stroke="#00f2fe" stroke-width="1.5" opacity="0.5"/>
+            <path d="M44 23L50 27V33L44 37L38 33V27L44 23Z" stroke="#00f2fe" stroke-width="1.5" opacity="0.3"/>
+            <path d="M20 23L26 27V33L20 37L14 33V27L20 23Z" stroke="#00f2fe" stroke-width="1.5" opacity="0.8"/>
+            <path d="M32 30L38 34V40L32 44L26 40V34L32 30Z" stroke="#00f2fe" stroke-width="1.5" class="pulse"/>
+        </svg>
+        <h3 class="icon-title">Nanotech Stealth</h3>
+        <p class="icon-desc">Dynamic metamaterial array providing real-time optical dynamic camouflage.</p>
+    </div>
+
+    <div class="icon-card">
+        <svg class="svg-icon glow-green" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="12" y="12" width="40" height="40" rx="8" fill="#30363d" stroke="#8b949e" stroke-width="2"/>
+            <path d="M20 20L30 32L26 44" stroke="#8b949e" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="30" cy="32" r="3" fill="#39ff14"/>
+            <circle cx="26" cy="44" r="3" fill="#39ff14"/>
+            <path d="M22 24L30 32L26 44L38 36" stroke="#39ff14" stroke-width="2" stroke-dasharray="2 2" class="pulse"/>
+            <circle cx="34" cy="28" r="1.5" fill="#39ff14"/>
+            <circle cx="22" cy="38" r="1.5" fill="#39ff14"/>
+            <circle cx="32" cy="40" r="1.5" fill="#39ff14"/>
+        </svg>
+        <h3 class="icon-title">Autonomous Repair</h3>
+        <p class="icon-desc">Cellular nanobot swarms dynamically re-weaving damaged hull matrices.</p>
+    </div>
+
+</div>
+
+</body>
+</html>
