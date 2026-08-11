@@ -1,0 +1,186 @@
+from google.colab import auth
+auth.authenticate_user()
+
+# Set your project ID
+project_id = 'your-gcp-project-id'
+!gcloud config set project {project_id}
+
+
+
+
+from google.cloud import aiplatform
+
+aiplatform.init(project=project_id, location='us-central1')
+
+# Define your model (e.g., uploading from your GCS bucket)
+model = aiplatform.Model.upload(
+    display_name="my-active-ai-model",
+    artifact_uri="gs://your-bucket-path/model/",
+    serving_container_image_uri="us-docker.pkg.dev/vertex-ai/prediction/sklearn-cpu.0-24:latest"
+)
+
+# Deploy to an endpoint
+endpoint = model.deploy(
+    machine_type="n1-standard-2"
+)
+
+print(f"Model deployed to: {endpoint.resource_name}")
+
+
+
+# Example of querying the deployed model
+prediction = endpoint.predict(instances=[[0.1, 0.2, 0.3]])
+print(prediction)
+
+
+
+# Install required active bridging dependencies
+!pip install -q fastapi uvicorn pyngrok pydantic google-generativeai
+
+import os
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import uvicorn
+from pyngrok import ngrok
+import threading
+
+app = FastAPI(title="Active Colab AI Daemon", version="2.0")
+
+class InferenceRequest(BaseModel):
+    prompt: str
+    temperature: float = 0.7
+    max_tokens: int = 512
+
+@app.post("/api/v1/execute")
+async def execute_ai_task(req: InferenceRequest):
+    try:
+        # Active processing hook (integrate your model logic or Gemini pipeline here)
+        response_payload = {
+            "status": "success",
+            "node": "google-colab-active-runtime",
+            "processed_prompt": req.prompt,
+            "telemetry": {
+                "engine": "active-ai-core",
+                "allocated_memory": "High-Performance GPU"
+            }
+        }
+        return response_payload
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def run_server():
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# Setup tunnel securely (Ensure your ngrok auth token is configured or set via environment)
+# !ngrok authtoken YOUR_NGROK_TOKEN
+public_url = ngrok.connect(8000)
+print(f" * Active Colab API Live Tunnel: {public_url}")
+
+# Start server in a background thread so the notebook remains interactive
+server_thread = threading.Thread(target=run_server, daemon=True)
+server_thread.start()
+
+
+
+import os
+import requests
+from google.cloud import secretmanager
+
+def get_secret(secret_id, project_id="your-gcp-project-id"):
+    client = secretmanager.SecretManagerServiceClient()
+    name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
+    response = client.access_secret_version(request={"name": name})
+    return response.payload.data.decode("UTF-8")
+
+class ColabBridgeClient:
+    def __init__(self, colab_tunnel_url: str):
+        self.base_url = colab_tunnel_url.rstrip("/")
+        
+    def dispatch_inference(self, prompt: str, temperature: float = 0.7):
+        endpoint = f"{self.base_url}/api/v1/execute"
+        payload = {
+            "prompt": prompt,
+            "temperature": temperature
+        }
+        headers = {"Content-Type": "application/json"}
+        
+        try:
+            response = requests.post(endpoint, json=payload, headers=headers, timeout=30)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            return {"status": "error", "message": str(e)}
+
+# Execution Example
+if __name__ == "__main__":
+    # Insert the active ngrok/tunnel URL generated from Colab Part 1
+    ACTIVE_COLAB_URL = "https://xxxx-xx-xx.ngrok-free.app" 
+    
+    bridge = ColabBridgeClient(colab_tunnel_url=ACTIVE_COLAB_URL)
+    result = bridge.dispatch_inference(prompt="Initialize real-time multi-modal stream parsing.")
+    print("Cloud Dispatcher Result:", result)
+
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="cloudGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4285F4" />
+      <stop offset="100%" stop-color="#34A853" />
+    </linearGradient>
+    <linearGradient id="pulseGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FBBC05" />
+      <stop offset="100%" stop-color="#EA4335" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- Background Plate -->
+  <rect width="512" height="512" rx="110" fill="#0d1117" />
+  
+  <!-- Cloud Infrastructure Silhouette -->
+  <path d="M384 296H168c-35.3 0-64-28.7-64-64 0-31.3 22.5-57.5 52.4-63.1C164.2 147.4 191.2 128 224 128c34.1 0 62.7 22.7 70.8 53.7 8.1-4.7 17.6-7.7 28.2-7.7 30.9 0 56 25.1 56 56 0 3.2-.3 6.3-.9 9.3H384z" 
+        fill="none" stroke="url(#cloudGrad)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" opacity="0.4" />
+
+  <!-- Central Colab Notebook / API Processing Matrix -->
+  <rect x="156" y="180" width="200" height="152" rx="20" fill="#1f242d" stroke="#4285F4" stroke-width="6" />
+  
+  <!-- Code Brackets & Active Neural Dot -->
+  <text x="180" y="245" font-family="monospace" font-size="44" font-weight="bold" fill="#34A853">&lt; /&gt;</text>
+  <circle cx="300" cy="230" r="14" fill="url(#pulseGrad)" filter="url(#glow)" />
+  
+  <!-- Active Telemetry Stream Lines -->
+  <path d="M186 280h140M186 304h90" stroke="#8ab4f8" stroke-width="8" stroke-linecap="round" />
+  
+  <!-- Connection Nodes / API Handshake Points -->
+  <circle cx="256" cy="380" r="8" fill="#4285F4" />
+  <path d="M256 332v48" stroke="#4285F4" stroke-width="6" stroke-dasharray="6 6" />
+</svg>
+
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <rect width="128" height="128" rx="28" fill="#111827" />
+  <!-- Outer Circuit Hexagon Rim -->
+  <polygon points="64,16 104,38 104,89 64,112 24,89 24,38" fill="none" stroke="#34A853" stroke-width="3" opacity="0.8" />
+  
+  <!-- Core Terminal Graphic -->
+  <path d="M44 48L28 64L44 80" fill="none" stroke="#4285F4" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M84 48L100 64L84 80" fill="none" stroke="#4285F4" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="72" y1="40" x2="56" y2="88" stroke="#FBBC05" stroke-width="6" stroke-linecap="round" />
+</svg>
+
+
+
+
+# Optional Python snippet to rasterize SVG icons dynamically
+!pip install -q cairosvg
+import cairosvg
+
+cairosvg.svg2png(url='icon.svg', write_to='active_ai_icon.png', output_width=512, output_height=512)
+print("Successfully generated active API icon asset.")
