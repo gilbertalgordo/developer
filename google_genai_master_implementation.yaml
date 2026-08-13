@@ -1,0 +1,2922 @@
+npm install @google/genai
+
+
+
+export GEMINI_API_KEY="your_api_key_here"
+
+
+
+import { GoogleGenAI } from "@google/genai";
+
+// Initialize the client (automatically uses GEMINI_API_KEY environment variable)
+const ai = new GoogleGenAI({});
+
+interface MasterPromptConfig {
+  profileUrl: string;
+  taskDescription: string;
+  systemInstruction?: string;
+}
+
+/**
+ * Executes a developer/agent AI task using Gemini
+ */
+async function runGoogleAIMaster(config: MasterPromptConfig): Promise<void> {
+  const { profileUrl, taskDescription, systemInstruction } = config;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: `Developer Context: ${profileUrl}\n\nTask: ${taskDescription}`
+            }
+          ]
+        }
+      ],
+      config: {
+        systemInstruction: systemInstruction || "You are an expert Google Developer AI Assistant specializing in open-source AI integration, agentic workflows, and cloud architecture.",
+        temperature: 0.7,
+      }
+    });
+
+    console.log("--- Generated Output ---");
+    console.log(response.text);
+  } catch (error) {
+    console.error("Error executing Google AI generation:", error);
+  }
+}
+
+// Example Execution
+async function main() {
+  const profileUrl = "https://g.dev/gilbert_algordo";
+  const taskDescription = "Design a high-level architecture outline for an open-source multimodal AI application using Google Cloud and Gemini API.";
+
+  await runGoogleAIMaster({
+    profileUrl,
+    taskDescription,
+  });
+}
+
+main();
+
+
+
+import { GoogleGenAI, FunctionDeclaration, Type } from "@google/genai";
+
+// 1. Initialize Gemini Client
+const ai = new GoogleGenAI({});
+
+// 2. Define Function Declarations (Tools)
+const getWeatherDeclaration: FunctionDeclaration = {
+  name: "getWeather",
+  description: "Retrieves current temperature and weather conditions for a city.",
+  parametersJsonSchema: {
+    type: "object",
+    properties: {
+      location: {
+        type: "string",
+        description: "The city and state/country, e.g. San Francisco, CA or Tokyo, Japan",
+      },
+    },
+    required: ["location"],
+  },
+};
+
+// Local tool execution logic
+async function getWeather(location: string) {
+  // Mock external API response
+  return {
+    location,
+    temperature: "22°C",
+    condition: "Partly Cloudy",
+    humidity: "65%",
+  };
+}
+
+// 3. Streaming Response with Tool Handling
+async function streamWithFunctionCalling() {
+  const userPrompt = "What is the current weather in Tokyo? Give me a short summary.";
+
+  console.log(`User: ${userPrompt}\n`);
+
+  // Call stream endpoint with tools configured
+  const responseStream = await ai.models.generateContentStream({
+    model: "gemini-2.5-flash",
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    config: {
+      tools: [{ functionDeclarations: [getWeatherDeclaration] }],
+    },
+  });
+
+  let detectedFunctionCall: any = null;
+
+  // Process stream chunks as they arrive
+  for await (const chunk of responseStream) {
+    // Check if the chunk contains text
+    if (chunk.text) {
+      process.stdout.write(chunk.text);
+    }
+
+    // Check if the chunk contains a function call request
+    if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+      detectedFunctionCall = chunk.functionCalls[0];
+    }
+  }
+
+  // 4. Handle Function Execution & Continuation
+  if (detectedFunctionCall) {
+    console.log(`\n\n[System] Tool Call Detected: ${detectedFunctionCall.name}`);
+    console.log(`[System] Arguments:`, JSON.stringify(detectedFunctionCall.args));
+
+    let functionResult: any;
+
+    if (detectedFunctionCall.name === "getWeather") {
+      const args = detectedFunctionCall.args as { location: string };
+      functionResult = await getWeather(args.location);
+    }
+
+    console.log(`[System] Tool Result:`, JSON.stringify(functionResult));
+    console.log(`\n[AI Streaming Answer]:`);
+
+    // Pass original user turn, tool request, and tool response back for the final stream
+    const followUpStream = await ai.models.generateContentStream({
+      model: "gemini-2.5-flash",
+      contents: [
+        { role: "user", parts: [{ text: userPrompt }] },
+        {
+          role: "model",
+          parts: [{ functionCall: detectedFunctionCall }],
+        },
+        {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                name: detectedFunctionCall.name,
+                response: functionResult,
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    for await (const chunk of followUpStream) {
+      if (chunk.text) {
+        process.stdout.write(chunk.text);
+      }
+    }
+    console.log("\n");
+  }
+}
+
+streamWithFunctionCalling();
+
+
+
+
+import { GoogleGenAI, FunctionDeclaration } from "@google/genai";
+
+// 1. Initialize the Google Gen AI Client
+const ai = new GoogleGenAI({});
+
+// 2. Define the Function Declaration (Tool)
+const checkInventoryDeclaration: FunctionDeclaration = {
+  name: "checkInventory",
+  description: "Checks stock quantity and availability for a product SKU.",
+  parametersJsonSchema: {
+    type: "object",
+    properties: {
+      sku: {
+        type: "string",
+        description: "The product SKU, e.g. 'CPU-32GB-RAM' or 'GPU-RTX'",
+      },
+    },
+    required: ["sku"],
+  },
+};
+
+// Simulated backend service/tool execution
+async function checkInventory(sku: string) {
+  const database: Record<string, { inStock: boolean; count: number; warehouse: string }> = {
+    "CPU-32GB-RAM": { inStock: true, count: 42, warehouse: "US-West" },
+    "GPU-RTX": { inStock: false, count: 0, warehouse: "US-East" },
+  };
+
+  return database[sku] || { inStock: false, count: 0, warehouse: "Unknown" };
+}
+
+// 3. Multi-Turn Agent Loop
+async function runChatAgent() {
+  // Create stateful chat session with tools attached
+  const chat = ai.chats.create({
+    model: "gemini-2.5-flash",
+    config: {
+      systemInstruction: "You are an intelligent inventory management agent. Use the checkInventory tool when users query product availability.",
+      tools: [{ functionDeclarations: [checkInventoryDeclaration] }],
+    },
+  });
+
+  console.log("=== Turn 1: Direct User Question ===");
+  // Turn 1
+  let response = await chat.sendMessage({
+    message: "Hello! Do we have 'CPU-32GB-RAM' in stock?",
+  });
+
+  // Check if Gemini invoked a function call
+  if (response.functionCalls && response.functionCalls.length > 0) {
+    const call = response.functionCalls[0];
+    console.log(`[Agent Action] Gemini called tool '${call.name}' with args:`, call.args);
+
+    // Execute local function logic
+    const args = call.args as { sku: string };
+    const toolOutput = await checkInventory(args.sku);
+
+    // Pass tool execution result back into the active chat session
+    response = await chat.sendMessage({
+      message: [
+        {
+          functionResponse: {
+            name: call.name,
+            response: toolOutput,
+          },
+        },
+      ],
+    });
+  }
+
+  // Output Gemini's response after consuming tool output
+  console.log(`Agent: ${response.text}\n`);
+
+  console.log("=== Turn 2: Follow-up Question (Conversation context maintained) ===");
+  // Turn 2: Gemini retains memory of Turn 1 SKU and context automatically
+  const followUpResponse = await chat.sendMessage({
+    message: "Which warehouse is that stock located in?",
+  });
+
+  console.log(`Agent: ${followUpResponse.text}\n`);
+}
+
+runChatAgent();
+
+
+
+import { GoogleGenAI } from "@google/genai";
+
+// 1. Initialize the Client
+const ai = new GoogleGenAI({});
+
+// 2. Define Executable Local Functions
+// The SDK automatically extracts function names, descriptions, and parameter types from the implementation.
+async function getAccountBalance({ accountId }: { accountId: string }) {
+  console.log(`\n[AFC Execution] Running getAccountBalance for ${accountId}...`);
+  const balances: Record<string, { balance: string; currency: string }> = {
+    "ACC-101": { balance: "14,500.50", currency: "USD" },
+    "ACC-202": { balance: "3,200.00", currency: "EUR" },
+  };
+  return balances[accountId] || { error: "Account not found" };
+}
+
+async function transferFunds({
+  fromAccount,
+  toAccount,
+  amount,
+}: {
+  fromAccount: string;
+  toAccount: string;
+  amount: number;
+}) {
+  console.log(`\n[AFC Execution] Executing transfer: $${amount} from ${fromAccount} to ${toAccount}...`);
+  return {
+    status: "SUCCESS",
+    transactionId: "TXN-98765",
+    transferredAmount: amount,
+    fromAccount,
+    toAccount,
+  };
+}
+
+// 3. Multi-Turn Chat with Automatic Function Calling
+async function runAFCChatAgent() {
+  // Pass executable functions directly into tools
+  const chat = ai.chats.create({
+    model: "gemini-2.5-flash",
+    config: {
+      systemInstruction:
+        "You are an automated banking assistant. Use provided tools to query accounts and perform transfers.",
+      // Pass local executable functions directly to enable AFC
+      tools: [getAccountBalance, transferFunds],
+    },
+  });
+
+  console.log("--- Turn 1: Account Balance Query ---");
+  // The SDK automatically calls getAccountBalance and returns the final answer
+  let response = await chat.sendMessage({
+    message: "What is the current balance of account ACC-101?",
+  });
+
+  console.log(`Agent: ${response.text}`);
+
+  console.log("\n--- Turn 2: Financial Action ---");
+  // The SDK automatically executes transferFunds and returns the confirmation
+  response = await chat.sendMessage({
+    message: "Great! Please transfer 500 dollars from ACC-101 to ACC-202.",
+  });
+
+  console.log(`Agent: ${response.text}`);
+}
+
+runAFCChatAgent();
+
+
+
+
+import { GoogleGenAI, FunctionDeclaration, Type, ApiError } from "@google/genai";
+
+const ai = new GoogleGenAI({});
+
+// 1. Function Declaration with Explicit JSON Schema Definitions
+const processPaymentDeclaration: FunctionDeclaration = {
+  name: "processPayment",
+  description: "Processes a payment for an invoice with amount, currency, and payment method validation.",
+  parametersJsonSchema: {
+    type: "object",
+    properties: {
+      invoiceId: {
+        type: "string",
+        description: "The unique identifier of the invoice, e.g., 'INV-2026-001'",
+      },
+      amount: {
+        type: "number",
+        description: "The monetary value to pay. Must be positive.",
+      },
+      currency: {
+        type: "string",
+        enum: ["USD", "EUR", "GBP"],
+        description: "3-letter ISO currency code.",
+      },
+      paymentMethod: {
+        type: "string",
+        enum: ["credit_card", "bank_transfer"],
+        description: "Method of payment.",
+      },
+    },
+    required: ["invoiceId", "amount", "currency", "paymentMethod"],
+  },
+};
+
+// 2. Executable Function with Robust Function-Level Error Handling
+async function processPayment(args: {
+  invoiceId: string;
+  amount: number;
+  currency: string;
+  paymentMethod: string;
+}) {
+  console.log(`\n[Tool Executing] Attempting payment for ${args.invoiceId}...`);
+
+  try {
+    // Parameter Validation Error Handling
+    if (args.amount <= 0) {
+      return {
+        success: false,
+        error: "INVALID_AMOUNT",
+        message: "Payment amount must be greater than 0.",
+      };
+    }
+
+    // Simulated Business Logic Exception (e.g. Database/API failure)
+    if (args.invoiceId === "INV-EXPIRED") {
+      return {
+        success: false,
+        error: "INVOICE_EXPIRED",
+        message: "The requested invoice has expired and can no longer accept payment.",
+      };
+    }
+
+    // Successful execution result
+    return {
+      success: true,
+      transactionId: `TXN-${Math.floor(Math.random() * 100000)}`,
+      status: "COMPLETED",
+      invoiceId: args.invoiceId,
+      amount: args.amount,
+      currency: args.currency,
+    };
+  } catch (err: any) {
+    // Catch unhandled exceptions & return a structured error response
+    // so Gemini can explain the error to the user gracefully.
+    return {
+      success: false,
+      error: "INTERNAL_SYSTEM_ERROR",
+      message: err.message || "An unexpected error occurred during payment processing.",
+    };
+  }
+}
+
+// 3. Multi-Turn Chat execution with API & Tool Error Handling
+async function runAgentWithErrorHandling() {
+  // Combine declaration schema with executable function logic
+  const executableTool = Object.assign(processPayment, {
+    declaration: processPaymentDeclaration,
+  });
+
+  const chat = ai.chats.create({
+    model: "gemini-2.5-flash",
+    config: {
+      systemInstruction:
+        "You are an automated billing agent. Use processPayment to execute payments. " +
+        "If a tool returns an error, explain the issue clearly to the user without hallucinating a successful payment.",
+      tools: [executableTool],
+    },
+  });
+
+  // Helper function to safely send messages with API-level error handling
+  async function sendMessageSafely(prompt: string) {
+    console.log(`\nUser: ${prompt}`);
+    try {
+      const response = await chat.sendMessage({ message: prompt });
+      console.log(`Agent: ${response.text}`);
+    } catch (error) {
+      // API-Level Error Handling (Network errors, quota limits, or invalid keys)
+      if (error instanceof ApiError) {
+        console.error(`[API Error] Code ${error.status}: ${error.message}`);
+      } else {
+        console.error("[Unexpected Error]:", error);
+      }
+    }
+  }
+
+  // Turn 1: Attempting an invalid payment (triggers Tool Error Recovery)
+  await sendMessageSafely(
+    "Please pay invoice 'INV-EXPIRED' for $150 USD using credit_card."
+  );
+
+  // Turn 2: Correcting the input (triggers Successful Tool Execution)
+  await sendMessageSafely(
+    "Okay, try processing invoice 'INV-2026-001' for $150 USD using credit_card instead."
+  );
+}
+
+runAgentWithErrorHandling();
+
+
+
+
+import { GoogleGenAI } from "@google/genai";
+
+const ai = new GoogleGenAI({});
+
+// 1. Define Local Executable Functions
+async function fetchStockPrice({ symbol }: { symbol: string }) {
+  console.log(`\n[AFC System] Executing fetchStockPrice for symbol: ${symbol}...`);
+  const mockMarket: Record<string, { price: number; currency: string; change: string }> = {
+    GOOGL: { price: 182.5, currency: "USD", change: "+1.2%" },
+    AAPL: { price: 224.3, currency: "USD", change: "-0.4%" },
+  };
+
+  return mockMarket[symbol.toUpperCase()] || { error: "Symbol not found" };
+}
+
+async function convertCurrency({
+  amount,
+  from,
+  to,
+}: {
+  amount: number;
+  from: string;
+  to: string;
+}) {
+  console.log(`\n[AFC System] Executing convertCurrency (${amount} ${from} -> ${to})...`);
+  const rates: Record<string, number> = {
+    USD_EUR: 0.92,
+    USD_JPY: 155.4,
+  };
+  const key = `${from.toUpperCase()}_${to.toUpperCase()}`;
+  const rate = rates[key] || 1.0;
+
+  return {
+    convertedAmount: (amount * rate).toFixed(2),
+    targetCurrency: to,
+    exchangeRate: rate,
+  };
+}
+
+// 2. Chat Agent with Streaming & AFC
+async function runStreamingAFCAgent() {
+  const chat = ai.chats.create({
+    model: "gemini-2.5-flash",
+    config: {
+      systemInstruction:
+        "You are an energetic financial assistant. Use tools to look up stocks and convert currencies, then summarize clearly.",
+      // Pass executable functions to enable Automatic Function Calling
+      tools: [fetchStockPrice, convertCurrency],
+    },
+  });
+
+  async function streamPrompt(userQuery: string) {
+    console.log(`\nUser: ${userQuery}`);
+    process.stdout.write("Agent: ");
+
+    // Use sendMessageStream to stream text while retaining AFC execution
+    const responseStream = await chat.sendMessageStream({
+      message: userQuery,
+    });
+
+    for await (const chunk of responseStream) {
+      if (chunk.text) {
+        process.stdout.write(chunk.text);
+      }
+    }
+    console.log("\n");
+  }
+
+  // Single-tool execution with streaming response
+  await streamPrompt("What is the current stock price for GOOGL?");
+
+  // Sequential multi-tool execution (stock fetch -> currency conversion) fully streamed
+  await streamPrompt(
+    "How much is 10 shares of GOOGL worth in EUR?"
+  );
+}
+
+runStreamingAFCAgent();
+
+
+
+npm install @google/genai dotenv
+
+
+
+import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
+import * as dotenv from "dotenv";
+
+dotenv.config();
+
+// Initialize client (picks up GEMINI_API_KEY from environment)
+const ai = new GoogleGenAI({});
+
+// ---------------------------------------------------------------------------
+// 1. Define Custom Function Tools (Local Backend Integrations)
+// ---------------------------------------------------------------------------
+
+const analyzeRepoDeclaration: FunctionDeclaration = {
+  name: "analyzeRepository",
+  description: "Analyzes a developer GitHub or Google Developer profile repository for architecture health.",
+  parametersJsonSchema: {
+    type: "object",
+    properties: {
+      profileUrl: {
+        type: "string",
+        description: "Developer profile URL (e.g. https://g.dev/gilbert_algordo)",
+      },
+      repoName: {
+        type: "string",
+        description: "Target repository name or tech stack module.",
+      },
+    },
+    required: ["profileUrl", "repoName"],
+  },
+};
+
+// Local executable implementation
+async function analyzeRepository(args: { profileUrl: string; repoName: string }) {
+  console.log(`\n[Tool Executing] Fetching repo metrics for ${args.repoName} (${args.profileUrl})...`);
+  return {
+    status: "SUCCESS",
+    repository: args.repoName,
+    coverage: "94.2%",
+    openIssues: 3,
+    activeBranch: "main",
+    optimizationScore: 98,
+    lastDeployment: new Date().toISOString(),
+  };
+}
+
+// Attach declaration metadata for SDK recognition
+const repoTool = Object.assign(analyzeRepository, {
+  declaration: analyzeRepoDeclaration,
+});
+
+// ---------------------------------------------------------------------------
+// 2. Main Master Agent Class
+// ---------------------------------------------------------------------------
+
+export class GoogleAIMasterAgent {
+  private chatSession: any;
+
+  constructor(private developerProfile: string) {
+    // Initialize stateful chat with built-in tools (Google Search, Code Execution) + Custom Tools
+    this.chatSession = ai.chats.create({
+      model: "gemini-2.5-pro",
+      config: {
+        systemInstruction: `You are the Google AI Master Agent for developer ${this.developerProfile}.
+You specialize in open-source AI software architecture, high-performance systems engineering, and multi-agent systems.
+Always optimize for clarity, precision, and production-ready TypeScript code.`,
+        temperature: 0.2,
+        tools: [
+          // Built-in Grounding Tools
+          { googleSearch: {} },
+          { codeExecution: {} },
+          // Custom AFC Executable Tool
+          repoTool,
+        ],
+      },
+    });
+  }
+
+  /**
+   * Executes a multi-turn user query with automatic tool execution and real-time streaming
+   */
+  async executeStream(userPrompt: string): Promise<void> {
+    console.log(`\nUser: ${userPrompt}`);
+    process.stdout.write("Master Agent: ");
+
+    try {
+      const responseStream = await this.chatSession.sendMessageStream({
+        message: userPrompt,
+      });
+
+      for await (const chunk of responseStream) {
+        if (chunk.text) {
+          process.stdout.write(chunk.text);
+        }
+      }
+      console.log("\n");
+    } catch (error) {
+      console.error("\n[Error executing query]:", error);
+    }
+  }
+
+  /**
+   * Generates structured schema-validated JSON deliverables
+   */
+  async generateStructuredBlueprint(topic: string) {
+    console.log(`\nGenerating Structured Blueprint for: ${topic}...`);
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-pro",
+      contents: `Generate a structured software architecture blueprint for: ${topic}`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            projectName: { type: Type.STRING },
+            architectureType: { type: Type.STRING },
+            primaryTechStack: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
+            modules: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  purpose: { type: Type.STRING },
+                  complexity: { type: Type.STRING },
+                },
+                required: ["name", "purpose"],
+              },
+            },
+            estimatedDeployTimeMinutes: { type: Type.NUMBER },
+          },
+          required: ["projectName", "architectureType", "primaryTechStack", "modules"],
+        },
+      },
+    });
+
+    return JSON.parse(response.text || "{}");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 3. Execution Pipeline
+// ---------------------------------------------------------------------------
+
+async function main() {
+  const profileUrl = "https://g.dev/gilbert_algordo";
+  const agent = new GoogleAIMasterAgent(profileUrl);
+
+  console.log("==================================================");
+  console.log(`Initialized Google AI Master Agent for ${profileUrl}`);
+  console.log("==================================================");
+
+  // Turn 1: Triggers AFC custom tool + streaming
+  await agent.executeStream(
+    "Check the status of my 'ai-automation-core' repository using your tool."
+  );
+
+  // Turn 2: Leverages context from Turn 1 + Google Search grounding for latest Gemini features
+  await agent.executeStream(
+    "Search for the latest Gemini 2.5 Pro benchmarks and summarize how they apply to my repo's architecture."
+  );
+
+  // Structured Output Request
+  const blueprint = await agent.generateStructuredBlueprint(
+    "High-throughput Multimodal AI Telemetry Engine"
+  );
+  console.log("\nStructured Architecture Output:\n", JSON.stringify(blueprint, null, 2));
+}
+
+main();
+
+
+
+google-ai-master-service/
+├── src/
+│   ├── agent.ts         # Google AI Master Agent logic (@google/genai)
+│   └── server.ts        # Express REST & Server-Sent Events (SSE) API
+├── Dockerfile           # Multi-stage production build
+├── package.json
+└── tsconfig.json
+
+
+
+{
+  "name": "google-ai-master-service",
+  "version": "1.0.0",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts"
+  },
+  "dependencies": {
+    "@google/genai": "^0.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.12.7",
+    "tsx": "^4.7.2",
+    "typescript": "^5.4.5"
+  }
+}
+
+
+
+
+import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
+
+const ai = new GoogleGenAI({});
+
+const analyzeRepoDeclaration: FunctionDeclaration = {
+  name: "analyzeRepository",
+  description: "Analyzes developer repository health metrics.",
+  parametersJsonSchema: {
+    type: "object",
+    properties: {
+      profileUrl: { type: "string" },
+      repoName: { type: "string" },
+    },
+    required: ["profileUrl", "repoName"],
+  },
+};
+
+async function analyzeRepository(args: { profileUrl: string; repoName: string }) {
+  return {
+    status: "SUCCESS",
+    repository: args.repoName,
+    coverage: "95.4%",
+    openIssues: 1,
+    activeBranch: "main",
+    optimizationScore: 99,
+  };
+}
+
+const repoTool = Object.assign(analyzeRepository, {
+  declaration: analyzeRepoDeclaration,
+});
+
+export class MasterAgentService {
+  private chatSession: any;
+
+  constructor(public developerProfile: string) {
+    this.chatSession = ai.chats.create({
+      model: "gemini-2.5-pro",
+      config: {
+        systemInstruction: `You are the Google AI Master Agent servicing ${developerProfile}. Provide production-ready, concise, and technically accurate solutions.`,
+        tools: [{ googleSearch: {} }, { codeExecution: {} }, repoTool],
+      },
+    });
+  }
+
+  // Stream token-by-token response over SSE
+  async *chatStream(prompt: string): AsyncGenerator<string> {
+    const responseStream = await this.chatSession.sendMessageStream({
+      message: prompt,
+    });
+
+    for await (const chunk of responseStream) {
+      if (chunk.text) {
+        yield chunk.text;
+      }
+    }
+  }
+
+  // Generate structured architecture JSON
+  async generateBlueprint(topic: string) {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-pro",
+      contents: `Generate architecture blueprint for: ${topic}`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            projectName: { type: Type.STRING },
+            architectureType: { type: Type.STRING },
+            primaryTechStack: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
+            estimatedDeployTimeMinutes: { type: Type.NUMBER },
+          },
+          required: ["projectName", "architectureType", "primaryTechStack"],
+        },
+      },
+    });
+
+    return JSON.parse(response.text || "{}");
+  }
+}
+
+
+
+import express, { Request, Response } from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import { MasterAgentService } from "./agent";
+
+dotenv.config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// PORT assigned dynamically by Cloud Run (default: 8080)
+const PORT = process.env.PORT || 8080;
+const DEVELOPER_PROFILE = "https://g.dev/gilbert_algordo";
+
+// Singleton Agent instance
+const agent = new MasterAgentService(DEVELOPER_PROFILE);
+
+// Cloud Run Health Check
+app.get("/health", (_req: Request, res: Response) => {
+  res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
+});
+
+// Streaming Chat API (Server-Sent Events)
+app.post("/api/chat/stream", async (req: Request, res: Response) => {
+  const { prompt } = req.body;
+
+  if (!prompt) {
+    return res.status(400).json({ error: "Missing 'prompt' in request body." });
+  }
+
+  // Set headers for SSE streaming
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  try {
+    for await (const chunk of agent.chatStream(prompt)) {
+      res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
+    }
+    res.write("data: [DONE]\n\n");
+    res.end();
+  } catch (error: any) {
+    res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+    res.end();
+  }
+});
+
+// JSON Blueprint API Endpoint
+app.post("/api/blueprint", async (req: Request, res: Response) => {
+  const { topic } = req.body;
+
+  if (!topic) {
+    return res.status(400).json({ error: "Missing 'topic' in request body." });
+  }
+
+  try {
+    const blueprint = await agent.generateBlueprint(topic);
+    res.status(200).json({ success: true, data: blueprint });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+});
+
+
+
+
+# Stage 1: Build
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json tsconfig.json ./
+RUN npm ci
+COPY src ./src
+RUN npm run build
+
+# Stage 2: Production Runtime
+FROM node:20-alpine AS runner
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY --from=builder /app/dist ./dist
+
+# Cloud Run injects PORT environment variable
+ENV PORT=8080
+EXPOSE 8080
+
+CMD ["node", "dist/server.js"]
+
+
+
+export PROJECT_ID="your-gcp-project-id"
+export REGION="us-central1"
+export SERVICE_NAME="google-ai-master-agent"
+
+gcloud config set project $PROJECT_ID
+
+
+
+gcloud run deploy $SERVICE_NAME \
+  --source . \
+  --region $REGION \
+  --platform managed \
+  --allow-unauthenticated \
+  --set-env-vars GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
+
+
+
+curl https://<YOUR-CLOUD-RUN-URL>/health
+
+
+
+
+curl -X POST https://<YOUR-CLOUD-RUN-URL>/api/blueprint \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "High-throughput Multimodal AI Engine"}'
+
+
+
+gcloud services enable secretmanager.googleapis.com
+
+
+
+# Store your secret in Secret Manager
+echo -n "YOUR_ACTUAL_GEMINI_API_KEY" | gcloud secrets create GEMINI_API_KEY \
+  --data-file=- \
+  --replication-policy="automatic"
+
+
+
+export PROJECT_NUMBER=$(gcloud projects describe $(gcloud config get-value project) --format="value(projectNumber)")
+
+gcloud secrets add-iam-policy-binding GEMINI_API_KEY \
+  --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+
+
+
+
+export SERVICE_NAME="google-ai-master-agent"
+export REGION="us-central1"
+
+gcloud run deploy $SERVICE_NAME \
+  --source . \
+  --region $REGION \
+  --platform managed \
+  --allow-unauthenticated \
+  --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest"
+
+
+
+
+// src/agent.ts
+import { GoogleGenAI } from "@google/genai";
+
+// Automatically picks up GEMINI_API_KEY injected by Cloud Run from Secret Manager
+const ai = new GoogleGenAI({});
+
+
+
+npm install express ws @google/genai dotenv
+npm install --save-dev @types/express @types/ws @types/node typescript tsx
+
+
+
+import express from "express";
+import http from "http";
+import { WebSocketServer, WebSocket } from "ws";
+import { GoogleGenAI } from "@google/genai";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 8080;
+
+// Initialize Gemini SDK Client
+const ai = new GoogleGenAI({});
+
+// Create native HTTP server wrapping Express
+const server = http.createServer(app);
+
+// Attach WebSocket server on top of HTTP server
+const wss = new WebSocketServer({ server, path: "/ws/chat" });
+
+app.use(express.json());
+
+// Health Check Endpoint
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "OK", websocketPath: "/ws/chat" });
+});
+
+// Manage active connections & agent sessions
+wss.on("connection", (ws: WebSocket) => {
+  console.log("[WebSocket] Client connected");
+
+  // Create a dedicated stateful chat session for each socket connection
+  const chat = ai.chats.create({
+    model: "gemini-2.5-flash",
+    config: {
+      systemInstruction:
+        "You are a low-latency, real-time AI assistant. Keep responses direct and concise.",
+    },
+  });
+
+  ws.on("message", async (data: Buffer) => {
+    try {
+      const payload = JSON.parse(data.toString());
+      const userMessage = payload.prompt;
+
+      if (!userMessage) {
+        ws.send(JSON.stringify({ type: "error", message: "Missing prompt" }));
+        return;
+      }
+
+      // Notify client that response generation has started
+      ws.send(JSON.stringify({ type: "start" }));
+
+      // Stream text chunks directly over WebSocket as they arrive from Gemini
+      const responseStream = await chat.sendMessageStream({
+        message: userMessage,
+      });
+
+      for await (const chunk of responseStream) {
+        if (chunk.text && ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({
+              type: "chunk",
+              text: chunk.text,
+            })
+          );
+        }
+      }
+
+      // Notify client that turn is complete
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "done" }));
+      }
+    } catch (error: any) {
+      console.error("[WebSocket Error]:", error);
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            message: error.message || "Execution error",
+          })
+        );
+      }
+    }
+  });
+
+  ws.on("close", () => {
+    console.log("[WebSocket] Client disconnected");
+  });
+});
+
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
+
+
+
+<script>
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${protocol}//${location.host}/ws/chat`);
+
+  ws.onopen = () => {
+    console.log("Connected to Agent WebSocket!");
+    // Send message to agent
+    ws.send(JSON.stringify({ prompt: "Hello! Who are you?" }));
+  };
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === "chunk") {
+      process.stdout.write(data.text); // Render real-time token stream
+    } else if (data.type === "done") {
+      console.log("\n--- Stream Finished ---");
+    }
+  };
+</script>
+
+
+
+export SERVICE_NAME="google-ai-ws-agent"
+export REGION="us-central1"
+
+gcloud run deploy $SERVICE_NAME \
+  --source . \
+  --region $REGION \
+  --platform managed \
+  --allow-unauthenticated \
+  --port=8080 \
+  --timeout=3600 \
+  --no-cpu-throttling \
+  --session-affinity \
+  --concurrency=1000 \
+  --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest"
+
+
+
+
+import React from 'react';
+
+export interface IconProps extends React.SVGProps<SVGSVGElement> {
+  size?: number;
+  primaryColor?: string;
+  secondaryColor?: string;
+}
+
+/**
+ * Official Google Developers Bracket Branding Icon
+ */
+export const GoogleDevBracketIcon: React.FC<IconProps> = ({
+  size = 24,
+  primaryColor = "#4285F4",
+  secondaryColor = "#34A853",
+  ...props
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M8.5 6L3 12L8.5 18"
+      stroke={primaryColor}
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M15.5 6L21 12L15.5 18"
+      stroke={secondaryColor}
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+/**
+ * Gemini Sparkle Icon (Google AI)
+ */
+export const GeminiSparkIcon: React.FC<IconProps> = ({
+  size = 24,
+  primaryColor = "#1A73E8",
+  ...props
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z"
+      fill={`url(#gemini_gradient_${size})`}
+    />
+    <defs>
+      <linearGradient
+        id={`gemini_gradient_${size}`}
+        x1="0"
+        y1="0"
+        x2="24"
+        y2="24"
+        gradientUnits="userSpaceOnUse"
+      >
+        <stop offset="0%" stopColor="#4285F4" />
+        <stop offset="50%" stopColor="#9B51E0" />
+        <stop offset="100%" stopColor="#E91E63" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
+/**
+ * Google AI Master Verification Badge Icon
+ */
+export const GoogleAIMasterBadgeIcon: React.FC<IconProps> = ({
+  size = 48,
+  ...props
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 48 48"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    {/* Hexagon Shield Frame */}
+    <path
+      d="M24 4L40 12V24C40 33.8 33.2 42.6 24 45C14.8 42.6 8 33.8 8 24V12L24 4Z"
+      fill="#1E1E24"
+      stroke="url(#shield_border)"
+      strokeWidth="2"
+    />
+    {/* Gemini Star Core */}
+    <path
+      d="M24 14C24 18.4 19.5 22 15 22C19.5 22 24 25.6 24 30C24 25.6 28.5 22 33 22C28.5 22 24 18.4 24 14Z"
+      fill="url(#core_gradient)"
+    />
+    {/* HUD Arc Accent */}
+    <circle
+      cx="24"
+      cy="24"
+      r="18"
+      stroke="#34A853"
+      strokeWidth="1.5"
+      strokeDasharray="4 4"
+      fill="none"
+    />
+    <defs>
+      <linearGradient id="shield_border" x1="8" y1="4" x2="40" y2="45" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="#4285F4" />
+        <stop offset="33%" stopColor="#EA4335" />
+        <stop offset="66%" stopColor="#FBBC04" />
+        <stop offset="100%" stopColor="#34A853" />
+      </linearGradient>
+      <linearGradient id="core_gradient" x1="15" y1="14" x2="33" y2="30" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="#8AB4F8" />
+        <stop offset="100%" stopColor="#C58AF9" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
+
+
+
+import fs from 'fs';
+import path from 'path';
+
+const outputDir = path.resolve('./output-icons');
+if (!fs.existsSync(outputDir)) {
+  fs.mkdirSync(outputDir, { recursive: true });
+}
+
+// 1. Google AI Master HUD Profile Badge SVG
+const masterBadgeSvg = `<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="28" fill="#0D1117"/>
+  <circle cx="64" cy="64" r="54" stroke="#30363D" stroke-width="2"/>
+  <circle cx="64" cy="64" r="46" stroke="url(#g_border)" stroke-width="3" stroke-dasharray="12 6"/>
+  <!-- Gemini Spark Icon -->
+  <path d="M64 28C64 47.88 48.12 64 28.24 64C48.12 64 64 80.12 64 100C64 80.12 79.88 64 99.76 64C79.88 64 64 47.88 64 28Z" fill="url(#gemini_glow)"/>
+  <defs>
+    <linearGradient id="g_border" x1="18" y1="18" x2="110" y2="110" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4285F4"/>
+      <stop offset="33%" stop-color="#EA4335"/>
+      <stop offset="66%" stop-color="#FBBC04"/>
+      <stop offset="100%" stop-color="#34A853"/>
+    </linearGradient>
+    <linearGradient id="gemini_glow" x1="28.24" y1="28" x2="99.76" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#A1C4FD"/>
+      <stop offset="50%" stop-color="#C2E9FB"/>
+      <stop offset="100%" stop-color="#96E6A1"/>
+    </linearGradient>
+  </defs>
+</svg>`;
+
+// 2. Google Developer Bracket Profile Icon SVG
+const devBracketSvg = `<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="28" fill="#1A1D24"/>
+  <path d="M48 36L24 64L48 92" stroke="#4285F4" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M80 36L104 64L80 92" stroke="#34A853" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="64" cy="64" r="8" fill="#EA4335"/>
+</svg>`;
+
+fs.writeFileSync(path.join(outputDir, 'google-ai-master-badge.svg'), masterBadgeSvg);
+fs.writeFileSync(path.join(outputDir, 'google-dev-bracket.svg'), devBracketSvg);
+
+console.log('✅ Generated SVG icons successfully in ./output-icons/');
+
+
+
+import React, { useRef, useEffect } from 'react';
+
+interface HUDCanvasProps {
+  size?: number;
+  primaryColor?: string;   // Google Blue
+  secondaryColor?: string; // Gemini Purple
+  accentColor?: string;    // HUD Green/Gold
+}
+
+export const GoogleAIMasterHUDCanvas: React.FC<HUDCanvasProps> = ({
+  size = 400,
+  primaryColor = '#4285F4',
+  secondaryColor = '#A142F4',
+  accentColor = '#34A853',
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let angle = 0;
+    let pulse = 0;
+
+    // Convert size for high DPI displays
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    ctx.scale(dpr, dpr);
+
+    const center = size / 2;
+
+    const render = () => {
+      angle += 0.015;
+      pulse += 0.03;
+      const glowIntensity = Math.sin(pulse) * 8 + 16; // Pulsing shadowBlur
+
+      // 1. Clear background
+      ctx.clearRect(0, 0, size, size);
+
+      // 2. Draw Outer HUD Rotating Arc
+      ctx.save();
+      ctx.translate(center, center);
+      ctx.rotate(angle);
+      
+      ctx.shadowBlur = glowIntensity;
+      ctx.shadowColor = primaryColor;
+      ctx.strokeStyle = primaryColor;
+      ctx.lineWidth = 3;
+
+      // Segmented outer ring
+      ctx.beginPath();
+      ctx.arc(0, 0, center - 20, 0, Math.PI * 0.7);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, center - 20, Math.PI, Math.PI * 1.7);
+      ctx.stroke();
+      ctx.restore();
+
+      // 3. Draw Counter-Rotating Segmented Tech Ring
+      ctx.save();
+      ctx.translate(center, center);
+      ctx.rotate(-angle * 1.5);
+
+      ctx.shadowBlur = glowIntensity * 0.75;
+      ctx.shadowColor = accentColor;
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 12]);
+
+      ctx.beginPath();
+      ctx.arc(0, 0, center - 35, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // 4. Draw Google Developer Brackets (< >) with Glow
+      ctx.save();
+      ctx.shadowBlur = glowIntensity * 1.2;
+      ctx.shadowColor = primaryColor;
+      ctx.strokeStyle = primaryColor;
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      // Left bracket '<'
+      ctx.beginPath();
+      ctx.moveTo(center - 70, center - 40);
+      ctx.lineTo(center - 100, center);
+      ctx.lineTo(center - 70, center + 40);
+      ctx.stroke();
+
+      // Right bracket '>'
+      ctx.shadowColor = accentColor;
+      ctx.strokeStyle = accentColor;
+      ctx.beginPath();
+      ctx.moveTo(center + 70, center - 40);
+      ctx.lineTo(center + 100, center);
+      ctx.lineTo(center + 70, center + 40);
+      ctx.stroke();
+      ctx.restore();
+
+      // 5. Central Gemini Sparkle Star (Vector Path Scale Pulsing)
+      ctx.save();
+      ctx.translate(center, center);
+      const scale = 1 + Math.sin(pulse) * 0.08;
+      ctx.scale(scale, scale);
+
+      ctx.shadowBlur = glowIntensity * 1.5;
+      ctx.shadowColor = secondaryColor;
+
+      // Create Radial Gradient Fill for Gemini Sparkle
+      const gradient = ctx.createRadialGradient(0, 0, 5, 0, 0, 50);
+      gradient.addColorStop(0, '#8AB4F8');
+      gradient.addColorStop(0.5, secondaryColor);
+      gradient.addColorStop(1, '#E91E63');
+      ctx.fillStyle = gradient;
+
+      // 4-point Gemini star path formula
+      ctx.beginPath();
+      const rOuter = 45;
+      const rInner = 10;
+      for (let i = 0; i < 8; i++) {
+        const r = i % 2 === 0 ? rOuter : rInner;
+        const a = (i * Math.PI) / 4;
+        const x = Math.cos(a) * r;
+        const y = Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      // 6. HUD Center Crosshair Ring
+      ctx.save();
+      ctx.translate(center, center);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.shadowBlur = 4;
+      ctx.shadowColor = '#FFFFFF';
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 60, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Center crosshair tick marks
+      ctx.beginPath();
+      ctx.moveTo(-68, 0); ctx.lineTo(-52, 0);
+      ctx.moveTo(52, 0);  ctx.lineTo(68, 0);
+      ctx.moveTo(0, -68); ctx.lineTo(0, -52);
+      ctx.moveTo(0, 52);  ctx.lineTo(0, 68);
+      ctx.stroke();
+      ctx.restore();
+
+      // Next frame loop
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [size, primaryColor, secondaryColor, accentColor]);
+
+  return (
+    <div style={{ display: 'inline-block', background: '#0D1117', padding: '16px', borderRadius: '24px' }}>
+      <canvas
+        ref={canvasRef}
+        style={{
+          width: `${size}px`,
+          height: `${size}px`,
+          display: 'block',
+        }}
+      />
+    </div>
+  );
+};
+
+
+
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+
+export const InteractiveHud = () => {
+  const containerRef = useRef(null);
+  const canvasRef = useRef(null);
+  
+  // Track continuous target and animated transform values
+  const [transform, setTransform] = useState({ rotateX: 0, rotateY: 0, scale: 1 });
+  const animFrameId = useRef(null);
+  const targetTransform = useRef({ rotateX: 0, rotateY: 0, scale: 1 });
+
+  // Smooth interpolation (LERP) loop for fluid motion
+  useEffect(() => {
+    let currentX = 0;
+    let currentY = 0;
+    let currentScale = 1;
+
+    const animate = () => {
+      // Linear interpolation factor (0.1 = smooth easing)
+      currentX += (targetTransform.current.rotateX - currentX) * 0.1;
+      currentY += (targetTransform.current.rotateY - currentY) * 0.1;
+      currentScale += (targetTransform.current.scale - currentScale) * 0.1;
+
+      setTransform({
+        rotateX: currentX,
+        rotateY: currentY,
+        scale: currentScale
+      });
+
+      animFrameId.current = requestAnimationFrame(animate);
+    };
+
+    animFrameId.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animFrameId.current);
+  }, []);
+
+  // Mouse Move Event Handler
+  const handleMouseMove = useCallback((e) => {
+    if (!containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    
+    // Calculate cursor position relative to center (-0.5 to 0.5)
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    const mouseX = (e.clientX - centerX) / (rect.width / 2);
+    const mouseY = (e.clientY - centerY) / (rect.height / 2);
+
+    // Max rotation angles (in degrees)
+    const maxTiltX = 15; // Vertical tilt angle
+    const maxTiltY = 15; // Horizontal tilt angle
+
+    // Invert mouseY for natural pitch tilt
+    targetTransform.current = {
+      rotateX: -mouseY * maxTiltX,
+      rotateY: mouseX * maxTiltY,
+      scale: 1.03 // Slight zoom effect on hover
+    };
+  }, []);
+
+  // Mouse Leave Handler - Reset to rest position
+  const handleMouseLeave = useCallback(() => {
+    targetTransform.current = { rotateX: 0, rotateY: 0, scale: 1 };
+  }, []);
+
+  return (
+    <div 
+      className="hud-viewport"
+      style={{
+        perspective: '1000px', // Set visual depth threshold
+        width: '100%',
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        backgroundColor: '#030712'
+      }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div
+        ref={containerRef}
+        className="hud-card-wrapper"
+        style={{
+          transformStyle: 'preserve-3d',
+          transform: `rotateX(${transform.rotateX.toFixed(2)}deg) rotateY(${transform.rotateY.toFixed(2)}deg) scale(${transform.scale.toFixed(3)})`,
+          willChange: 'transform',
+          transition: 'box-shadow 0.3s ease',
+          borderRadius: '16px',
+          boxShadow: `${-transform.rotateY * 2}px ${transform.rotateX * 2}px 30px rgba(0, 240, 255, 0.15)`
+        }}
+      >
+        <canvas
+          ref={canvasRef}
+          width={800}
+          height={500}
+          style={{
+            display: 'block',
+            borderRadius: '16px',
+            background: 'rgba(10, 15, 30, 0.85)',
+            border: '1px solid rgba(0, 240, 255, 0.3)'
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
+
+
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+
+export const ParallaxHudCanvas = () => {
+  const containerRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  // Normalized mouse target coordinates offset (-1.0 to 1.0)
+  const targetOffset = useRef({ x: 0, y: 0 });
+  // Interpolated smooth mouse coordinates
+  const currentOffset = useRef({ x: 0, y: 0 });
+
+  // 1. Render Loop: Draw elements with Z-Depth offsets
+  const drawHud = useCallback((ctx, width, height, mouse) => {
+    ctx.clearRect(0, 0, width, height);
+
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    /**
+     * Helper to compute parallax translation vector based on depth coefficient.
+     * @param {number} depthMultiplier - Higher value = closer to screen (larger movement offset).
+     */
+    const getLayerOffset = (depthMultiplier) => {
+      const maxOffset = 35; // Maximum pixel displacement limit
+      return {
+        x: mouse.x * maxOffset * depthMultiplier,
+        y: mouse.y * maxOffset * depthMultiplier,
+      };
+    };
+
+    // --- LAYER 1: Deep Background (Depth = 0.2) ---
+    const bgOffset = getLayerOffset(0.2);
+    ctx.save();
+    ctx.translate(bgOffset.x, bgOffset.y);
+    
+    // Draw background grid
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.08)';
+    ctx.lineWidth = 1;
+    const gridSize = 40;
+    for (let x = 0; x < width; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    for (let y = 0; y < height; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // --- LAYER 2: Midground Radar & Coordinates (Depth = 0.6) ---
+    const midOffset = getLayerOffset(0.6);
+    ctx.save();
+    ctx.translate(midOffset.x, midOffset.y);
+
+    // Draw central tactical ring
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 120, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Draw static HUD telemetry text
+    ctx.fillStyle = 'rgba(0, 240, 255, 0.6)';
+    ctx.font = '12px monospace';
+    ctx.fillText('SYS.LOC // 34.0522° N, 118.2437° W', centerX - 110, centerY + 145);
+    ctx.restore();
+
+    // --- LAYER 3: Foreground Crosshair Reticle (Depth = 1.2) ---
+    const fgOffset = getLayerOffset(1.2);
+    ctx.save();
+    ctx.translate(fgOffset.x, fgOffset.y);
+
+    // Dynamic central target crosshair
+    ctx.strokeStyle = '#00f0ff';
+    ctx.lineWidth = 2;
+    const rSize = 20;
+
+    // Crosshair ticks
+    ctx.beginPath();
+    ctx.moveTo(centerX - rSize, centerY);
+    ctx.lineTo(centerX - 5, centerY);
+    ctx.moveTo(centerX + 5, centerY);
+    ctx.lineTo(centerX + rSize, centerY);
+    ctx.moveTo(centerX, centerY - rSize);
+    ctx.lineTo(centerX, centerY - 5);
+    ctx.moveTo(centerX, centerY + 5);
+    ctx.lineTo(centerX, centerY + rSize);
+    ctx.stroke();
+
+    // Target reticle box
+    ctx.strokeRect(centerX - 35, centerY - 35, 70, 70);
+    ctx.restore();
+  }, []);
+
+  // 2. Animation loop for linear interpolation (LERP) and canvas redrawing
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animId;
+
+    const render = () => {
+      // Easing calculation for smooth parallax inertia
+      currentOffset.current.x += (targetOffset.current.x - currentOffset.current.x) * 0.08;
+      currentOffset.current.y += (targetOffset.current.y - currentOffset.current.y) * 0.08;
+
+      drawHud(ctx, canvas.width, canvas.height, currentOffset.current);
+      animId = requestAnimationFrame(render);
+    };
+
+    render();
+    return () => cancelAnimationFrame(animId);
+  }, [drawHud]);
+
+  // 3. Normalized Mouse Movement Handler
+  const handleMouseMove = useCallback((e) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+
+    // Normalize cursor position to range [-1.0, 1.0] from center
+    const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    const y = ((e.clientY - rect.top) / rect.height) * 2 - 1;
+
+    targetOffset.current = { x, y };
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    targetOffset.current = { x: 0, y: 0 };
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        width: '100%',
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#030712'
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        width={800}
+        height={500}
+        style={{
+          borderRadius: '12px',
+          background: 'rgba(5, 10, 25, 0.9)',
+          boxShadow: '0 0 40px rgba(0, 240, 255, 0.1)',
+          border: '1px solid rgba(0, 240, 255, 0.2)'
+        }}
+      />
+    </div>
+  );
+};
+
+
+
+import { useRef, useState, useCallback } from 'react';
+
+export const useCanvasRecorder = (canvasRef, fps = 60) => {
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+  const timerIntervalRef = useRef(null);
+
+  // Start recording the canvas context stream
+  const startRecording = useCallback(() => {
+    if (!canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    
+    // Capture continuous video stream from canvas
+    const stream = canvas.captureStream(fps);
+    
+    // Fallback options for MIME types supported across Chrome/Safari/Firefox
+    const options = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+      ? { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 5000000 }
+      : { mimeType: 'video/webm', videoBitsPerSecond: 5000000 };
+
+    try {
+      const recorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = recorder;
+      recordedChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          recordedChunksRef.current.push(e.data);
+        }
+      };
+
+      // When stopped, build blob and prompt download link
+      recorder.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `hud-recording-${Date.now()}.webm`;
+        document.body.appendChild(a);
+        a.click();
+
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 100);
+      };
+
+      recorder.start(100); // Collect data chunks every 100ms
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      // Track elapsed recording time
+      timerIntervalRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error('Failed to initialize MediaRecorder:', err);
+    }
+  }, [canvasRef, fps]);
+
+  // Stop recording and finalize video file export
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      clearInterval(timerIntervalRef.current);
+      setIsRecording(false);
+    }
+  }, [isRecording]);
+
+  return { isRecording, recordingTime, startRecording, stopRecording };
+};
+
+
+
+import React, { useRef } from 'react';
+import { useCanvasRecorder } from './useCanvasRecorder';
+
+export const HudWithRecorder = () => {
+  const canvasRef = useRef(null);
+  const { isRecording, recordingTime, startRecording, stopRecording } = useCanvasRecorder(canvasRef, 60);
+
+  return (
+    <div style={{ position: 'relative', width: '800px', margin: '20px auto' }}>
+      
+      {/* HUD Control Bar */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '16px',
+          right: '16px',
+          zIndex: 10,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          background: 'rgba(3, 7, 18, 0.85)',
+          padding: '8px 16px',
+          borderRadius: '8px',
+          border: '1px solid rgba(0, 240, 255, 0.3)',
+          color: '#00f0ff',
+          fontFamily: 'monospace'
+        }}
+      >
+        {isRecording && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: '#ff0055',
+                boxShadow: '0 0 8px #ff0055'
+              }}
+            />
+            <span>REC {recordingTime}s</span>
+          </div>
+        )}
+
+        <button
+          onClick={isRecording ? stopRecording : startRecording}
+          style={{
+            background: isRecording ? '#ff0055' : 'rgba(0, 240, 255, 0.15)',
+            color: '#fff',
+            border: '1px solid ' + (isRecording ? '#ff0055' : '#00f0ff'),
+            padding: '6px 14px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            fontFamily: 'monospace',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          {isRecording ? 'STOP & EXPORT .WEBM' : 'RECORD HUD'}
+        </button>
+      </div>
+
+      {/* Target HUD Canvas */}
+      <canvas
+        ref={canvasRef}
+        width={800}
+        height={500}
+        style={{
+          display: 'block',
+          borderRadius: '12px',
+          background: '#030712'
+        }}
+      />
+    </div>
+  );
+};
+
+
+
+
+npm install gif.js
+npm install --save-dev @types/gif.js
+
+
+
+import { useState, useCallback, useRef } from 'react';
+import GIF from 'gif.js';
+
+interface GifExportOptions {
+  width: number;
+  height: number;
+  totalFrames: number;
+  fps: number;
+  quality?: number; // 1 = best quality/slowest, 20 = lowest quality/fastest
+  workerPath?: string;
+}
+
+export const useGifExporter = () => {
+  const [isEncoding, setIsEncoding] = useState(false);
+  const [progress, setProgress] = useState(0); // 0.0 to 1.0
+
+  /**
+   * Renders and encodes a deterministic GIF from a canvas draw function
+   * @param canvas Target HTML5 Canvas element
+   * @param drawFrame Callback function to draw frame 'i' given frame index and total frames
+   * @param options GIF render options
+   */
+  const exportGif = useCallback(
+    async (
+      canvas: HTMLCanvasElement,
+      drawFrame: (ctx: CanvasRenderingContext2D, frameIndex: number, totalFrames: number) => void,
+      options: GifExportOptions
+    ) => {
+      const {
+        width,
+        height,
+        totalFrames,
+        fps,
+        quality = 10,
+        workerPath = '/gif.worker.js', // Located in public/ folder
+      } = options;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      setIsEncoding(true);
+      setProgress(0);
+
+      // Initialize gif.js worker engine
+      const gif = new GIF({
+        workers: 4, // Utilize multi-core Web Workers
+        quality,
+        width,
+        height,
+        workerScript: workerPath,
+      });
+
+      // Track encoding progress from worker thread
+      gif.on('progress', (p: number) => {
+        setProgress(p);
+      });
+
+      // Handle encoding complete
+      gif.on('finished', (blob: Blob) => {
+        setIsEncoding(false);
+        setProgress(1);
+
+        // Download GIF blob
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `canvas-animation-${Date.now()}.gif`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      });
+
+      const delay = Math.round(1000 / fps);
+
+      // Deterministically step through each frame
+      for (let i = 0; i < totalFrames; i++) {
+        // 1. Draw frame deterministically at exact index i
+        drawFrame(ctx, i, totalFrames);
+
+        // 2. Add rendered canvas state into GIF queue with fixed delay
+        gif.addFrame(ctx, { copy: true, delay });
+      }
+
+      // Start asynchronous encoding inside background Web Worker threads
+      gif.render();
+    },
+    []
+  );
+
+  return { exportGif, isEncoding, progress };
+};
+
+
+
+import React, { useRef, useEffect, useCallback } from 'react';
+import { useGifExporter } from './useGifExporter';
+
+const CANVAS_WIDTH = 400;
+const CANVAS_HEIGHT = 400;
+const TOTAL_FRAMES = 60; // 60 frames @ 30fps = 2 second seamless loop
+const FPS = 30;
+
+export const DeterministicGifHUD: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { exportGif, isEncoding, progress } = useGifExporter();
+
+  /**
+   * Deterministic Draw Function
+   * Given frameIndex, calculates exact rotation state regardless of system performance/lag.
+   */
+  const drawFrame = useCallback(
+    (ctx: CanvasRenderingContext2D, frameIndex: number, totalFrames: number) => {
+      const width = ctx.canvas.width;
+      const height = ctx.canvas.height;
+      const center = width / 2;
+
+      // Calculate normalized progress (0.0 -> 1.0) for a seamless loop
+      const progressRatio = frameIndex / totalFrames;
+      const angle = progressRatio * Math.PI * 2; // Full 360deg loop
+
+      // Clear background
+      ctx.fillStyle = '#030712';
+      ctx.fillRect(0, 0, width, height);
+
+      // Draw Rotating HUD Ring
+      ctx.save();
+      ctx.translate(center, center);
+      ctx.rotate(angle);
+
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 4;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#00f0ff';
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 100, 0, Math.PI * 1.2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Draw Counter-Rotating Inner Ring
+      ctx.save();
+      ctx.translate(center, center);
+      ctx.rotate(-angle * 2);
+
+      ctx.strokeStyle = '#34A853';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 8]);
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 70, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Center Telemetry Text
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`FRAME: ${frameIndex + 1}/${totalFrames}`, center, center + 5);
+    },
+    []
+  );
+
+  // Real-time canvas preview loop when not exporting
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || isEncoding) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+    let currentFrame = 0;
+
+    const render = () => {
+      drawFrame(ctx, currentFrame, TOTAL_FRAMES);
+      currentFrame = (currentFrame + 1) % TOTAL_FRAMES;
+      animId = requestAnimationFrame(render);
+    };
+
+    render();
+    return () => cancelAnimationFrame(animId);
+  }, [drawFrame, isEncoding]);
+
+  const handleExport = () => {
+    if (!canvasRef.current) return;
+
+    exportGif(canvasRef.current, drawFrame, {
+      width: CANVAS_WIDTH,
+      height: CANVAS_HEIGHT,
+      totalFrames: TOTAL_FRAMES,
+      fps: FPS,
+      quality: 5, // Higher quality for vector graphics
+    });
+  };
+
+  return (
+    <div style={{ padding: '24px', background: '#0D1117', color: '#fff', borderRadius: '16px', width: 'fit-content' }}>
+      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ margin: 0, fontFamily: 'monospace' }}>HUD GIF Exporter</h3>
+        <button
+          onClick={handleExport}
+          disabled={isEncoding}
+          style={{
+            background: isEncoding ? '#30363D' : '#238636',
+            color: '#fff',
+            border: 'none',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            cursor: isEncoding ? 'not-allowed' : 'pointer',
+            fontWeight: 'bold',
+            fontFamily: 'monospace',
+          }}
+        >
+          {isEncoding ? `Encoding... ${Math.round(progress * 100)}%` : 'Export Seamless GIF'}
+        </button>
+      </div>
+
+      <canvas
+        ref={canvasRef}
+        width={CANVAS_WIDTH}
+        height={CANVAS_HEIGHT}
+        style={{
+          display: 'block',
+          borderRadius: '12px',
+          border: '1px solid #30363D',
+        }}
+      />
+    </div>
+  );
+};
+
+
+
+npm install gif.js
+npm install --save-dev @types/gif.js
+
+
+
+import { useState, useCallback } from 'react';
+import GIF from 'gif.js';
+
+interface GifExportOptions {
+  width: number;
+  height: number;
+  totalFrames: number;
+  fps: number;
+  quality?: number; // 1 = best quality/slowest, 20 = lowest quality/fastest
+  workerPath?: string;
+}
+
+export const useGifExporter = () => {
+  const [isEncoding, setIsEncoding] = useState(false);
+  const [progress, setProgress] = useState(0); // 0.0 to 1.0
+
+  /**
+   * Renders and encodes a deterministic GIF from a canvas draw function
+   * @param canvas Target HTML5 Canvas element
+   * @param drawFrame Callback function to draw frame 'i' given frame index and total frames
+   * @param options GIF render options
+   */
+  const exportGif = useCallback(
+    async (
+      canvas: HTMLCanvasElement,
+      drawFrame: (ctx: CanvasRenderingContext2D, frameIndex: number, totalFrames: number) => void,
+      options: GifExportOptions
+    ) => {
+      const {
+        width,
+        height,
+        totalFrames,
+        fps,
+        quality = 10,
+        workerPath = '/gif.worker.js', // Located in public/ folder
+      } = options;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      setIsEncoding(true);
+      setProgress(0);
+
+      // Initialize gif.js worker engine
+      const gif = new GIF({
+        workers: 4, // Utilize multi-core Web Workers
+        quality,
+        width,
+        height,
+        workerScript: workerPath,
+      });
+
+      // Track encoding progress from worker thread
+      gif.on('progress', (p: number) => {
+        setProgress(p);
+      });
+
+      // Handle encoding complete
+      gif.on('finished', (blob: Blob) => {
+        setIsEncoding(false);
+        setProgress(1);
+
+        // Download GIF blob
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `canvas-animation-${Date.now()}.gif`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      });
+
+      const delay = Math.round(1000 / fps);
+
+      // Deterministically step through each frame
+      for (let i = 0; i < totalFrames; i++) {
+        // 1. Draw frame deterministically at exact index i
+        drawFrame(ctx, i, totalFrames);
+
+        // 2. Add rendered canvas state into GIF queue with fixed delay
+        gif.addFrame(ctx, { copy: true, delay });
+      }
+
+      // Start asynchronous encoding inside background Web Worker threads
+      gif.render();
+    },
+    []
+  );
+
+  return { exportGif, isEncoding, progress };
+};
+
+
+
+
+import React, { useRef, useEffect, useCallback } from 'react';
+import { useGifExporter } from './useGifExporter';
+
+const CANVAS_WIDTH = 400;
+const CANVAS_HEIGHT = 400;
+const TOTAL_FRAMES = 60; // 60 frames @ 30fps = 2 second seamless loop
+const FPS = 30;
+
+export const DeterministicGifHUD: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { exportGif, isEncoding, progress } = useGifExporter();
+
+  /**
+   * Deterministic Draw Function
+   * Given frameIndex, calculates exact rotation state regardless of system performance/lag.
+   */
+  const drawFrame = useCallback(
+    (ctx: CanvasRenderingContext2D, frameIndex: number, totalFrames: number) => {
+      const width = ctx.canvas.width;
+      const height = ctx.canvas.height;
+      const center = width / 2;
+
+      // Calculate normalized progress (0.0 -> 1.0) for a seamless loop
+      const progressRatio = frameIndex / totalFrames;
+      const angle = progressRatio * Math.PI * 2; // Full 360deg loop
+
+      // Clear background
+      ctx.fillStyle = '#030712';
+      ctx.fillRect(0, 0, width, height);
+
+      // Draw Rotating HUD Ring
+      ctx.save();
+      ctx.translate(center, center);
+      ctx.rotate(angle);
+
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 4;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#00f0ff';
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 100, 0, Math.PI * 1.2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Draw Counter-Rotating Inner Ring
+      ctx.save();
+      ctx.translate(center, center);
+      ctx.rotate(-angle * 2);
+
+      ctx.strokeStyle = '#34A853';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 8]);
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 70, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Center Telemetry Text
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`FRAME: ${frameIndex + 1}/${totalFrames}`, center, center + 5);
+    },
+    []
+  );
+
+  // Real-time canvas preview loop when not exporting
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || isEncoding) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+    let currentFrame = 0;
+
+    const render = () => {
+      drawFrame(ctx, currentFrame, TOTAL_FRAMES);
+      currentFrame = (currentFrame + 1) % TOTAL_FRAMES;
+      animId = requestAnimationFrame(render);
+    };
+
+    render();
+    return () => cancelAnimationFrame(animId);
+  }, [drawFrame, isEncoding]);
+
+  const handleExport = () => {
+    if (!canvasRef.current) return;
+
+    exportGif(canvasRef.current, drawFrame, {
+      width: CANVAS_WIDTH,
+      height: CANVAS_HEIGHT,
+      totalFrames: TOTAL_FRAMES,
+      fps: FPS,
+      quality: 5, // Higher quality for vector graphics
+    });
+  };
+
+  return (
+    <div style={{ padding: '24px', background: '#0D1117', color: '#fff', borderRadius: '16px', width: 'fit-content' }}>
+      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ margin: 0, fontFamily: 'monospace' }}>HUD GIF Exporter</h3>
+        <button
+          onClick={handleExport}
+          disabled={isEncoding}
+          style={{
+            background: isEncoding ? '#30363D' : '#238636',
+            color: '#fff',
+            border: 'none',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            cursor: isEncoding ? 'not-allowed' : 'pointer',
+            fontWeight: 'bold',
+            fontFamily: 'monospace',
+          }}
+        >
+          {isEncoding ? `Encoding... ${Math.round(progress * 100)}%` : 'Export Seamless GIF'}
+        </button>
+      </div>
+
+      <canvas
+        ref={canvasRef}
+        width={CANVAS_WIDTH}
+        height={CANVAS_HEIGHT}
+        style={{
+          display: 'block',
+          borderRadius: '12px',
+          border: '1px solid #30363D',
+        }}
+      />
+    </div>
+  );
+};
+
+
+
+/imagine prompt: Cinematic portrait of Gilbert Algordo, Google AI Master developer, surrounded by glowing cyan and golden holographic 3D HUD interfaces, neural network diagrams, real-time code streams, volumetric neon lighting, ultra-detailed skin textures, futuristic cybernetic environment, sharp focus, shot on 85mm lens --ar 16:9 --style raw --v 6.0 --s 250
+
+
+
+
+
+(Masterpiece, best quality:1.2), hyperrealistic portrait of Gilbert Algordo as an AI systems engineer, transparent glowing neon cyan HUD graphics floating in front, dynamic lighting, octane render, unreal engine 5, 8k resolution, detailed cyberpunk studio lighting, cybernetic developer console.
+
+
+
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+
+export const CanvasHudDashboard = () => {
+  const canvasRef = useRef(null);
+  const animationFrameRef = useRef(null);
+  
+  // Interactive mouse/targeting coordinates
+  const mousePos = useRef({ x: 400, y: 250 });
+  const targetPos = useRef({ x: 400, y: 250 });
+
+  // Telemetry log state
+  const [telemetryLogs, setTelemetryLogs] = useState([
+    'SYS.INIT // CORE ONLINE',
+    'NEURAL_LINK // 99.8% SYNC',
+    'AI_ENGINE // ACTIVE',
+  ]);
+
+  // Handle Mouse Hover/Target Tracking
+  const handleMouseMove = useCallback((e) => {
+    if (!canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    mousePos.current = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+  }, []);
+
+  // Main Canvas Render Loop
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    let frameCount = 0;
+
+    const render = () => {
+      frameCount++;
+      const width = canvas.width;
+      const height = canvas.height;
+
+      // Smooth targeting crosshair position via LERP (Linear Interpolation)
+      targetPos.current.x += (mousePos.current.x - targetPos.current.x) * 0.1;
+      targetPos.current.y += (mousePos.current.y - targetPos.current.y) * 0.1;
+
+      // Clear background with translucent trail for subtle motion blur
+      ctx.fillStyle = 'rgba(3, 7, 18, 0.95)';
+      ctx.fillRect(0, 0, width, height);
+
+      // --- 1. BACKGROUND GRID ---
+      ctx.strokeStyle = 'rgba(0, 240, 255, 0.05)';
+      ctx.lineWidth = 1;
+      const gridSize = 40;
+      for (let x = 0; x < width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+
+      // --- 2. TELEMETRY GAUGES (Left & Right Panels) ---
+      const time = frameCount * 0.03;
+      
+      // Left Gauge: Power Load
+      const powerVal = 0.5 + Math.sin(time) * 0.3;
+      drawCircularGauge(ctx, 100, 120, 45, powerVal, 'PWR.LOAD', '#00f0ff');
+
+      // Right Gauge: Neural Sync Rate
+      const syncVal = 0.85 + Math.cos(time * 0.7) * 0.1;
+      drawCircularGauge(ctx, width - 100, 120, 45, syncVal, 'SYNC.NET', '#34A853');
+
+      // --- 3. DYNAMIC CENTER ROTATING RETICLE ---
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+
+      // Outer Rotating Arc Ring
+      ctx.save();
+      ctx.rotate(frameCount * 0.01);
+      ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 110, 0, Math.PI * 1.5);
+      ctx.stroke();
+      ctx.restore();
+
+      // Counter-rotating Segmented Arc
+      ctx.save();
+      ctx.rotate(-frameCount * 0.02);
+      ctx.strokeStyle = 'rgba(0, 240, 255, 0.7)';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([12, 12]);
+      ctx.beginPath();
+      ctx.arc(0, 0, 90, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.restore();
+
+      // --- 4. MOUSE-INTERACTIVE TARGETING BRACKET ---
+      const tx = targetPos.current.x;
+      const ty = targetPos.current.y;
+      const bSize = 24;
+
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = '#00f0ff';
+
+      // Top-Left Corner
+      ctx.beginPath();
+      ctx.moveTo(tx - bSize, ty - bSize + 8);
+      ctx.lineTo(tx - bSize, ty - bSize);
+      ctx.lineTo(tx - bSize + 8, ty - bSize);
+      ctx.stroke();
+
+      // Top-Right Corner
+      ctx.beginPath();
+      ctx.moveTo(tx + bSize - 8, ty - bSize);
+      ctx.lineTo(tx + bSize, ty - bSize);
+      ctx.lineTo(tx + bSize, ty - bSize + 8);
+      ctx.stroke();
+
+      // Bottom-Left Corner
+      ctx.beginPath();
+      ctx.moveTo(tx - bSize, ty + bSize - 8);
+      ctx.lineTo(tx - bSize, ty + bSize);
+      ctx.lineTo(tx - bSize + 8, ty + bSize);
+      ctx.stroke();
+
+      // Bottom-Right Corner
+      ctx.beginPath();
+      ctx.moveTo(tx + bSize - 8, ty + bSize);
+      ctx.lineTo(tx + bSize, ty + bSize);
+      ctx.lineTo(tx + bSize, ty + bSize - 8);
+      ctx.stroke();
+
+      // Reset shadow
+      ctx.shadowBlur = 0;
+
+      // Coordinate readout next to targeting reticle
+      ctx.fillStyle = 'rgba(0, 240, 255, 0.8)';
+      ctx.font = '10px monospace';
+      ctx.fillText(`X:${Math.round(tx)} Y:${Math.round(ty)}`, tx + bSize + 6, ty + 4);
+
+      animationFrameRef.current = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
+
+  // Periodic Telemetry Stream Simulator
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const hex = Math.floor(Math.random() * 0xffff).toString(16).toUpperCase();
+      const newLog = `DATA.STREAM // 0x${hex} OK`;
+
+      setTelemetryLogs((prev) => [...prev.slice(-4), newLog]);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        backgroundColor: '#030712',
+        color: '#00f0ff',
+        fontFamily: 'monospace',
+        padding: '20px',
+      }}
+    >
+      <div style={{ position: 'relative', width: '800px', height: '500px' }}>
+        {/* Canvas HUD viewport */}
+        <canvas
+          ref={canvasRef}
+          width={800}
+          height={500}
+          onMouseMove={handleMouseMove}
+          style={{
+            display: 'block',
+            borderRadius: '12px',
+            border: '1px solid rgba(0, 240, 255, 0.3)',
+            boxShadow: '0 0 30px rgba(0, 240, 255, 0.1)',
+            cursor: 'crosshair',
+          }}
+        />
+
+        {/* Real-time Telemetry Data Log Overlay */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '20px',
+            left: '20px',
+            backgroundColor: 'rgba(3, 7, 18, 0.85)',
+            border: '1px solid rgba(0, 240, 255, 0.2)',
+            padding: '10px 14px',
+            borderRadius: '6px',
+            fontSize: '11px',
+            pointerEvents: 'none',
+          }}
+        >
+          <div style={{ color: '#00f0ff', marginBottom: '6px', fontWeight: 'bold' }}>
+            LIVE TELEMETRY LOGS
+          </div>
+          {telemetryLogs.map((log, index) => (
+            <div key={index} style={{ opacity: 0.5 + (index / telemetryLogs.length) * 0.5 }}>
+              {log}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- HELPER FUNCTION: DRAW CIRCULAR HUD GAUGE ---
+function drawCircularGauge(ctx, x, y, radius, value, label, color) {
+  const startAngle = Math.PI * 0.75;
+  const endAngle = Math.PI * 2.25;
+  const currentAngle = startAngle + (endAngle - startAngle) * value;
+
+  // Track Background
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, startAngle, endAngle);
+  ctx.stroke();
+
+  // Active Gauge Fill
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 6;
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = color;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, startAngle, currentAngle);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Text Readout
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${Math.round(value * 100)}%`, x, y + 4);
+
+  // Gauge Label
+  ctx.fillStyle = 'rgba(0, 240, 255, 0.7)';
+  ctx.font = '10px monospace';
+  ctx.fillText(label, x, y + radius + 18);
+}
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background Shield -->
+  <circle cx="50" cy="50" r="46" fill="#030712" stroke="#00f0ff" stroke-width="1.5" opacity="0.8" />
+  
+  <!-- Outer Segmented Ring -->
+  <circle cx="50" cy="50" r="38" fill="none" stroke="#00f0ff" stroke-width="2" stroke-dasharray="12 6" filter="url(#glow)" />
+  
+  <!-- Google AI Core Node -->
+  <polygon points="50,22 74,36 74,64 50,78 26,64 26,36" fill="none" stroke="#34A853" stroke-width="2" />
+  <circle cx="50" cy="50" r="8" fill="#00f0ff" filter="url(#glow)" />
+
+  <!-- Corner HUD Brackets -->
+  <path d="M 18,30 L 18,18 L 30,18" fill="none" stroke="#00f0ff" stroke-width="2" />
+  <path d="M 70,18 L 82,18 L 82,30" fill="none" stroke="#00f0ff" stroke-width="2" />
+  <path d="M 82,70 L 82,82 L 70,82" fill="none" stroke="#00f0ff" stroke-width="2" />
+  <path d="M 30,82 L 18,82 L 18,70" fill="none" stroke="#00f0ff" stroke-width="2" />
+</svg>
+
+
+
+
+import React from 'react';
+
+export const GoogleAiBadge = ({ size = 64, handle = 'gilbert_algordo' }) => {
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        background: '#030712',
+        border: '2px solid #00f0ff',
+        boxShadow: '0 0 15px rgba(0, 240, 255, 0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        cursor: 'pointer',
+      }}
+      title={`Google AI Master: g.dev/${handle}`}
+    >
+      <svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="none">
+        <path
+          d="M12 2L2 7L12 12L22 7L12 2Z"
+          stroke="#00f0ff"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M2 17L12 22L22 17"
+          stroke="#34A853"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M2 12L12 17L22 12"
+          stroke="#4285F4"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
+  );
+};
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <style>
+      .bg { fill: #030712; }
+      .hud-ring { fill: none; stroke: #00f0ff; stroke-width: 16; stroke-dasharray: 40 20; }
+      .hud-bracket { fill: none; stroke: #00f0ff; stroke-width: 20; stroke-linecap: round; }
+      .core-node { fill: #34A853; }
+      .glow { filter: drop-shadow(0px 0px 12px #00f0ff); }
+      
+      /* Adaptive color for system theme changes */
+      @media (prefers-color-scheme: light) {
+        .bg { fill: #0f172a; }
+      }
+    </style>
+  </defs>
+
+  <!-- Background Shield -->
+  <rect class="bg" width="512" height="512" rx="100" />
+
+  <!-- Outer HUD Ring -->
+  <circle class="hud-ring glow" cx="256" cy="256" r="180" />
+
+  <!-- Corner Brackets -->
+  <path class="hud-bracket" d="M 120 170 L 120 120 L 170 120" />
+  <path class="hud-bracket" d="M 342 120 L 392 120 L 392 170" />
+  <path class="hud-bracket" d="M 392 342 L 392 392 L 342 392" />
+  <path class="hud-bracket" d="M 170 392 L 120 392 L 120 342" />
+
+  <!-- Central Hex Core -->
+  <polygon points="256,166 334,211 334,301 256,346 178,301 178,211" fill="none" stroke="#00f0ff" stroke-width="12" />
+  <circle class="core-node glow" cx="256" cy="256" r="32" />
+</svg>
+
+
+
+npm install --save-dev sharp png-to-ico
+
+
+
+
+
+import sharp from 'sharp';
+import ico from 'png-to-ico';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
+const SVG_SOURCE = './public/favicon.svg';
+const OUTPUT_DIR = './public';
+
+async function generateFaviconPackage() {
+  console.log('⚡ Generating HUD Favicon Package...');
+
+  // 1. Generate PNG variants
+  const pngSizes = [
+    { name: 'favicon-16x16.png', size: 16 },
+    { name: 'favicon-32x32.png', size: 32 },
+    { name: 'apple-touch-icon.png', size: 180 }, // iOS Home Screen
+    { name: 'android-chrome-192x192.png', size: 192 }, // Android PWA
+    { name: 'android-chrome-512x512.png', size: 512 }, // Android PWA Splash
+  ];
+
+  for (const { name, size } of pngSizes) {
+    await sharp(SVG_SOURCE)
+      .resize(size, size)
+      .png()
+      .toFile(path.join(OUTPUT_DIR, name));
+    console.log(`  ✔ Created ${name}`);
+  }
+
+  // 2. Generate multi-resolution ICO file (combines 16x16 and 32x32)
+  const icoBuffer = await ico([
+    path.join(OUTPUT_DIR, 'favicon-16x16.png'),
+    path.join(OUTPUT_DIR, 'favicon-32x32.png'),
+  ]);
+  await fs.writeFile(path.join(OUTPUT_DIR, 'favicon.ico'), icoBuffer);
+  console.log('  ✔ Created favicon.ico');
+
+  console.log('🚀 Favicon Package Generation Complete!');
+}
+
+generateFaviconPackage().catch(console.error);
+
+
+
+node scripts/generate-favicons.mjs
+
+
+
+{
+  "name": "Developer HUD Console",
+  "short_name": "HUD Console",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#030712",
+  "background_color": "#030712",
+  "display": "standalone"
+}
+
+
+
+<!-- 1. Fallback for legacy browsers -->
+<link rel="icon" href="/favicon.ico" sizes="32x32" />
+
+<!-- 2. Scalable vector icon for modern browsers -->
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+<!-- 3. Apple Touch Icon for iOS -->
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+<!-- 4. Web App Manifest for Android/PWA -->
+<link rel="manifest" href="/site.webmanifest" />
+
+<!-- 5. Browser theme accent color -->
+<meta name="theme-color" content="#030712" />
