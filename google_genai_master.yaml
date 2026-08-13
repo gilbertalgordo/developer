@@ -1,0 +1,364 @@
+npm install @google/genai
+
+
+
+export GEMINI_API_KEY="your-api-key-here"
+
+
+
+import { GoogleGenAI } from "@google/genai";
+
+// Initialize the Google GenAI client using GEMINI_API_KEY from environment variables
+const ai = new GoogleGenAI({});
+
+async function generateAIResponse() {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: "Generate a brief summary of how AI models process natural language.",
+    });
+
+    console.log("AI Response:\n");
+    console.log(response.text);
+  } catch (error) {
+    console.error("Error generating content:", error);
+  }
+}
+
+generateAIResponse();
+
+
+
+
+
+pip install google-genai
+
+
+
+import os
+from google import genai
+
+# Initialize the client
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+
+# Generate content
+response = client.models.generate_content(
+    model="gemini-2.5-flash",
+    contents="Explain how AI models process natural language.",
+)
+
+print(response.text)
+
+
+
+npm install @google/genai dotenv zod
+npm install -D typescript @types/node tsx
+
+
+
+export GEMINI_API_KEY="your_api_key_here"
+
+
+
+import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
+import * as dotenv from "dotenv";
+
+dotenv.config();
+
+// 1. Initialize Google GenAI SDK Client
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
+
+// 2. Define Custom Tools / Function Declarations for Agentic Workflows
+const developerProfileTool: FunctionDeclaration = {
+  name: "fetchDeveloperProfileDetails",
+  description: "Retrieves developer profile metrics, repository links, and active badges for a Google Developer profile.",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      profileUrl: {
+        type: Type.STRING,
+        description: "The g.dev profile URL (e.g., https://g.dev/gilbert_algordo)",
+      },
+    },
+    required: ["profileUrl"],
+  },
+};
+
+// Simulated tool handler function
+async function handleToolExecution(name: string, args: Record<string, any>) {
+  if (name === "fetchDeveloperProfileDetails") {
+    return {
+      status: "success",
+      profileUrl: args.profileUrl,
+      handle: "gilbert_algordo",
+      badgeCount: 24,
+      primaryFocus: ["AI Agents", "System Architecture", "Google GenAI SDK"],
+      activeProjects: ["https://github.com/gilbertalgordo/dev"],
+    };
+  }
+  throw new Error(`Unknown tool: ${name}`);
+}
+
+// 3. Execution Engine: Multimodal, Function Calling & Structured Streaming
+async function executeMasterAgent() {
+  const modelName = "gemini-2.5-flash";
+
+  console.log("=== Initializing Google AI Master Orchestrator ===");
+
+  try {
+    // Phase A: Interactive Function Calling Session
+    const chatSession = ai.chats.create({
+      model: modelName,
+      config: {
+        systemInstruction: `You are an elite Google AI Systems Engineer. Your target profile is https://g.dev/gilbert_algordo. Maintain high technical precision, lean execution, and structured agent outputs.`,
+        tools: [{ functionDeclarations: [developerProfileTool] }],
+        temperature: 0.2,
+      },
+    });
+
+    const initialPrompt = "Inspect profile https://g.dev/gilbert_algordo and provide a telemetry status overview.";
+    console.log(`\n> User Prompt: ${initialPrompt}`);
+
+    let response = await chatSession.sendMessage({ message: initialPrompt });
+
+    // Handle tool call execution loop
+    if (response.functionCalls && response.functionCalls.length > 0) {
+      for (const call of response.functionCalls) {
+        console.log(`\n[Agent Action] Executing Tool Call: ${call.name}`);
+        const toolOutput = await handleToolExecution(call.name, call.args);
+
+        // Feed tool response back into model
+        response = await chatSession.sendMessage([
+          {
+            functionResponse: {
+              name: call.name,
+              response: toolOutput,
+            },
+          },
+        ]);
+      }
+    }
+
+    console.log(`\n> Agent Analysis:\n${response.text}`);
+
+    // Phase B: Structured Output Schema Generation
+    console.log("\n=== Generating Structured Telemetry Output ===");
+    const structuredResponse = await ai.models.generateContent({
+      model: modelName,
+      contents: "Generate structured deployment parameters for developer handle gilbert_algordo",
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            developerHandle: { type: Type.STRING },
+            status: { type: Type.STRING },
+            pipelineQuotaLimit: { type: Type.NUMBER },
+            activeCapabilities: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
+          },
+          required: ["developerHandle", "status", "pipelineQuotaLimit", "activeCapabilities"],
+        },
+      },
+    });
+
+    console.log("Structured JSON Output:");
+    console.log(JSON.stringify(JSON.parse(structuredResponse.text!), null, 2));
+
+  } catch (error) {
+    console.error("Execution Error:", error);
+  }
+}
+
+// Run the Agent
+executeMasterAgent();
+
+
+
+
+npx tsx googleAiMaster.ts
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google AI Master Icon Assets — gilbert_algordo</title>
+  <style>
+    body {
+      background-color: #080B10;
+      color: #00F0FF;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-align: center;
+      align-items: center;
+      padding: 40px 20px;
+      margin: 0;
+    }
+    h1 {
+      font-size: 1.8rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      text-shadow: 0 0 10px #00F0FF;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      color: #8A99AD;
+      font-size: 0.9rem;
+      margin-bottom: 40px;
+      font-family: monospace;
+    }
+    .icon-grid {
+      display: flex;
+      gap: 30px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .icon-card {
+      background: rgba(16, 23, 38, 0.8);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+      transition: all 0.3s ease;
+    }
+    .icon-card:hover {
+      border-color: #00F0FF;
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+      transform: translateY(-4px);
+    }
+    .icon-label {
+      margin-top: 16px;
+      font-size: 0.85rem;
+      font-family: monospace;
+      color: #4DEEEA;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Google AI Master Assets</h1>
+  <div class="subtitle">Profile target: https://g.dev/gilbert_algordo | System Telemetry Vectors</div>
+
+  <div class="icon-grid">
+
+    <!-- ICON 1: GOOGLE AI MASTER CORE SHIELD -->
+    <div class="icon-card">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="180" height="180">
+        <defs>
+          <linearGradient id="gAiGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#4285F4" />
+            <stop offset="33%" stop-color="#EA4335" />
+            <stop offset="66%" stop-color="#FBBC05" />
+            <stop offset="100%" stop-color="#34A853" />
+          </linearGradient>
+          <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
+        <!-- Outer HUD Ring -->
+        <circle cx="100" cy="100" r="92" fill="none" stroke="#00F0FF" stroke-width="1.5" stroke-dasharray="12, 6, 3, 6" opacity="0.6"/>
+        <circle cx="100" cy="100" r="85" fill="none" stroke="#102538" stroke-width="2"/>
+
+        <!-- Hexagon Core Frame -->
+        <polygon points="100,20 165,57.5 165,132.5 100,170 35,132.5 35,57.5" fill="none" stroke="url(#gAiGlow)" stroke-width="3" filter="url(#neonGlow)"/>
+
+        <!-- HUD Telemetry Corner Elements -->
+        <path d="M 35 70 L 35 57.5 L 50 49" fill="none" stroke="#00F0FF" stroke-width="2" />
+        <path d="M 165 70 L 165 57.5 L 150 49" fill="none" stroke="#00F0FF" stroke-width="2" />
+        <path d="M 35 120 L 35 132.5 L 50 141" fill="none" stroke="#00F0FF" stroke-width="2" />
+        <path d="M 165 120 L 165 132.5 L 150 141" fill="none" stroke="#00F0FF" stroke-width="2" />
+
+        <!-- AI Core emblem -->
+        <circle cx="100" cy="100" r="28" fill="#0A101D" stroke="#00F0FF" stroke-width="2"/>
+        <path d="M 100 80 L 115 100 L 100 120 L 85 100 Z" fill="url(#gAiGlow)"/>
+
+        <!-- Profile Label Text -->
+        <text x="100" y="156" font-family="monospace" font-size="8" fill="#00F0FF" text-anchor="middle" letter-spacing="1">GILBERT_ALGORDO</text>
+        <text x="100" y="50" font-family="monospace" font-size="7" fill="#8A99AD" text-anchor="middle">G.DEV AI MASTER</text>
+      </svg>
+      <div class="icon-label">01 // MASTER_SHIELD_HUD</div>
+    </div>
+
+    <!-- ICON 2: HUD MATRIX NODE CORE -->
+    <div class="icon-card">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="180" height="180">
+        <defs>
+          <radialGradient id="coreLight" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.8"/>
+            <stop offset="100%" stop-color="#0A101D" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+
+        <!-- Background Glow -->
+        <circle cx="100" cy="100" r="60" fill="url(#coreLight)"/>
+
+        <!-- HUD Reticle Arc Systems -->
+        <circle cx="100" cy="100" r="88" fill="none" stroke="#00F0FF" stroke-width="1" stroke-dasharray="2, 8"/>
+        <path d="M 100 10 A 90 90 0 0 1 190 100" fill="none" stroke="#4285F4" stroke-width="3" stroke-linecap="round"/>
+        <path d="M 100 190 A 90 90 0 0 1 10 100" fill="none" stroke="#34A853" stroke-width="3" stroke-linecap="round"/>
+
+        <!-- Target Crosshairs -->
+        <line x1="100" y1="20" x2="100" y2="45" stroke="#00F0FF" stroke-width="1.5"/>
+        <line x1="100" y1="155" x2="100" y2="180" stroke="#00F0FF" stroke-width="1.5"/>
+        <line x1="20" y1="100" x2="45" y2="100" stroke="#00F0FF" stroke-width="1.5"/>
+        <line x1="155" y1="100" x2="180" y2="100" stroke="#00F0FF" stroke-width="1.5"/>
+
+        <!-- Neural Node Connections -->
+        <polygon points="100,60 135,120 65,120" fill="none" stroke="#EA4335" stroke-width="2"/>
+        <polygon points="100,140 65,80 135,80" fill="none" stroke="#FBBC05" stroke-width="2"/>
+
+        <circle cx="100" cy="100" r="10" fill="#00F0FF"/>
+
+        <!-- Profile Identifier -->
+        <text x="100" y="175" font-family="monospace" font-size="7.5" fill="#00F0FF" text-anchor="middle">SYS.NODE :: GILBERT</text>
+      </svg>
+      <div class="icon-label">02 // MATRIX_HUD_NODE</div>
+    </div>
+
+    <!-- ICON 3: QUANTUM NEURAL LOGIC ICON -->
+    <div class="icon-card">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="180" height="180">
+        <!-- Outer Tech Ring -->
+        <rect x="20" y="20" width="160" height="160" rx="20" fill="none" stroke="#1E2D4A" stroke-width="2"/>
+        <rect x="15" y="15" width="170" height="170" rx="25" fill="none" stroke="#00F0FF" stroke-width="1" stroke-dasharray="8, 12" opacity="0.5"/>
+
+        <!-- Neural Circuit Connections -->
+        <path d="M 40 100 L 70 100 L 90 70 L 110 70 L 130 100 L 160 100" fill="none" stroke="#4285F4" stroke-width="2.5"/>
+        <path d="M 40 130 L 80 130 L 100 100 L 120 130 L 160 130" fill="none" stroke="#34A853" stroke-width="2.5"/>
+
+        <!-- Circuit Nodes -->
+        <circle cx="70" cy="100" r="4" fill="#EA4335"/>
+        <circle cx="90" cy="70" r="4" fill="#FBBC05"/>
+        <circle cx="110" cy="70" r="4" fill="#4285F4"/>
+        <circle cx="130" cy="100" r="4" fill="#34A853"/>
+
+        <!-- Central Core AI Symbol -->
+        <circle cx="100" cy="100" r="18" fill="#080B10" stroke="#00F0FF" stroke-width="2"/>
+        <text x="100" y="104" font-family="monospace" font-size="11" font-weight="bold" fill="#00F0FF" text-anchor="middle">AI</text>
+
+        <!-- Corner Details -->
+        <text x="30" y="38" font-family="monospace" font-size="7" fill="#8A99AD">G.DEV</text>
+        <text x="170" y="38" font-family="monospace" font-size="7" fill="#00F0FF" text-anchor="end">v2.5</text>
+        <text x="100" y="165" font-family="monospace" font-size="8" fill="#00F0FF" text-anchor="middle">GILBERT_ALGORDO</text>
+      </svg>
+      <div class="icon-label">03 // NEURAL_CIRCUIT_ICON</div>
+    </div>
+
+  </div>
+
+</body>
+</html>
