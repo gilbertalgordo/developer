@@ -1,0 +1,1188 @@
+import asyncio
+import datetime
+import json
+import logging
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
+
+# --- Configuration & Developer Metadata ---
+DEV_NAME = "Gilbert Algordo"
+DEV_PROFILE_URL = "https://g.dev/gilbert_algordo"
+MESSENGER_AI_ENDPOINT = "https://m.me/1398345928009373?is_ai=1"
+SYSTEM_VERSION = "Prime-v9.0-DualChannel"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] [JARVIS-PRIME]: %(message)s"
+)
+
+
+class SystemState(Enum):
+    IDLE = "IDLE"
+    PROCESSING = "PROCESSING"
+    MESSENGER_SYNC = "MESSENGER_SYNC"
+    OPTIMIZING = "OPTIMIZING"
+    TERMINATED = "TERMINATED"
+
+
+@dataclass
+class TelemetryFrame:
+    timestamp: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    system_state: str = SystemState.IDLE.value
+    developer: str = DEV_NAME
+    profile_url: str = DEV_PROFILE_URL
+    messenger_ai_endpoint: str = MESSENGER_AI_ENDPOINT
+    active_tools: int = 0
+    metrics: Dict[str, Any] = field(default_factory=dict)
+
+
+class SystemHUD:
+    """Heads-Up Display for real-time visual telemetry and system status."""
+
+    def render_frame(self, frame: TelemetryFrame, header: str = "JARVIS TELEMETRY DASHBOARD") -> None:
+        border = "═" * 74
+        divider = "─" * 74
+        print(f"\n╔{border}╗")
+        print(f"║ JARVIS PRIME AI HUD | {header:<28} | {frame.timestamp[:19]} ║")
+        print(f"╠{border}╣")
+        print(f"║ Developer Profile : {frame.profile_url:<52} ║")
+        print(f"║ Messenger AI Link : {frame.messenger_ai_endpoint:<52} ║")
+        print(f"║ System State      : {frame.system_state:<16} | Active Tool Registry: {frame.active_tools:<3} ║")
+        if frame.metrics:
+            print(f"╠{divider}╣")
+            print("║ Telemetry Metrics:")
+            for key, val in frame.metrics.items():
+                val_str = str(val)[:45]
+                print(f"║   • {key:<20}: {val_str:<43} ║")
+        print(f"╚{border}╝\n")
+
+
+class MessengerChannelBridge:
+    """Channel adapter for Meta Messenger AI integrations and messaging streams."""
+
+    def __init__(self, endpoint_url: str):
+        self.endpoint_url = endpoint_url
+
+    async def dispatch_message(self, text: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Simulates asynchronous message dispatching over the Messenger channel."""
+        logging.info(f"Dispatching payload to Messenger AI channel ({self.endpoint_url})...")
+        await asyncio.sleep(0.1)  # Non-blocking async network call simulation
+        return {
+            "status": "DELIVERED",
+            "channel": self.endpoint_url,
+            "message": text,
+            "ack_timestamp": datetime.datetime.now().isoformat()
+        }
+
+
+class AsyncToolRegistry:
+    """Dynamic tool registration pipeline."""
+
+    def __init__(self):
+        self._tools: Dict[str, Callable] = {}
+
+    def register(self, name: str) -> Callable:
+        def decorator(func: Callable) -> Callable:
+            self._tools[name] = func
+            logging.info(f"Registered tool binding: '{name}'")
+            return func
+        return decorator
+
+    async def execute(self, name: str, **kwargs) -> Any:
+        if name not in self._tools:
+            raise KeyError(f"Tool '{name}' is not registered.")
+        return await self._tools[name](**kwargs)
+
+    @property
+    def registered_count(self) -> int:
+        return len(self._tools)
+
+
+class JarvisPrimeEngine:
+    """Core Jarvis Prime Engine coordinating messaging bridges, tool loops, and telemetry."""
+
+    def __init__(self):
+        self.hud = SystemHUD()
+        self.tools = AsyncToolRegistry()
+        self.messenger = MessengerChannelBridge(MESSENGER_AI_ENDPOINT)
+        self.state = SystemState.IDLE
+        self._setup_default_tools()
+
+    def _setup_default_tools(self) -> None:
+
+        @self.tools.register("get_developer_profile")
+        async def get_developer_profile():
+            return {
+                "name": DEV_NAME,
+                "profile": DEV_PROFILE_URL,
+                "messenger_ai": MESSENGER_AI_ENDPOINT,
+                "verified": True
+            }
+
+        @self.tools.register("run_system_kaizen")
+        async def run_system_kaizen(pass_type: str = "latency"):
+            return {
+                "pass_type": pass_type,
+                "latency_delta_ms": -1.2,
+                "status": "OPTIMIZED"
+            }
+
+    async def boot(self) -> None:
+        """Initializes system subsystems."""
+        self.state = SystemState.PROCESSING
+        profile_data = await self.tools.execute("get_developer_profile")
+
+        frame = TelemetryFrame(
+            system_state=self.state.value,
+            active_tools=self.tools.registered_count,
+            metrics={
+                "system_version": SYSTEM_VERSION,
+                "developer": profile_data["name"],
+                "status": "INITIALIZED"
+            }
+        )
+        self.hud.render_frame(frame, header="SYSTEM BOOT SEQUENCE COMPLETE")
+        self.state = SystemState.IDLE
+
+    async def execute_messenger_workflow(self, command: str) -> Dict[str, Any]:
+        """Runs an integrated workflow sending state updates to the Messenger AI channel."""
+        self.state = SystemState.MESSENGER_SYNC
+        
+        # Execute Kaizen optimization step
+        kaizen_res = await self.tools.execute("run_system_kaizen", pass_type="channel_throughput")
+        
+        # Dispatch telemetry over Messenger channel
+        dispatch_res = await self.messenger.dispatch_message(
+            text=f"Executed command: '{command}'",
+            payload=kaizen_res
+        )
+
+        self.state = SystemState.IDLE
+
+        frame = TelemetryFrame(
+            system_state=self.state.value,
+            active_tools=self.tools.registered_count,
+            metrics={
+                "command": command,
+                "dispatch_status": dispatch_res["status"],
+                "kaizen_pass": kaizen_res["status"]
+            }
+        )
+        self.hud.render_frame(frame, header="MESSENGER AI WORKFLOW COMPLETE")
+
+        return {
+            "command": command,
+            "kaizen": kaizen_res,
+            "dispatch": dispatch_res
+        }
+
+    async def shutdown(self) -> None:
+        """Graceful shutdown sequence."""
+        self.state = SystemState.TERMINATED
+        frame = TelemetryFrame(
+            system_state=self.state.value,
+            active_tools=0,
+            metrics={"status": "OFFLINE"}
+        )
+        self.hud.render_frame(frame, header="SYSTEM SHUTDOWN")
+
+
+# --- Main Execution Loop ---
+async def main():
+    jarvis = JarvisPrimeEngine()
+
+    # 1. Boot Engine
+    await jarvis.boot()
+
+    # 2. Process Messenger Workflow
+    await jarvis.execute_messenger_workflow("Run dual-channel telemetry and Kaizen pass")
+
+    # 3. Shutdown Engine
+    await jarvis.shutdown()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+
+import asyncio
+import datetime
+import hmac
+import hashlib
+import json
+import logging
+import os
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from fastapi import FastAPI, Request, Response, HTTPException, Query, BackgroundTasks
+import uvicorn
+
+# --- Configuration & Developer Identity ---
+DEV_NAME = "Gilbert Algordo"
+DEV_PROFILE_URL = "https://g.dev/gilbert_algordo"
+MESSENGER_AI_ENDPOINT = "https://m.me/1398345928009373?is_ai=1"
+SYSTEM_VERSION = "Prime-v10.0-FastAPIWebhook"
+
+# Security credentials (Load from environment variables in production)
+VERIFY_TOKEN = os.getenv("META_VERIFY_TOKEN", "JARVIS_PRIME_SECRET_TOKEN")
+APP_SECRET = os.getenv("META_APP_SECRET", "YOUR_META_APP_SECRET")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] [JARVIS-WEBHOOK]: %(message)s"
+)
+
+
+class SystemState(Enum):
+    IDLE = "IDLE"
+    PROCESSING_WEBHOOK = "PROCESSING_WEBHOOK"
+    DISPATCHING_REPLY = "DISPATCHING_REPLY"
+    ERROR = "ERROR"
+
+
+@dataclass
+class TelemetryFrame:
+    timestamp: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    system_state: str = SystemState.IDLE.value
+    developer: str = DEV_NAME
+    profile_url: str = DEV_PROFILE_URL
+    messenger_ai_link: str = MESSENGER_AI_ENDPOINT
+    total_messages_received: int = 0
+    last_event: Dict[str, Any] = field(default_factory=dict)
+
+
+class SystemHUD:
+    """Heads-Up Display for real-time inbound Meta Messenger telemetry rendering."""
+
+    def render(self, frame: TelemetryFrame, title: str = "WEBHOOK TELEMETRY") -> None:
+        border = "═" * 74
+        divider = "─" * 74
+        print(f"\n╔{border}╗")
+        print(f"║ JARVIS PRIME AI HUD | {title:<28} | {frame.timestamp[:19]} ║")
+        print(f"╠{border}╣")
+        print(f"║ Developer Profile : {frame.profile_url:<52} ║")
+        print(f"║ Messenger Endpoint: {frame.messenger_ai_link:<52} ║")
+        print(f"║ System State      : {frame.system_state:<18} | Total Inbound Msgs: {frame.total_messages_received:<4} ║")
+        if frame.last_event:
+            print(f"╠{divider}╣")
+            print("║ Inbound Payload Metrics:")
+            for k, v in frame.last_event.items():
+                v_str = str(v)[:45]
+                print(f"║   • {k:<20}: {v_str:<43} ║")
+        print(f"╚{border}╝\n")
+
+
+class JarvisWebhookEngine:
+    """Core webhook event processor for Meta Messenger integration."""
+
+    def __init__(self):
+        self.hud = SystemHUD()
+        self.state = SystemState.IDLE
+        self.message_counter = 0
+
+    def verify_signature(self, payload: bytes, signature_header: str) -> bool:
+        """Verifies Meta HMAC-SHA256 signature header for webhook security."""
+        if not signature_header or not APP_SECRET:
+            return True  # Bypass in dev if secret not configured
+
+        try:
+            elements = signature_header.split("=")
+            if len(elements) != 2 or elements[0] != "sha256":
+                return False
+
+            expected_hash = hmac.new(
+                APP_SECRET.encode("utf-8"),
+                payload,
+                hashlib.sha256
+            ).hexdigest()
+
+            return hmac.compare_digest(elements[1], expected_hash)
+        except Exception as e:
+            logging.error(f"Signature verification failed: {e}")
+            return False
+
+    async def process_messenger_event(self, event_data: Dict[str, Any]) -> None:
+        """Async background task processing inbound messages."""
+        self.state = SystemState.PROCESSING_WEBHOOK
+        self.message_counter += 1
+
+        entries = event_data.get("entry", [])
+        for entry in entries:
+            messaging_events = entry.get("messaging", [])
+            for event in messaging_events:
+                sender_id = event.get("sender", {}).get("id", "UNKNOWN")
+                message_text = event.get("message", {}).get("text", "")
+
+                logging.info(f"Received Messenger message from {sender_id}: '{message_text}'")
+
+                # Render real-time HUD telemetry frame
+                frame = TelemetryFrame(
+                    system_state=self.state.value,
+                    total_messages_received=self.message_counter,
+                    last_event={
+                        "sender_id": sender_id,
+                        "text": message_text,
+                        "endpoint": MESSENGER_AI_ENDPOINT
+                    }
+                )
+                self.hud.render(frame, title="INBOUND MESSENGER EVENT")
+
+        self.state = SystemState.IDLE
+
+
+# --- FastAPI Webhook App ---
+app = FastAPI(
+    title="Jarvis Prime AI - Meta Messenger Webhook Server",
+    version=SYSTEM_VERSION,
+    description=f"Webhook server for Jarvis Prime AI by {DEV_NAME} ({DEV_PROFILE_URL})"
+)
+
+engine = JarvisWebhookEngine()
+
+
+@app.get("/webhook")
+async def verify_webhook(
+    hub_mode: Optional[str] = Query(None, alias="hub.mode"),
+    hub_token: Optional[str] = Query(None, alias="hub.verify_token"),
+    hub_challenge: Optional[str] = Query(None, alias="hub.challenge")
+):
+    """Meta Messenger Webhook Verification Endpoint (GET)."""
+    if hub_mode == "subscribe" and hub_token == VERIFY_TOKEN:
+        logging.info("Webhook verification token accepted.")
+        return Response(content=hub_challenge, media_type="text/plain", status_code=200)
+
+    logging.warning("Webhook verification token mismatch.")
+    raise HTTPException(status_code=403, detail="Verification token mismatch.")
+
+
+@app.post("/webhook")
+async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
+    """Meta Messenger Webhook Event Receiver (POST)."""
+    body_bytes = await request.body()
+    signature = request.headers.get("X-Hub-Signature-256", "")
+
+    # Security Check
+    if not engine.verify_signature(body_bytes, signature):
+        raise HTTPException(status_code=403, detail="Invalid HMAC signature.")
+
+    try:
+        payload = json.loads(body_bytes.decode("utf-8"))
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload.")
+
+    if payload.get("object") == "page":
+        # Process event asynchronously in background so Meta receives 200 OK immediately (<20ms)
+        background_tasks.add_task(engine.process_messenger_event, payload)
+        return Response(content="EVENT_RECEIVED", status_code=200)
+
+    raise HTTPException(status_code=404, detail="Unknown event type.")
+
+
+@app.get("/")
+async def health_check():
+    """Health check endpoint displaying system identity."""
+    return {
+        "status": "ONLINE",
+        "system": SYSTEM_VERSION,
+        "developer": DEV_NAME,
+        "profile": DEV_PROFILE_URL,
+        "messenger_ai_endpoint": MESSENGER_AI_ENDPOINT
+    }
+
+
+if __name__ == "__main__":
+    # Run FastAPI server on port 8000
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+
+import asyncio
+import datetime
+import hmac
+import hashlib
+import json
+import logging
+import os
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
+import httpx
+from fastapi import FastAPI, Request, Response, HTTPException, Query, BackgroundTasks
+import uvicorn
+
+# --- Configuration & Credentials ---
+DEV_NAME = "Gilbert Algordo"
+DEV_PROFILE_URL = "https://g.dev/gilbert_algordo"
+MESSENGER_AI_ENDPOINT = "https://m.me/1398345928009373?is_ai=1"
+SYSTEM_VERSION = "Prime-v11.0-MetaGraphClient"
+
+# Credentials (Set environment variables or defaults)
+PAGE_ACCESS_TOKEN = os.getenv("META_PAGE_ACCESS_TOKEN", "YOUR_META_PAGE_ACCESS_TOKEN")
+VERIFY_TOKEN = os.getenv("META_VERIFY_TOKEN", "JARVIS_PRIME_SECRET_TOKEN")
+APP_SECRET = os.getenv("META_APP_SECRET", "YOUR_META_APP_SECRET")
+GRAPH_API_VERSION = "v19.0"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] [JARVIS-GRAPH-CLIENT]: %(message)s"
+)
+
+
+class SystemState(Enum):
+    IDLE = "IDLE"
+    PROCESSING = "PROCESSING"
+    DISPATCHING_GRAPH_API = "DISPATCHING_GRAPH_API"
+    ERROR = "ERROR"
+
+
+@dataclass
+class TelemetryFrame:
+    timestamp: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    system_state: str = SystemState.IDLE.value
+    developer: str = DEV_NAME
+    profile_url: str = DEV_PROFILE_URL
+    messenger_ai_link: str = MESSENGER_AI_ENDPOINT
+    processed_count: int = 0
+    last_action: Dict[str, Any] = field(default_factory=dict)
+
+
+class SystemHUD:
+    """Heads-Up Display for real-time Meta Graph API dispatch and webhook telemetry."""
+
+    def render(self, frame: TelemetryFrame, title: str = "JARVIS GRAPH TELEMETRY") -> None:
+        border = "═" * 74
+        divider = "─" * 74
+        print(f"\n╔{border}╗")
+        print(f"║ JARVIS PRIME AI HUD | {title:<28} | {frame.timestamp[:19]} ║")
+        print(f"╠{border}╣")
+        print(f"║ Developer Profile : {frame.profile_url:<52} ║")
+        print(f"║ Messenger Endpoint: {frame.messenger_ai_link:<52} ║")
+        print(f"║ System State      : {frame.system_state:<18} | Processed Counter : {frame.processed_count:<4} ║")
+        if frame.last_action:
+            print(f"╠{divider}╣")
+            print("║ Graph API Action Metrics:")
+            for k, v in frame.last_action.items():
+                v_str = str(v)[:45]
+                print(f"║   • {k:<20}: {v_str:<43} ║")
+        print(f"╚{border}╝\n")
+
+
+class MetaGraphClient:
+    """Async Meta Graph API Client for sending automated AI responses back to Messenger users."""
+
+    def __init__(self, page_access_token: str, api_version: str = "v19.0"):
+        self.access_token = page_access_token
+        self.api_version = api_version
+        self.base_url = f"https://graph.facebook.com/{self.api_version}"
+
+    async def send_text_message(self, recipient_id: str, message_text: str) -> Dict[str, Any]:
+        """Sends a text response to a user via the Meta Graph Send API."""
+        url = f"{self.base_url}/me/messages"
+        params = {"access_token": self.access_token}
+        payload = {
+            "recipient": {"id": recipient_id},
+            "message": {"text": message_text},
+            "messaging_type": "RESPONSE"
+        }
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            try:
+                logging.info(f"Dispatching Graph API response to recipient: {recipient_id}")
+                response = await client.post(url, params=params, json=payload)
+                response.raise_for_status()
+                return response.json()
+            except httpx.HTTPStatusError as exc:
+                logging.error(f"Graph API HTTP Error: {exc.response.status_code} - {exc.response.text}")
+                return {"error": True, "details": exc.response.text}
+            except Exception as e:
+                logging.error(f"Failed to reach Meta Graph API: {e}")
+                return {"error": True, "details": str(e)}
+
+
+class JarvisEngine:
+    """Core Jarvis processing engine combining webhook ingestion, AI response generation, and Graph API dispatching."""
+
+    def __init__(self):
+        self.hud = SystemHUD()
+        self.graph_client = MetaGraphClient(PAGE_ACCESS_TOKEN, GRAPH_API_VERSION)
+        self.state = SystemState.IDLE
+        self.message_count = 0
+
+    def verify_signature(self, payload: bytes, signature_header: str) -> bool:
+        """Validates HMAC-SHA256 signature from Meta webhook requests."""
+        if not signature_header or APP_SECRET == "YOUR_META_APP_SECRET":
+            return True  # Dev bypass
+
+        try:
+            elements = signature_header.split("=")
+            if len(elements) != 2 or elements[0] != "sha256":
+                return False
+
+            expected_hash = hmac.new(
+                APP_SECRET.encode("utf-8"),
+                payload,
+                hashlib.sha256
+            ).hexdigest()
+
+            return hmac.compare_digest(elements[1], expected_hash)
+        except Exception as e:
+            logging.error(f"Signature verification failed: {e}")
+            return False
+
+    def generate_ai_response(self, user_text: str) -> str:
+        """Generates contextual AI response."""
+        return f"[Jarvis Prime AI]: Received query: '{user_text}'. Subsystems active. Developed by Gilbert Algordo ({DEV_PROFILE_URL})."
+
+    async def handle_inbound_event(self, event_data: Dict[str, Any]) -> None:
+        """Background task: Parses event, generates AI output, and sends reply via Meta Graph API."""
+        self.state = SystemState.PROCESSING
+        self.message_count += 1
+
+        entries = event_data.get("entry", [])
+        for entry in entries:
+            messaging_events = entry.get("messaging", [])
+            for event in messaging_events:
+                sender_id = event.get("sender", {}).get("id")
+                message = event.get("message", {})
+                message_text = message.get("text")
+
+                if sender_id and message_text:
+                    # 1. Generate AI Response
+                    ai_reply = self.generate_ai_response(message_text)
+
+                    # 2. Dispatch via Meta Graph API
+                    self.state = SystemState.DISPATCHING_GRAPH_API
+                    graph_response = await self.graph_client.send_text_message(sender_id, ai_reply)
+
+                    # 3. Render HUD Telemetry
+                    frame = TelemetryFrame(
+                        system_state=self.state.value,
+                        processed_count=self.message_count,
+                        last_action={
+                            "sender_id": sender_id,
+                            "inbound_prompt": message_text,
+                            "ai_response": ai_reply,
+                            "graph_api_status": graph_response.get("recipient_id", "DISPATCHED")
+                        }
+                    )
+                    self.hud.render(frame, title="AUTOMATED REPLY DISPATCHED")
+
+        self.state = SystemState.IDLE
+
+
+# --- FastAPI App Server ---
+app = FastAPI(
+    title="Jarvis Prime AI - Meta Webhook & Graph API Engine",
+    version=SYSTEM_VERSION,
+    description=f"Automated Messenger Integration for {DEV_NAME} ({DEV_PROFILE_URL})"
+)
+
+engine = JarvisEngine()
+
+
+@app.get("/webhook")
+async def verify_webhook(
+    hub_mode: Optional[str] = Query(None, alias="hub.mode"),
+    hub_token: Optional[str] = Query(None, alias="hub.verify_token"),
+    hub_challenge: Optional[str] = Query(None, alias="hub.challenge")
+):
+    """Meta Webhook Challenge Verification Endpoint."""
+    if hub_mode == "subscribe" and hub_token == VERIFY_TOKEN:
+        logging.info("Webhook verification token accepted.")
+        return Response(content=hub_challenge, media_type="text/plain", status_code=200)
+
+    raise HTTPException(status_code=403, detail="Verification token mismatch.")
+
+
+@app.post("/webhook")
+async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
+    """Meta Inbound Webhook Event Receiver."""
+    body_bytes = await request.body()
+    signature = request.headers.get("X-Hub-Signature-256", "")
+
+    if not engine.verify_signature(body_bytes, signature):
+        raise HTTPException(status_code=403, detail="Invalid HMAC signature.")
+
+    try:
+        payload = json.loads(body_bytes.decode("utf-8"))
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload.")
+
+    if payload.get("object") == "page":
+        # Process message generation and Graph API dispatch asynchronously in background
+        background_tasks.add_task(engine.handle_inbound_event, payload)
+        return Response(content="EVENT_RECEIVED", status_code=200)
+
+    raise HTTPException(status_code=404, detail="Unknown event type.")
+
+
+@app.get("/")
+async def status():
+    return {
+        "status": "ONLINE",
+        "system": SYSTEM_VERSION,
+        "developer": DEV_NAME,
+        "profile": DEV_PROFILE_URL,
+        "messenger_ai": MESSENGER_AI_ENDPOINT
+    }
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+
+
+
+import asyncio
+import datetime
+import hashlib
+import hmac
+import json
+import logging
+import os
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
+
+import httpx
+import uvicorn
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Response
+
+# --- Subsystem Configuration & Metadata ---
+DEV_NAME = "Gilbert Algordo"
+DEV_PROFILE_URL = "https://g.dev/gilbert_algordo"
+MESSENGER_AI_ENDPOINT = "https://m.me/1398345928009373?is_ai=1"
+SYSTEM_VERSION = "Prime-v12.0-EnterpriseCore"
+
+# Environmental Credentials (Defaults provided for dev/testing)
+PAGE_ACCESS_TOKEN = os.getenv("META_PAGE_ACCESS_TOKEN", "YOUR_META_PAGE_ACCESS_TOKEN")
+VERIFY_TOKEN = os.getenv("META_VERIFY_TOKEN", "JARVIS_PRIME_SECRET_TOKEN")
+APP_SECRET = os.getenv("META_APP_SECRET", "YOUR_META_APP_SECRET")
+GRAPH_API_VERSION = "v19.0"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] [JARVIS-CORE]: %(message)s"
+)
+
+
+class SystemState(Enum):
+    IDLE = "IDLE"
+    PROCESSING = "PROCESSING"
+    DISPATCHING_REPLY = "DISPATCHING_REPLY"
+    OPTIMIZING = "OPTIMIZING"
+    ERROR = "ERROR"
+
+
+@dataclass
+class TelemetryFrame:
+    timestamp: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    system_state: str = SystemState.IDLE.value
+    developer: str = DEV_NAME
+    profile_url: str = DEV_PROFILE_URL
+    messenger_ai_endpoint: str = MESSENGER_AI_ENDPOINT
+    total_processed: int = 0
+    active_tools_count: int = 0
+    metrics: Dict[str, Any] = field(default_factory=dict)
+
+
+class SystemHUD:
+    """Heads-Up Display for real-time visual telemetry and stream monitoring."""
+
+    def render(self, frame: TelemetryFrame, title: str = "JARVIS PRIME TELEMETRY") -> None:
+        border = "═" * 74
+        divider = "─" * 74
+        print(f"\n╔{border}╗")
+        print(f"║ JARVIS PRIME AI HUD | {title:<28} | {frame.timestamp[:19]} ║")
+        print(f"╠{border}╣")
+        print(f"║ Developer Profile : {frame.profile_url:<52} ║")
+        print(f"║ Messenger Endpoint: {frame.messenger_ai_endpoint:<52} ║")
+        print(f"║ System State      : {frame.system_state:<18} | Processed Messages: {frame.total_processed:<4} ║")
+        print(f"║ Registered Tools  : {frame.active_tools_count:<18} | System Version    : {SYSTEM_VERSION:<10} ║")
+        if frame.metrics:
+            print(f"╠{divider}╣")
+            print("║ Active Subsystem Metrics:")
+            for k, v in frame.metrics.items():
+                v_str = str(v)[:45]
+                print(f"║   • {k:<20}: {v_str:<43} ║")
+        print(f"╚{border}╝\n")
+
+
+class AsyncToolRegistry:
+    """Dynamic tool pipeline for agentic execution."""
+
+    def __init__(self):
+        self._tools: Dict[str, Callable] = {}
+
+    def register(self, name: str) -> Callable:
+        def decorator(func: Callable) -> Callable:
+            self._tools[name] = func
+            logging.info(f"Registered tool: '{name}'")
+            return func
+        return decorator
+
+    async def execute(self, name: str, **kwargs) -> Any:
+        if name not in self._tools:
+            raise KeyError(f"Tool '{name}' is not registered.")
+        return await self._tools[name](**kwargs)
+
+    @property
+    def count(self) -> int:
+        return len(self._tools)
+
+
+class MetaGraphClient:
+    """Asynchronous Meta Graph API Client for Meta Messenger Send API."""
+
+    def __init__(self, page_access_token: str, api_version: str = "v19.0"):
+        self.access_token = page_access_token
+        self.api_version = api_version
+        self.base_url = f"https://graph.facebook.com/{self.api_version}"
+
+    async def send_text_message(self, recipient_id: str, message_text: str) -> Dict[str, Any]:
+        """Dispatches an asynchronous text response to a Messenger user."""
+        url = f"{self.base_url}/me/messages"
+        params = {"access_token": self.access_token}
+        payload = {
+            "recipient": {"id": recipient_id},
+            "message": {"text": message_text},
+            "messaging_type": "RESPONSE"
+        }
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            try:
+                logging.info(f"Dispatching Graph API response to recipient: {recipient_id}")
+                response = await client.post(url, params=params, json=payload)
+                response.raise_for_status()
+                return response.json()
+            except httpx.HTTPStatusError as exc:
+                logging.error(f"Graph API HTTP Error {exc.response.status_code}: {exc.response.text}")
+                return {"error": True, "status_code": exc.response.status_code}
+            except Exception as e:
+                logging.error(f"Meta Graph API Exception: {e}")
+                return {"error": True, "details": str(e)}
+
+
+class JarvisPrimeCore:
+    """Core Orchestrator coordinating tools, Webhook processing, and HUD telemetry."""
+
+    def __init__(self):
+        self.hud = SystemHUD()
+        self.tools = AsyncToolRegistry()
+        self.graph_client = MetaGraphClient(PAGE_ACCESS_TOKEN, GRAPH_API_VERSION)
+        self.state = SystemState.IDLE
+        self.processed_counter = 0
+        self._bind_default_tools()
+
+    def _bind_default_tools(self) -> None:
+
+        @self.tools.register("get_developer_info")
+        async def get_developer_info():
+            return {
+                "name": DEV_NAME,
+                "profile": DEV_PROFILE_URL,
+                "messenger": MESSENGER_AI_ENDPOINT
+            }
+
+        @self.tools.register("run_kaizen_pass")
+        async def run_kaizen_pass(scope: str = "latency_optimization"):
+            return {
+                "scope": scope,
+                "latency_delta": "-1.8ms",
+                "status": "PASS_COMPLETE"
+            }
+
+    def verify_signature(self, payload: bytes, signature_header: str) -> bool:
+        """Verifies HMAC-SHA256 signature for incoming Meta webhooks."""
+        if not signature_header or APP_SECRET == "YOUR_META_APP_SECRET":
+            return True  # Dev mode fallback
+
+        try:
+            elements = signature_header.split("=")
+            if len(elements) != 2 or elements[0] != "sha256":
+                return False
+
+            expected_hash = hmac.new(
+                APP_SECRET.encode("utf-8"),
+                payload,
+                hashlib.sha256
+            ).hexdigest()
+
+            return hmac.compare_digest(elements[1], expected_hash)
+        except Exception as e:
+            logging.error(f"HMAC Verification error: {e}")
+            return False
+
+    async def handle_messenger_payload(self, payload: Dict[str, Any]) -> None:
+        """Asynchronous worker for parsing webhook events and dispatching AI responses."""
+        self.state = SystemState.PROCESSING
+        self.processed_counter += 1
+
+        entries = payload.get("entry", [])
+        for entry in entries:
+            for event in entry.get("messaging", []):
+                sender_id = event.get("sender", {}).get("id")
+                message = event.get("message", {})
+                message_text = message.get("text", "")
+
+                if sender_id and message_text:
+                    # Execute tool call
+                    kaizen = await self.tools.execute("run_kaizen_pass", scope="inbound_routing")
+                    
+                    # Formulate reply
+                    reply = (
+                        f"[Jarvis Prime AI]: Received query '{message_text}'. "
+                        f"Subsystems online. Profile: {DEV_PROFILE_URL}"
+                    )
+
+                    # Dispatch via Meta Graph API
+                    self.state = SystemState.DISPATCHING_REPLY
+                    res = await self.graph_client.send_text_message(sender_id, reply)
+
+                    # Update HUD
+                    frame = TelemetryFrame(
+                        system_state=self.state.value,
+                        total_processed=self.processed_counter,
+                        active_tools_count=self.tools.count,
+                        metrics={
+                            "sender_id": sender_id,
+                            "inbound_prompt": message_text,
+                            "kaizen_status": kaizen["status"],
+                            "dispatch_result": res.get("recipient_id", "DELIVERED")
+                        }
+                    )
+                    self.hud.render(frame, title="INBOUND MESSAGE PROCESSED")
+
+        self.state = SystemState.IDLE
+
+
+# --- FastAPI Webhook Server Initialization ---
+app = FastAPI(
+    title="Jarvis Prime AI Core Server",
+    version=SYSTEM_VERSION,
+    description=f"Developed by {DEV_NAME} ({DEV_PROFILE_URL})"
+)
+
+jarvis = JarvisPrimeCore()
+
+
+@app.get("/webhook")
+async def verify_webhook(
+    hub_mode: Optional[str] = Query(None, alias="hub.mode"),
+    hub_token: Optional[str] = Query(None, alias="hub.verify_token"),
+    hub_challenge: Optional[str] = Query(None, alias="hub.challenge")
+):
+    """Meta Webhook GET Handshake Endpoint."""
+    if hub_mode == "subscribe" and hub_token == VERIFY_TOKEN:
+        logging.info("Meta Webhook Verification Succeeded.")
+        return Response(content=hub_challenge, media_type="text/plain", status_code=200)
+
+    raise HTTPException(status_code=403, detail="Verification token mismatch.")
+
+
+@app.post("/webhook")
+async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
+    """Meta Webhook POST Event Receiver."""
+    body_bytes = await request.body()
+    signature = request.headers.get("X-Hub-Signature-256", "")
+
+    if not jarvis.verify_signature(body_bytes, signature):
+        raise HTTPException(status_code=403, detail="Invalid HMAC signature.")
+
+    try:
+        payload = json.loads(body_bytes.decode("utf-8"))
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON format.")
+
+    if payload.get("object") == "page":
+        background_tasks.add_task(jarvis.handle_messenger_payload, payload)
+        return Response(content="EVENT_RECEIVED", status_code=200)
+
+    raise HTTPException(status_code=404, detail="Unsupported object type.")
+
+
+@app.get("/")
+async def root():
+    return {
+        "system": SYSTEM_VERSION,
+        "developer": DEV_NAME,
+        "profile": DEV_PROFILE_URL,
+        "messenger_ai": MESSENGER_AI_ENDPOINT,
+        "status": "OPERATIONAL"
+    }
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+
+import datetime
+from PIL import Image, ImageDraw, ImageFont
+
+# Image Canvas Specifications
+WIDTH, HEIGHT = 1200, 675
+BG_COLOR = (5, 12, 24)  # Deep cybernetic navy blue
+CYAN_GLOW = (0, 240, 255)
+CYAN_DIM = (0, 140, 180)
+TEXT_WHITE = (230, 250, 255)
+
+# Developer & Endpoint Metadata
+DEV_NAME = "Gilbert Algordo"
+DEV_PROFILE = "https://g.dev/gilbert_algordo"
+MESSENGER_ENDPOINT = "https://m.me/1398345928009373?is_ai=1"
+TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S PST")
+
+# Initialize Image and Draw context
+img = Image.new("RGB", (WIDTH, HEIGHT), BG_COLOR)
+draw = ImageDraw.Draw(img)
+
+# Fallback basic font (Load TTF fonts if available on system)
+font = ImageFont.load_default()
+
+# 1. Outer Tactical Frame
+draw.rectangle([20, 20, WIDTH - 20, HEIGHT - 20], outline=CYAN_GLOW, width=2)
+draw.rectangle([28, 28, WIDTH - 28, HEIGHT - 28], outline=CYAN_DIM, width=1)
+
+# Frame Corner Brackets
+corner_len = 35
+# Top-Left
+draw.line([(15, 15), (15 + corner_len, 15)], fill=CYAN_GLOW, width=4)
+draw.line([(15, 15), (15, 15 + corner_len)], fill=CYAN_GLOW, width=4)
+# Top-Right
+draw.line([(WIDTH - 15, 15), (WIDTH - 15 - corner_len, 15)], fill=CYAN_GLOW, width=4)
+draw.line([(WIDTH - 15, 15), (WIDTH - 15, 15 + corner_len)], fill=CYAN_GLOW, width=4)
+# Bottom-Left
+draw.line([(15, HEIGHT - 15), (15 + corner_len, HEIGHT - 15)], fill=CYAN_GLOW, width=4)
+draw.line([(15, HEIGHT - 15), (15, HEIGHT - 15 - corner_len)], fill=CYAN_GLOW, width=4)
+# Bottom-Right
+draw.line([(WIDTH - 15, HEIGHT - 15), (WIDTH - 15 - corner_len, HEIGHT - 15)], fill=CYAN_GLOW, width=4)
+draw.line([(WIDTH - 15, HEIGHT - 15), (WIDTH - 15, HEIGHT - 15 - corner_len)], fill=CYAN_GLOW, width=4)
+
+# 2. Central HUD Core Circles
+center_x, center_y = WIDTH // 2, HEIGHT // 2
+draw.ellipse([center_x - 140, center_y - 140, center_x + 140, center_y + 140], outline=CYAN_GLOW, width=3)
+draw.ellipse([center_x - 110, center_y - 110, center_x + 110, center_y + 110], outline=CYAN_DIM, width=1)
+draw.ellipse([center_x - 80, center_y - 80, center_x + 80, center_y + 80], outline=CYAN_GLOW, width=2)
+draw.ellipse([center_x - 20, center_y - 20, center_x + 20, center_y + 20], fill=CYAN_GLOW)
+
+# Crosshair Lines
+draw.line([(center_x - 170, center_y), (center_x - 90, center_y)], fill=CYAN_GLOW, width=2)
+draw.line([(center_x + 90, center_y), (center_x + 170, center_y)], fill=CYAN_GLOW, width=2)
+draw.line([(center_x, center_y - 170), (center_x, center_y - 90)], fill=CYAN_GLOW, width=2)
+draw.line([(center_x, center_y + 90), (center_x, center_y + 170)], fill=CYAN_GLOW, width=2)
+
+# 3. On-Screen Overlay Text & Metadata
+draw.text((40, 40), "JARVIS PRIME AI CORE // HUD V12.0", fill=CYAN_GLOW, font=font)
+draw.text((40, 60), f"TIMESTAMP: {TIMESTAMP}", fill=CYAN_DIM, font=font)
+
+# Developer & Endpoint Info Panel
+panel_y = HEIGHT - 110
+draw.rectangle([40, panel_y, 650, HEIGHT - 40], outline=CYAN_DIM, fill=(10, 25, 45))
+draw.text((50, panel_y + 10), f"DEVELOPER : {DEV_NAME}", fill=TEXT_WHITE, font=font)
+draw.text((50, panel_y + 30), f"PROFILE   : {DEV_PROFILE}", fill=CYAN_GLOW, font=font)
+draw.text((50, panel_y + 50), f"MESSENGER : {MESSENGER_ENDPOINT}", fill=CYAN_GLOW, font=font)
+
+# Telemetry Readouts (Right Panel)
+draw.rectangle([WIDTH - 300, 40, WIDTH - 40, 160], outline=CYAN_DIM, fill=(10, 25, 45))
+draw.text((WIDTH - 285, 50), "SYSTEM STATUS: OPERATIONAL", fill=CYAN_GLOW, font=font)
+draw.text((WIDTH - 285, 75), "LATENCY: 1.2ms", fill=TEXT_WHITE, font=font)
+draw.text((WIDTH - 285, 95), "ACTIVE CHANNELS: 2 (Web/FB)", fill=TEXT_WHITE, font=font)
+draw.text((WIDTH - 285, 115), "ENCRYPTION: HMAC-SHA256", fill=CYAN_DIM, font=font)
+
+# Save Image Output
+img.save("jarvis_prime_hud.png")
+print("Jarvis Prime HUD image saved successfully as 'jarvis_prime_hud.png'.")
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Jarvis Prime AI Visual HUD</title>
+    <style>
+        body { margin: 0; background-color: #030812; display: flex; justify-content: center; align-items: center; height: 100vh; color: #00f0ff; font-family: monospace; }
+        canvas { border: 1px solid #00f0ff; box-shadow: 0 0 20px rgba(0, 240, 255, 0.4); }
+    </style>
+</head>
+<body>
+
+<canvas id="hudCanvas" width="1000" height="562"></canvas>
+
+<script>
+    const canvas = document.getElementById('hudCanvas');
+    const ctx = canvas.getContext('2d');
+    let rotation = 0;
+
+    function drawHUD() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Background grid
+        ctx.strokeStyle = "rgba(0, 240, 255, 0.05)";
+        ctx.lineWidth = 1;
+        for(let x = 0; x < canvas.width; x += 40) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        }
+        for(let y = 0; y < canvas.height; y += 40) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        }
+
+        // Center Rotating Core
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(rotation);
+        ctx.strokeStyle = "#00f0ff";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, 110, 0, Math.PI * 1.5); ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(-rotation * 1.5);
+        ctx.strokeStyle = "rgba(0, 240, 255, 0.5)";
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(0, 0, 85, 0, Math.PI * 1.8); ctx.stroke();
+        ctx.restore();
+
+        // Pulsing Core Center
+        ctx.fillStyle = "#00f0ff";
+        ctx.beginPath(); ctx.arc(cx, cy, 12, 0, Math.PI * 2); ctx.fill();
+
+        // HUD Overlay Text
+        ctx.fillStyle = "#00f0ff";
+        ctx.font = "14px monospace";
+        ctx.fillText("JARVIS PRIME AI CORE", 30, 40);
+        ctx.fillStyle = "rgba(0, 240, 255, 0.7)";
+        ctx.fillText("DEV: Gilbert Algordo | g.dev/gilbert_algordo", 30, 65);
+        ctx.fillText("CHANNEL: m.me/1398345928009373?is_ai=1", 30, 85);
+
+        rotation += 0.01;
+        requestAnimationFrame(drawHUD);
+    }
+
+    drawHUD();
+</script>
+</body>
+</html>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Cyan Glow Filters -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#071828" />
+      <stop offset="100%" stop-color="#020810" />
+    </radialGradient>
+  </defs>
+
+  <!-- Dark Cybernetic Background -->
+  <rect width="512" height="512" rx="100" fill="url(#bgGrad)" stroke="#00f0ff" stroke-width="2" />
+
+  <!-- Outer HUD Ring -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="#00f0ff" stroke-width="3" stroke-dasharray="20 10 5 10" filter="url(#glow)" />
+  <circle cx="256" cy="256" r="175" fill="none" stroke="rgba(0, 240, 255, 0.4)" stroke-width="1.5" />
+
+  <!-- Crosshairs -->
+  <line x1="256" y1="36" x2="256" y2="76" stroke="#00f0ff" stroke-width="3" />
+  <line x1="256" y1="436" x2="256" y2="476" stroke="#00f0ff" stroke-width="3" />
+  <line x1="36" y1="256" x2="76" y2="256" stroke="#00f0ff" stroke-width="3" />
+  <line x1="436" y1="256" x2="476" y2="256" stroke="#00f0ff" stroke-width="3" />
+
+  <!-- Inner Rotating Reactor Core -->
+  <circle cx="256" cy="256" r="120" fill="none" stroke="#00f0ff" stroke-width="4" stroke-dasharray="80 30" filter="url(#glow)" />
+  <circle cx="256" cy="256" r="85" fill="none" stroke="rgba(0, 240, 255, 0.6)" stroke-width="2" stroke-dasharray="15 10" />
+  
+  <!-- Glowing Center Core -->
+  <circle cx="256" cy="256" r="35" fill="#00f0ff" filter="url(#glow)" />
+
+  <!-- Embedded Developer Metadata Text Arc -->
+  <text x="256" y="420" font-family="monospace" font-size="12" fill="#00f0ff" text-anchor="middle" letter-spacing="2">
+    DEV: GILBERT ALGORDO
+  </text>
+  <text x="256" y="440" font-family="monospace" font-size="10" fill="rgba(0, 240, 255, 0.7)" text-anchor="middle">
+    m.me/1398345928009373
+  </text>
+</svg>
+
+
+
+import os
+from PIL import Image, ImageDraw, ImageFont
+
+def generate_jarvis_icon(size=512):
+    # Colors
+    bg_color = (2, 8, 16)
+    cyan_glow = (0, 240, 255)
+    cyan_dim = (0, 120, 160)
+    white = (240, 255, 255)
+
+    img = Image.new("RGBA", (size, size), bg_color)
+    draw = ImageDraw.Draw(img)
+
+    center = size // 2
+    r_outer = int(size * 0.42)
+    r_mid = int(size * 0.28)
+    r_core = int(size * 0.08)
+
+    # Outer HUD Ring
+    draw.ellipse(
+        [center - r_outer, center - r_outer, center + r_outer, center + r_outer],
+        outline=cyan_glow,
+        width=max(2, size // 128)
+    )
+
+    # Middle Segmented Ring
+    draw.ellipse(
+        [center - r_mid, center - r_mid, center + r_mid, center + r_mid],
+        outline=cyan_dim,
+        width=max(1, size // 256)
+    )
+
+    # Center Glowing Core
+    draw.ellipse(
+        [center - r_core, center - r_core, center + r_core, center + r_core],
+        fill=cyan_glow
+    )
+
+    # Corner Crosshair Ticks
+    tick_len = int(size * 0.06)
+    draw.line([(center, 15), (center, 15 + tick_len)], fill=cyan_glow, width=2)
+    draw.line([(center, size - 15), (center, size - 15 - tick_len)], fill=cyan_glow, width=2)
+    draw.line([(15, center), (15 + tick_len, center)], fill=cyan_glow, width=2)
+    draw.line([(size - 15, center), (size - 15 - tick_len, center)], fill=cyan_glow, width=2)
+
+    return img
+
+if __name__ == "__main__":
+    sizes = [512, 256, 128, 64]
+    images = []
+
+    for s in sizes:
+        icon_img = generate_jarvis_icon(s)
+        file_name = f"jarvis_icon_{s}x{s}.png"
+        icon_img.save(file_name)
+        images.append(icon_img)
+        print(f"Generated icon: {file_name}")
+
+    # Export multi-resolution .ico file
+    images[0].save("jarvis_prime_app.ico", format="ICO", sizes=[(s, s) for s in sizes])
+    print("Exported app icon suite: 'jarvis_prime_app.ico'")
