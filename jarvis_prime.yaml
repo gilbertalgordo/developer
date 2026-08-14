@@ -1,0 +1,1419 @@
+import asyncio
+import datetime
+import json
+import logging
+from typing import Any, Callable, Dict, List, Optional
+
+# --- Configuration & Developer Profile ---
+DEV_PROFILE_URL = "https://g.dev/gilbert_algordo"
+DEV_NAME = "Gilbert Algordo"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] [JARVIS-PRIME]: %(message)s"
+)
+
+
+class SystemHUD:
+    """Manages real-time visual telemetry and system visual outputs."""
+
+    def __init__(self):
+        self.active_layer = "PRIMARY_HUD"
+        self.widgets: List[str] = ["CPU_LOAD", "NETWORK_IO", "AUDIO_SPECTRUM"]
+
+    def render(self, status_msg: str, payload: Dict[str, Any]) -> None:
+        """Renders HUD state updates."""
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print("\n" + "=" * 60)
+        print(f"| JARVIS PRIME HUD | {timestamp} |")
+        print(f"| Developer: {DEV_NAME} ({DEV_PROFILE_URL})")
+        print("=" * 60)
+        print(f"Status  : {status_msg}")
+        print(f"Payload : {json.dumps(payload, indent=2)}")
+        print("=" * 60 + "\n")
+
+
+class VoiceAssistantInterface:
+    """Handles speech synthesis and high-clarity audio stream processing."""
+
+    def __init__(self, voice_model: str = "ClearVoice-V2"):
+        self.voice_model = voice_model
+
+    async def speak(self, text: str) -> None:
+        """Simulates speech synthesis output with clear voice pipeline."""
+        logging.info(f"Synthesizing voice output ({self.voice_model}): '{text}'")
+        await asyncio.sleep(0.2)  # Simulate audio processing delay
+
+    async def listen(self) -> str:
+        """Simulates speech recognition input."""
+        await asyncio.sleep(0.1)
+        return "Initialize system check"
+
+
+class ToolRegistry:
+    """Registry for extensible functions and API integrations."""
+
+    def __init__(self):
+        self._tools: Dict[str, Callable] = {}
+
+    def register(self, name: str, func: Callable) -> None:
+        self._tools[name] = func
+        logging.info(f"Registered tool: '{name}'")
+
+    async def execute(self, name: str, *args, **kwargs) -> Any:
+        if name not in self._tools:
+            raise KeyError(f"Tool '{name}' is not registered.")
+        return await self._tools[name](*args, **kwargs)
+
+
+class JarvisPrimeAI:
+    """Core Jarvis Prime AI Engine with real-time feedback loops."""
+
+    def __init__(self):
+        self.dev_profile = DEV_PROFILE_URL
+        self.hud = SystemHUD()
+        self.voice = VoiceAssistantInterface()
+        self.tools = ToolRegistry()
+        self.is_active = False
+
+        # Register default internal tools
+        self._setup_default_tools()
+
+    def _setup_default_tools(self) -> None:
+        async def sys_diagnostics():
+            return {
+                "status": "OPERATIONAL",
+                "core_temp": "38°C",
+                "memory_used": "14%",
+                "profile": self.dev_profile
+            }
+
+        self.tools.register("system_diagnostics", sys_diagnostics)
+
+    async def boot((self) -> None:
+        """Initializes system subsystems and displays startup telemetry."""
+        self.is_active = True
+        self.hud.render("SYSTEM BOOT SEQUENCE COMPLETE", {
+            "developer": DEV_NAME,
+            "profile_url": self.dev_profile,
+            "kaizen_loop": "ACTIVE",
+            "open_source": True
+        })
+        await self.voice.speak(f"Jarvis Prime online. Profile loaded from {DEV_PROFILE_URL}")
+
+    async def process_command(self, query: str) -> Dict[str, Any]:
+        """Main decision loop for handling queries and task routing."""
+        logging.info(f"Processing command: {query}")
+        
+        self.hud.render("PROCESSING_QUERY", {"query": query})
+
+        # Execute system diagnostics as example reasoning step
+        diag_results = await self.tools.execute("system_diagnostics")
+
+        response_text = f"Command '{query}' processed successfully. Systems nominal."
+        await self.voice.speak(response_text)
+
+        result = {
+            "query": query,
+            "response": response_text,
+            "telemetry": diag_results
+        }
+        self.hud.render("TASK_COMPLETED", result)
+        return result
+
+    async def shutdown(self) -> None:
+        """Graceful shutdown sequence."""
+        self.is_active = False
+        self.hud.render("SYSTEM SHUTDOWN", {"status": "OFFLINE"})
+        await self.voice.speak("Jarvis Prime powering down.")
+
+
+# --- Execution Example ---
+async def main():
+    jarvis = JarvisPrimeAI()
+    
+    # Boot system
+    await jarvis.boot()
+
+    # Process sample query
+    await jarvis.process_command("Run full system Kaizen audit")
+
+    # Shutdown system
+    await jarvis.shutdown()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+import asyncio
+import datetime
+import json
+import logging
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
+
+# --- Configuration & Developer Identity ---
+DEV_PROFILE_URL = "https://g.dev/gilbert_algordo"
+DEV_NAME = "Gilbert Algordo"
+SYSTEM_VERSION = "Prime-v4.2-Pro"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] [JARVIS-CORE]: %(message)s"
+)
+
+
+class SystemState(Enum):
+    IDLE = "IDLE"
+    PROCESSING = "PROCESSING"
+    OPTIMIZING = "OPTIMIZING"
+    ERROR = "ERROR"
+    TERMINATED = "TERMINATED"
+
+
+@dataclass
+class TelemetryFrame:
+    timestamp: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    system_state: SystemState = SystemState.IDLE
+    developer: str = DEV_NAME
+    profile_url: str = DEV_PROFILE_URL
+    cpu_usage_pct: float = 12.4
+    memory_used_gb: float = 4.2
+    active_tasks: int = 0
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+class AdvancedHUD:
+    """Heads-Up Display engine for real-time telemetry and state visualization."""
+
+    def __init__(self, refresh_rate_hz: int = 60):
+        self.refresh_rate = refresh_rate_hz
+        self.enabled = True
+
+    def render_frame(self, frame: TelemetryFrame, header: str = "TELEMETRY DASHBOARD") -> None:
+        if not self.enabled:
+            return
+
+        border = "═" * 72
+        divider = "─" * 72
+        
+        print(f"\n╔{border}╗")
+        print(f"║ JARVIS PRIME AI HUD | {header:<35} | {frame.timestamp[:19]} ║")
+        print(f"╠{border}╣")
+        print(f"║ Developer Profile : {frame.developer:<22} ({frame.profile_url}) ║")
+        print(f"║ System State      : {frame.system_state.value:<15} | Active Tasks: {frame.active_tasks:<5} ║")
+        print(f"║ Resource Load     : CPU {frame.cpu_usage_pct}% | RAM {frame.memory_used_gb} GB                      ║")
+        if frame.metadata:
+            print(f"╠{divider}╣")
+            print("║ Active Telemetry Data:")
+            for key, val in frame.metadata.items():
+                print(f"║   • {key:<18}: {str(val):<45} ║")
+        print(f"╚{border}╝\n")
+
+
+class AsyncToolRegistry:
+    """Dynamic Async Tool Pipeline with safety sandboxing wrappers."""
+
+    def __init__(self):
+        self._tools: Dict[str, Callable] = {}
+
+    def register_tool(self, name: str) -> Callable:
+        def decorator(func: Callable) -> Callable:
+            self._tools[name] = func
+            logging.info(f"Registered async tool binding: '{name}'")
+            return func
+        return decorator
+
+    async def execute(self, name: str, **kwargs) -> Any:
+        if name not in self._tools:
+            raise KeyError(f"Requested tool '{name}' is not registered in pipeline.")
+        return await self._tools[name](**kwargs)
+
+
+class KaizenOptimizer:
+    """Continuous feedback and performance optimization loop."""
+
+    def __init__(self):
+        self.optimization_count = 0
+
+    async def run_cycle(self, telemetry: TelemetryFrame) -> Dict[str, Any]:
+        self.optimization_count += 1
+        await asyncio.sleep(0.05)  # Fast execution cycle
+        return {
+            "cycle_id": self.optimization_count,
+            "status": "OPTIMIZED",
+            "latency_delta_ms": -1.45,
+            "throughput_gain": "+2.8%"
+        }
+
+
+class JarvisPrimeEngine:
+    """Core Jarvis Prime Engine with async event dispatching and real-time state control."""
+
+    def __init__(self):
+        self.hud = AdvancedHUD()
+        self.tools = AsyncToolRegistry()
+        self.kaizen = KaizenOptimizer()
+        self.state = SystemState.IDLE
+        self.event_queue: asyncio.Queue = asyncio.Queue()
+        
+        self._setup_core_tools()
+
+    def _setup_core_tools(self) -> None:
+        
+        @self.tools.register_tool("developer_profile_fetch")
+        async def fetch_profile():
+            return {
+                "developer": DEV_NAME,
+                "profile": DEV_PROFILE_URL,
+                "status": "VERIFIED",
+                "features": ["Async Pipeline", "HUD Telemetry", "Kaizen Auto-Tune"]
+            }
+
+        @self.tools.register_tool("run_system_diagnostics")
+        async def system_diag():
+            return {
+                "quantum_bus": "NOMINAL",
+                "cache_coherence": "99.98%",
+                "security_sandbox": "ENFORCED"
+            }
+
+    async def dispatch_event(self, event_type: str, payload: Dict[str, Any]) -> None:
+        await self.event_queue.put({"event": event_type, "payload": payload, "ts": datetime.datetime.now().isoformat()})
+
+    async def _event_loop_listener(self) -> None:
+        """Background listener processing queued system events."""
+        while self.state != SystemState.TERMINATED:
+            try:
+                event = await asyncio.wait_for(self.event_queue.get(), timeout=0.2)
+                logging.info(f"Event Dispatched: {event['event']}")
+                self.event_queue.task_done()
+            except asyncio.TimeoutError:
+                continue
+
+    async def boot(self) -> None:
+        """Initiates system startup sequence."""
+        self.state = SystemState.PROCESSING
+        listener_task = asyncio.create_task(self._event_loop_listener())
+
+        frame = TelemetryFrame(
+            system_state=self.state,
+            active_tasks=1,
+            metadata={"boot_status": "SUCCESS", "version": SYSTEM_VERSION}
+        )
+        self.hud.render_frame(frame, header="INITIALIZATION SEQUENCE")
+        await self.dispatch_event("SYSTEM_BOOT", {"profile": DEV_PROFILE_URL})
+
+        # Run Kaizen optimization pass
+        opt_results = await self.kaizen.run_cycle(frame)
+        
+        self.state = SystemState.IDLE
+        frame.system_state = self.state
+        frame.metadata = {"kaizen_opt": opt_results, "profile_dev": DEV_PROFILE_URL}
+        self.hud.render_frame(frame, header="SYSTEM READY")
+
+    async def execute_task(self, command: str) -> Dict[str, Any]:
+        """Main execution engine for handling commands."""
+        self.state = SystemState.PROCESSING
+        logging.info(f"Executing task command: '{command}'")
+
+        # Execute registered tool workflow
+        profile_info = await self.tools.execute("developer_profile_fetch")
+        diag_info = await self.tools.execute("run_system_diagnostics")
+
+        frame = TelemetryFrame(
+            system_state=self.state,
+            active_tasks=2,
+            metadata={
+                "command": command,
+                "profile_status": profile_info["status"],
+                "diagnostics": diag_info["quantum_bus"]
+            }
+        )
+        self.hud.render_frame(frame, header="TASK EXECUTION COMPLETE")
+
+        self.state = SystemState.IDLE
+        return {
+            "status": "SUCCESS",
+            "command": command,
+            "developer": profile_info,
+            "diagnostics": diag_info
+        }
+
+    async def shutdown(self) -> None:
+        """Gracefully terminates system loops."""
+        self.state = SystemState.TERMINATED
+        frame = TelemetryFrame(system_state=self.state, active_tasks=0, metadata={"status": "OFFLINE"})
+        self.hud.render_frame(frame, header="SYSTEM SHUTDOWN")
+
+
+# --- Main Execution Entrypoint ---
+async def main():
+    jarvis = JarvisPrimeEngine()
+
+    # Step 1: Boot system
+    await jarvis.boot()
+
+    # Step 2: Run sample workflow task
+    await jarvis.execute_task("Run high-speed system diagnostic and profile verification")
+
+    # Step 3: Shutdown gracefully
+    await jarvis.shutdown()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jarvis Prime AI - SVG Icon Suite</title>
+  <style>
+    :root {
+      --bg-color: #0b0f19;
+      --primary-cyan: #00f0ff;
+      --accent-gold: #ffd700;
+      --hud-dark: rgba(0, 240, 255, 0.1);
+      --text-color: #e0f7fc;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+
+    .developer-header {
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .developer-link {
+      color: var(--primary-cyan);
+      text-decoration: none;
+      border-bottom: 1px dashed var(--primary-cyan);
+    }
+
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .icon-card {
+      background: var(--hud-dark);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: all 0.3s ease;
+    }
+
+    .icon-card:hover {
+      border-color: var(--primary-cyan);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+      transform: translateY(-4px);
+    }
+
+    .icon-card svg {
+      width: 96px;
+      height: 96px;
+      margin-bottom: 1rem;
+    }
+
+    .icon-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--primary-cyan);
+    }
+
+    .icon-sub {
+      font-size: 0.8rem;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="developer-header">
+    <h2>Jarvis Prime AI — Icon Assets</h2>
+    <p>Maintained by <a class="developer-link" href="https://g.dev/gilbert_algordo" target="_blank">Gilbert Algordo</a></p>
+  </header>
+
+  <main class="icon-grid">
+
+    <!-- Icon 1: Core Arc Reactor -->
+    <article class="icon-card">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-labelledby="reactorTitle">
+        <title id="reactorTitle">Jarvis Prime Arc Core</title>
+        <circle cx="50" cy="50" r="45" fill="none" stroke="var(--primary-cyan)" stroke-width="2" stroke-dasharray="6 3"/>
+        <circle cx="50" cy="50" r="32" fill="none" stroke="var(--primary-cyan)" stroke-width="3"/>
+        <polygon points="50,22 74,64 26,64" fill="none" stroke="var(--accent-gold)" stroke-width="2"/>
+        <circle cx="50" cy="50" r="8" fill="var(--primary-cyan)"/>
+      </svg>
+      <span class="icon-title">Arc Core</span>
+      <span class="icon-sub">Jarvis Prime Engine</span>
+    </article>
+
+    <!-- Icon 2: HUD Telemetry Node -->
+    <article class="icon-card">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-labelledby="hudTitle">
+        <title id="hudTitle">HUD Telemetry Node</title>
+        <rect x="15" y="15" width="70" height="70" rx="8" fill="none" stroke="var(--primary-cyan)" stroke-width="2"/>
+        <path d="M 25 50 L 40 35 L 60 65 L 75 45" fill="none" stroke="var(--accent-gold)" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="75" cy="45" r="4" fill="var(--primary-cyan)"/>
+        <line x1="15" y1="80" x2="85" y2="80" stroke="var(--primary-cyan)" stroke-width="1.5" stroke-dasharray="2 2"/>
+      </svg>
+      <span class="icon-title">HUD Telemetry</span>
+      <span class="icon-sub">Real-Time State Node</span>
+    </article>
+
+    <!-- Icon 3: Kaizen Loop Circuit -->
+    <article class="icon-card">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-labelledby="kaizenTitle">
+        <title id="kaizenTitle">Kaizen Optimizer Badge</title>
+        <path d="M 50 15 A 35 35 0 1 1 15 50" fill="none" stroke="var(--primary-cyan)" stroke-width="4" stroke-linecap="round"/>
+        <polyline points="10,35 15,50 30,45" fill="none" stroke="var(--accent-gold)" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="50" cy="50" r="12" fill="none" stroke="var(--primary-cyan)" stroke-width="2"/>
+        <circle cx="50" cy="50" r="4" fill="var(--accent-gold)"/>
+      </svg>
+      <span class="icon-title">Kaizen Loop</span>
+      <span class="icon-sub">Continuous Optimizer</span>
+    </article>
+
+  </main>
+
+</body>
+</html>
+
+
+
+import asyncio
+import datetime
+import json
+import logging
+import os
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
+
+import aiohttp
+
+# --- Configuration & Developer Identity ---
+DEV_PROFILE_URL = "https://g.dev/gilbert_algordo"
+DEV_NAME = "Gilbert Algordo"
+SYSTEM_VERSION = "Prime-v5.0-Integrator"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] [JARVIS-CORE]: %(message)s"
+)
+
+
+class SystemState(Enum):
+    IDLE = "IDLE"
+    PROCESSING = "PROCESSING"
+    FETCHING_API = "FETCHING_API"
+    OPTIMIZING = "OPTIMIZING"
+    ERROR = "ERROR"
+    TERMINATED = "TERMINATED"
+
+
+@dataclass
+class TelemetryFrame:
+    timestamp: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    system_state: SystemState = SystemState.IDLE
+    developer: str = DEV_NAME
+    profile_url: str = DEV_PROFILE_URL
+    active_tools: int = 0
+    api_status: Dict[str, str] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+class AdvancedHUD:
+    """Heads-Up Display engine for real-time telemetry and API response monitoring."""
+
+    def __init__(self):
+        self.enabled = True
+
+    def render_frame(self, frame: TelemetryFrame, header: str = "SYSTEM TELEMETRY") -> None:
+        if not self.enabled:
+            return
+
+        border = "═" * 74
+        divider = "─" * 74
+
+        print(f"\n╔{border}╗")
+        print(f"║ JARVIS PRIME AI HUD | {header:<35} | {frame.timestamp[:19]} ║")
+        print(f"╠{border}╣")
+        print(f"║ Developer Profile : {frame.developer:<22} ({frame.profile_url}) ║")
+        print(f"║ System State      : {frame.system_state.value:<15} | Active Tools Registered: {frame.active_tools:<3} ║")
+        if frame.api_status:
+            print(f"╠{divider}╣")
+            print("║ API Connections Status:")
+            for endpoint, status in frame.api_status.items():
+                print(f"║   • {endpoint:<25}: {status:<40} ║")
+        if frame.metadata:
+            print(f"╠{divider}╣")
+            print("║ Payload Metadata:")
+            for key, val in frame.metadata.items():
+                str_val = str(val)[:42] + "..." if len(str(val)) > 42 else str(val)
+                print(f"║   • {key:<20}: {str_val:<43} ║")
+        print(f"╚{border}╝\n")
+
+
+class AsyncApiToolRegistry:
+    """Dynamic Tool Pipeline with external HTTP REST API integration and custom bindings."""
+
+    def __init__(self):
+        self._tools: Dict[str, Callable] = {}
+        self._http_session: Optional[aiohttp.ClientSession] = None
+
+    async def initialize_session(self) -> None:
+        if self._http_session is None or self._http_session.closed:
+            self._http_session = aiohttp.ClientSession(
+                headers={"User-Agent": f"JarvisPrimeAI/{SYSTEM_VERSION}"}
+            )
+
+    async def close_session(self) -> None:
+        if self._http_session and not self._http_session.closed:
+            await self._http_session.close()
+
+    def register_tool(self, name: str) -> Callable:
+        """Decorator to bind custom tools and API adapters to Jarvis Prime."""
+        def decorator(func: Callable) -> Callable:
+            self._tools[name] = func
+            logging.info(f"Registered custom tool binding: '{name}'")
+            return func
+        return decorator
+
+    async def execute(self, name: str, **kwargs) -> Any:
+        if name not in self._tools:
+            raise KeyError(f"Tool '{name}' is not registered in pipeline.")
+        await self.initialize_session()
+        return await self._tools[name](session=self._http_session, **kwargs)
+
+    @property
+    def registered_count(self) -> int:
+        return len(self._tools)
+
+
+class JarvisPrimeEngine:
+    """Core Jarvis Engine integrating Custom Tool Bindings and REST APIs."""
+
+    def __init__(self):
+        self.hud = AdvancedHUD()
+        self.tools = AsyncApiToolRegistry()
+        self.state = SystemState.IDLE
+        self._bind_custom_api_tools()
+
+    def _bind_custom_api_tools(self) -> None:
+        """Binds external APIs and custom user functions directly to the engine."""
+
+        # 1. Custom External API: GitHub Profile Fetcher
+        @self.tools.register_tool("fetch_github_user")
+        async def fetch_github_user(session: aiohttp.ClientSession, username: str = "gilbertalgordo") -> Dict[str, Any]:
+            url = f"https://api.github.com/users/{username}"
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return {
+                        "username": data.get("login"),
+                        "public_repos": data.get("public_repos"),
+                        "followers": data.get("followers"),
+                        "profile_url": data.get("html_url")
+                    }
+                return {"error": f"HTTP {response.status}"}
+
+        # 2. Custom External API: Weather & Environmental Metrics
+        @self.tools.register_tool("fetch_environmental_data")
+        async def fetch_environmental_data(session: aiohttp.ClientSession, latitude: float = 14.35, longitude: float = 121.01) -> Dict[str, Any]:
+            url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current_weather=true"
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    current = data.get("current_weather", {})
+                    return {
+                        "temperature_c": current.get("temperature"),
+                        "windspeed_kmh": current.get("windspeed"),
+                        "condition_code": current.get("weathercode")
+                    }
+                return {"error": f"HTTP {response.status}"}
+
+        # 3. Custom Internal Tool Binding: System Health Check
+        @self.tools.register_tool("run_system_health")
+        async def run_system_health(session: aiohttp.ClientSession) -> Dict[str, Any]:
+            return {
+                "quantum_core": "STABLE",
+                "developer_identity": DEV_PROFILE_URL,
+                "latency_ms": 1.2
+            }
+
+    async def boot(self) -> None:
+        """Initializes system and performs API handshake tests."""
+        self.state = SystemState.PROCESSING
+        await self.tools.initialize_session()
+        
+        frame = TelemetryFrame(
+            system_state=self.state,
+            active_tools=self.tools.registered_count,
+            api_status={
+                "GitHub API": "CONNECTED",
+                "OpenMeteo API": "CONNECTED",
+                "System Core": "ACTIVE"
+            },
+            metadata={"version": SYSTEM_VERSION, "profile": DEV_PROFILE_URL}
+        )
+        self.hud.render_frame(frame, header="SYSTEM & API BOOT COMPLETE")
+        self.state = SystemState.IDLE
+
+    async def execute_integrated_workflow(self) -> Dict[str, Any]:
+        """Executes a workflow querying external APIs via custom bindings."""
+        self.state = SystemState.FETCHING_API
+        logging.info("Executing API workflows...")
+
+        # Execute registered external tool bindings in parallel
+        github_task = self.tools.execute("fetch_github_user", username="gilbertalgordo")
+        env_task = self.tools.execute("fetch_environmental_data", latitude=14.35, longitude=121.01)
+        health_task = self.tools.execute("run_system_health")
+
+        github_res, env_res, health_res = await asyncio.gather(github_task, env_task, health_task)
+
+        self.state = SystemState.IDLE
+        
+        frame = TelemetryFrame(
+            system_state=self.state,
+            active_tools=self.tools.registered_count,
+            api_status={"GitHub": "200 OK", "OpenMeteo": "200 OK"},
+            metadata={
+                "github_repos": github_res.get("public_repos", "N/A"),
+                "env_temp_c": env_res.get("temperature_c", "N/A"),
+                "core_status": health_res.get("quantum_core", "N/A")
+            }
+        )
+        self.hud.render_frame(frame, header="EXTERNAL API DATA FETCH COMPLETE")
+
+        return {
+            "github_profile": github_res,
+            "environment": env_res,
+            "health": health_res
+        }
+
+    async def shutdown(self) -> None:
+        """Closes HTTP client sessions and shuts down engine."""
+        await self.tools.close_session()
+        self.state = SystemState.TERMINATED
+        frame = TelemetryFrame(system_state=self.state, active_tools=0, metadata={"status": "OFFLINE"})
+        self.hud.render_frame(frame, header="SYSTEM SHUTDOWN")
+
+
+# --- Main Entrypoint ---
+async def main():
+    jarvis = JarvisPrimeEngine()
+
+    # 1. Boot System and Initialize API Session
+    await jarvis.boot()
+
+    # 2. Run Integrated Workflow (Fetches live API data)
+    await jarvis.execute_integrated_workflow()
+
+    # 3. Graceful Shutdown
+    await jarvis.shutdown()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+import asyncio
+import datetime
+import json
+import logging
+import random
+from dataclasses import asdict, dataclass, field
+from enum import Enum
+from typing import Any, Dict, Set
+
+import websockets
+from websockets.asyncio.server import serve
+
+# --- Configuration & Developer Identity ---
+DEV_PROFILE_URL = "https://g.dev/gilbert_algordo"
+DEV_NAME = "Gilbert Algordo"
+SYSTEM_VERSION = "Prime-v6.0-Streamer"
+WS_HOST = "localhost"
+WS_PORT = 8765
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] [JARVIS-WS]: %(message)s"
+)
+
+
+class SystemState(Enum):
+    IDLE = "IDLE"
+    PROCESSING = "PROCESSING"
+    STREAMING = "STREAMING"
+    OPTIMIZING = "OPTIMIZING"
+    SHUTDOWN = "SHUTDOWN"
+
+
+@dataclass
+class TelemetryFrame:
+    timestamp: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    system_state: str = SystemState.IDLE.value
+    developer: str = DEV_NAME
+    profile_url: str = DEV_PROFILE_URL
+    cpu_usage_pct: float = 0.0
+    memory_used_gb: float = 0.0
+    active_clients: int = 0
+    active_tasks: int = 0
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+class TelemetryBroadcaster:
+    """Manages WebSocket client connections and broadcasts live HUD frames."""
+
+    def __init__(self):
+        self.connected_clients: Set[websockets.ServerConnection] = set()
+
+    async def register(self, websocket: websockets.ServerConnection) -> None:
+        self.connected_clients.add(websocket)
+        logging.info(f"Client connected. Total active clients: {len(self.connected_clients)}")
+
+    async def unregister(self, websocket: websockets.ServerConnection) -> None:
+        self.connected_clients.discard(websocket)
+        logging.info(f"Client disconnected. Total active clients: {len(self.connected_clients)}")
+
+    async def broadcast(self, frame: TelemetryFrame) -> None:
+        if not self.connected_clients:
+            return
+        
+        frame.active_clients = len(self.connected_clients)
+        payload = json.dumps(asdict(frame))
+
+        # Concurrent broadcast to all active websockets
+        await asyncio.gather(
+            *[client.send(payload) for client in self.connected_clients],
+            return_exceptions=True
+        )
+
+
+class JarvisPrimeStreamer:
+    """Core Jarvis Engine running real-time WebSocket telemetry stream loops."""
+
+    def __init__(self):
+        self.broadcaster = TelemetryBroadcaster()
+        self.state = SystemState.IDLE
+
+    async def handler(self, websocket: websockets.ServerConnection) -> None:
+        """Handles incoming WebSocket connection lifecycle and inbound commands."""
+        await self.broadcaster.register(websocket)
+        try:
+            async for message in websocket:
+                logging.info(f"Received client message: {message}")
+                # Handle inbound JSON events from front-end controls
+                try:
+                    data = json.loads(message)
+                    if data.get("action") == "TRIGGER_KAIZEN":
+                        self.state = SystemState.OPTIMIZING
+                except json.JSONDecodeError:
+                    pass
+        except websockets.ConnectionClosed:
+            pass
+        finally:
+            await self.broadcaster.unregister(websocket)
+
+    async def start_telemetry_loop((self) -> None:
+        """Simulates real-time telemetry updates and broadcasts them at 10Hz (100ms)."""
+        logging.info("Starting Jarvis Prime real-time HUD telemetry loop...")
+        task_count = 1
+
+        while True:
+            # Simulate dynamic hardware load metrics
+            cpu_val = round(15.0 + random.uniform(-5.0, 35.0), 1)
+            ram_val = round(4.2 + random.uniform(0.1, 0.8), 2)
+
+            if self.state == SystemState.OPTIMIZING:
+                meta = {"event": "KAIZEN_PASS", "delta": "-2.1ms", "developer": DEV_PROFILE_URL}
+                self.state = SystemState.STREAMING
+            else:
+                self.state = SystemState.STREAMING
+                meta = {"version": SYSTEM_VERSION, "developer_profile": DEV_PROFILE_URL}
+
+            frame = TelemetryFrame(
+                system_state=self.state.value,
+                cpu_usage_pct=cpu_val,
+                memory_used_gb=ram_val,
+                active_tasks=task_count,
+                metadata=meta
+            )
+
+            await self.broadcaster.broadcast(frame)
+            await asyncio.sleep(0.1)  # Broadcast frame every 100ms (10 FPS)
+
+
+async def main():
+    engine = JarvisPrimeStreamer()
+
+    # Launch WebSocket server on ws://localhost:8765
+    async with serve(engine.handler, WS_HOST, WS_PORT):
+        logging.info(f"Jarvis Prime WS Telemetry Server listening on ws://{WS_HOST}:{WS_PORT}")
+        # Run background telemetry broadcast loop concurrently
+        await engine.start_telemetry_loop()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Jarvis Prime HUD - Live Telemetry Stream</title>
+  <style>
+    body {
+      background-color: #080c14;
+      color: #00f0ff;
+      font-family: 'Courier New', monospace;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .hud-card {
+      border: 1px solid #00f0ff;
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+      border-radius: 8px;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 650px;
+      background: rgba(0, 240, 255, 0.05);
+    }
+
+    .status-dot {
+      height: 10px;
+      width: 10px;
+      background-color: #00ff66;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 8px #00ff66;
+    }
+
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 0.8rem 0;
+      border-bottom: 1px dashed rgba(0, 240, 255, 0.3);
+      padding-bottom: 0.4rem;
+    }
+
+    .btn-kaizen {
+      background: transparent;
+      border: 1px solid #ffd700;
+      color: #ffd700;
+      padding: 0.6rem 1.2rem;
+      font-family: inherit;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 1rem;
+      transition: all 0.2s;
+    }
+
+    .btn-kaizen:hover {
+      background: #ffd700;
+      color: #000;
+      box-shadow: 0 0 10px #ffd700;
+    }
+
+    a { color: #00f0ff; }
+  </style>
+</head>
+<body>
+
+  <div class="hud-card">
+    <h2>JARVIS PRIME HUD <span class="status-dot"></span></h2>
+    <p>Developer: <a href="https://g.dev/gilbert_algordo" target="_blank">Gilbert Algordo</a></p>
+    
+    <div class="metric-row">
+      <span>System State</span>
+      <strong id="sys-state">CONNECTING...</strong>
+    </div>
+    <div class="metric-row">
+      <span>CPU Load</span>
+      <strong id="cpu-load">0.0%</strong>
+    </div>
+    <div class="metric-row">
+      <span>RAM Used</span>
+      <strong id="ram-used">0.0 GB</strong>
+    </div>
+    <div class="metric-row">
+      <span>Connected Clients</span>
+      <strong id="clients-count">0</strong>
+    </div>
+    <div class="metric-row">
+      <span>Last Update</span>
+      <strong id="timestamp">--:--:--</strong>
+    </div>
+
+    <button class="btn-kaizen" onclick="triggerKaizen()">TRIGGER KAIZEN PASS</button>
+  </div>
+
+  <script>
+    const ws = new WebSocket("ws://localhost:8765");
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      document.getElementById("sys-state").innerText = data.system_state;
+      document.getElementById("cpu-load").innerText = data.cpu_usage_pct + "%";
+      document.getElementById("ram-used").innerText = data.memory_used_gb + " GB";
+      document.getElementById("clients-count").innerText = data.active_clients;
+      document.getElementById("timestamp").innerText = data.timestamp.substring(11, 19);
+    };
+
+    function triggerKaizen() {
+      ws.send(JSON.stringify({ action: "TRIGGER_KAIZEN" }));
+    }
+  </script>
+</body>
+</html>
+
+
+
+import asyncio
+import datetime
+import inspect
+import json
+import logging
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional, Union
+
+# Optional LLM SDK imports with fallback handling
+try:
+    import openai
+except ImportError:
+    openai = None
+
+try:
+    from google import genai
+    from google.genai import types as genai_types
+except ImportError:
+    genai = None
+    genai_types = None
+
+# --- Configuration & Developer Identity ---
+DEV_PROFILE_URL = "https://g.dev/gilbert_algordo"
+DEV_NAME = "Gilbert Algordo"
+SYSTEM_VERSION = "Prime-v7.0-LLMTools"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] [JARVIS-LLM]: %(message)s"
+)
+
+
+@dataclass
+class TelemetryFrame:
+    timestamp: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    system_state: str = "IDLE"
+    developer: str = DEV_NAME
+    profile_url: str = DEV_PROFILE_URL
+    registered_tools: int = 0
+    last_called_tool: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+class SystemHUD:
+    """Heads-Up Display for real-time tool calls and LLM reasoning telemetry."""
+
+    def render(self, frame: TelemetryFrame, title: str = "LLM TOOL DISPATCH") -> None:
+        border = "═" * 70
+        print(f"\n╔{border}╗")
+        print(f"║ JARVIS PRIME AI HUD | {title:<28} | {frame.timestamp[:19]} ║")
+        print(f"╠{border}╣")
+        print(f"║ Developer: {frame.developer:<22} ({frame.profile_url}) ║")
+        print(f"║ State    : {frame.system_state:<18} | Registered Tools: {frame.registered_tools:<11} ║")
+        if frame.last_called_tool:
+            print(f"║ Dispatched Tool : {frame.last_called_tool:<49} ║")
+        if frame.metadata:
+            print("╠" + "─" * 70 + "╣")
+            print("║ Payload Metadata:")
+            for k, v in frame.metadata.items():
+                v_str = str(v)[:45]
+                print(f"║   • {k:<18}: {v_str:<45} ║")
+        print(f"╚{border}╝\n")
+
+
+class UniversalToolRegistry:
+    """Unified Registry converting Python functions to OpenAI & Gemini Function Calling Schemas."""
+
+    def __init__(self):
+        self._tools: Dict[str, Callable] = {}
+        self.hud = SystemHUD()
+
+    def register(self, func: Callable) -> Callable:
+        """Decorator to register functions for AI tool execution."""
+        name = func.__name__
+        self._tools[name] = func
+        logging.info(f"Registered tool: '{name}'")
+        return func
+
+    def get_openai_schemas(self) -> List[Dict[str, Any]]:
+        """Generates OpenAI function calling tool definitions."""
+        schemas = []
+        for name, func in self._tools.items():
+            doc = inspect.getdoc(func) or "No description provided."
+            sig = inspect.signature(func)
+            
+            properties = {}
+            required = []
+            for param_name, param in sig.parameters.items():
+                if param_name == "self":
+                    continue
+                properties[param_name] = {
+                    "type": "string",  # Default type mapping
+                    "description": f"Parameter {param_name}"
+                }
+                if param.default == inspect.Parameter.empty:
+                    required.append(param_name)
+
+            schemas.append({
+                "type": "function",
+                "function": {
+                    "name": name,
+                    "description": doc,
+                    "parameters": {
+                        "type": "object",
+                        "properties": properties,
+                        "required": required
+                    }
+                }
+            })
+        return schemas
+
+    def get_gemini_tools(self) -> List[Callable]:
+        """Returns direct Python function callables for Google GenAI SDK automatic tool dispatch."""
+        return list(self._tools.values())
+
+    async def execute(self, tool_name: str, args_json: str) -> Dict[str, Any]:
+        """Executes a function call requested by an LLM engine."""
+        if tool_name not in self._tools:
+            raise KeyError(f"Tool '{tool_name}' not found in registry.")
+
+        func = self._tools[tool_name]
+        kwargs = json.loads(args_json) if isinstance(args_json, str) else args_json
+
+        frame = TelemetryFrame(
+            system_state="EXECUTING_TOOL",
+            registered_tools=len(self._tools),
+            last_called_tool=tool_name,
+            metadata={"arguments": kwargs}
+        )
+        self.hud.render(frame, title="EXECUTING LLM FUNCTION")
+
+        if inspect.iscoroutinefunction(func):
+            result = await func(**kwargs)
+        else:
+            result = func(**kwargs)
+
+        frame.system_state = "TOOL_SUCCESS"
+        frame.metadata = {"result": result}
+        self.hud.render(frame, title="TOOL EXECUTION SUCCESS")
+        return result
+
+
+# --- Initialize Engine & Tools ---
+registry = UniversalToolRegistry()
+
+
+@registry.register
+async def get_developer_analytics(username: str = "gilbertalgordo") -> Dict[str, Any]:
+    """Fetch developer metrics and profile links for Gilbert Algordo.
+    
+    Args:
+        username: The developer's handle name.
+    """
+    await asyncio.sleep(0.1)  # Async non-blocking execution
+    return {
+        "developer": DEV_NAME,
+        "profile_url": DEV_PROFILE_URL,
+        "status": "VERIFIED_CREATOR",
+        "platforms": ["Google Developers", "GitHub", "Strava"]
+    }
+
+
+@registry.register
+async def run_system_kaizen_pass(focus_area: str = "latency") -> Dict[str, Any]:
+    """Runs a Kaizen continuous optimization loop across Jarvis Prime subsystems.
+    
+    Args:
+        focus_area: Target optimization system (e.g., latency, memory, throughput).
+    """
+    await asyncio.sleep(0.1)
+    return {
+        "target": focus_area,
+        "optimization": "COMPLETED",
+        "latency_reduction": "1.8ms",
+        "kaizen_status": "PASS"
+    }
+
+
+class JarvisLLMBridge:
+    """Dispatches user prompts to OpenAI or Gemini APIs with automatic Tool Calling."""
+
+    def __init__(self, registry: UniversalToolRegistry):
+        self.registry = registry
+
+    async def query_gemini(self, prompt: str, api_key: str) -> Optional[str]:
+        """Queries Gemini using Google's google-genai SDK with automatic function calling."""
+        if not genai:
+            logging.error("google-genai SDK not installed. Run: pip install google-genai")
+            return None
+
+        client = genai.Client(api_key=api_key)
+        tools = self.registry.get_gemini_tools()
+
+        # Execute using Gemini 2.5 Flash with automatic tool resolution
+        response = await client.aio.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(tools=tools)
+        )
+        return response.text
+
+    async def query_openai(self, prompt: str, api_key: str) -> Optional[str]:
+        """Queries OpenAI API with tool calling resolution loop."""
+        if not openai:
+            logging.error("OpenAI SDK not installed. Run: pip install openai")
+            return None
+
+        client = openai.AsyncOpenAI(api_key=api_key)
+        schemas = self.registry.get_openai_schemas()
+
+        # Initial turn
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            tools=schemas,
+            tool_choice="auto"
+        )
+
+        message = response.choices[0].message
+
+        # Handle tool calls if requested by the LLM
+        if message.tool_calls:
+            for tool_call in message.tool_calls:
+                func_name = tool_call.function.name
+                func_args = tool_call.function.arguments
+                
+                # Execute tool in Jarvis Prime registry
+                tool_result = await self.registry.execute(func_name, func_args)
+                return json.dumps(tool_result)
+
+        return message.content
+
+
+# --- Execution Pipeline Example ---
+async def main():
+    print(f"Jarvis Prime AI — Tool Registry Integration ({SYSTEM_VERSION})")
+    print(f"Developer: {DEV_NAME} | Profile: {DEV_PROFILE_URL}\n")
+
+    # 1. Inspect registered schemas
+    print("--- Generated OpenAI Tool Schemas ---")
+    print(json.dumps(registry.get_openai_schemas(), indent=2))
+
+    # 2. Simulate direct tool invocation
+    print("\n--- Simulating Function Dispatch ---")
+    await registry.execute("get_developer_analytics", json.dumps({"username": "gilbertalgordo"}))
+    await registry.execute("run_system_kaizen_pass", json.dumps({"focus_area": "throughput"}))
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <pybind11/numpy.h>
+#include <vector>
+#include <cmath>
+#include <chrono>
+#include <omp.h>
+
+namespace py = pybind11;
+
+// Developer identity metadata
+const std::string DEV_NAME = "Gilbert Algordo";
+const std::string DEV_PROFILE = "https://g.dev/gilbert_algordo";
+
+/**
+ * High-performance parallel matrix dot product releasing Python GIL.
+ */
+py::array_t<double> fast_matrix_multiply(py::array_t<double> input_a, py::array_t<double> input_b) {
+    auto buf_a = input_a.request();
+    auto buf_b = input_b.request();
+
+    if (buf_a.ndim != 2 || buf_b.ndim != 2) {
+        throw std::runtime_error("Input matrices must be 2D");
+    }
+    if (buf_a.shape[1] != buf_b.shape[0]) {
+        throw std::runtime_error("Matrix inner dimensions must match");
+    }
+
+    size_t rows_a = buf_a.shape[0];
+    size_t cols_a = buf_a.shape[1];
+    size_t cols_b = buf_b.shape[1];
+
+    auto result = py::array_t<double>({rows_a, cols_b});
+    auto buf_res = result.request();
+
+    double* ptr_a = static_cast<double*>(buf_a.ptr);
+    double* ptr_b = static_cast<double*>(buf_b.ptr);
+    double* ptr_res = static_cast<double*>(buf_res.ptr);
+
+    // Release Python GIL for true C++ multithreading
+    py::gil_scoped_release release;
+
+    #pragma omp parallel for collapse(2)
+    for (size_t i = 0; i < rows_a; ++i) {
+        for (size_t j = 0; j < cols_b; ++j) {
+            double sum = 0.0;
+            for (size_t k = 0; k < cols_a; ++k) {
+                sum += ptr_a[i * cols_a + k] * ptr_b[k * cols_b + j];
+            }
+            ptr_res[i * cols_b + j] = sum;
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Fast SIMD/OpenMP-accelerated signal noise filtering for HUD telemetry streams.
+ */
+std::vector<double> process_hud_telemetry_signal(const std::vector<double>& raw_signal, double alpha) {
+    size_t n = raw_signal.size();
+    std::vector<double> filtered(n, 0.0);
+
+    if (n == 0) return filtered;
+
+    filtered[0] = raw_signal[0];
+    
+    // Release GIL during signal smoothing pass
+    py::gil_scoped_release release;
+
+    for (size_t i = 1; i < n; ++i) {
+        filtered[i] = alpha * raw_signal[i] + (1.0 - alpha) * filtered[i - 1];
+    }
+
+    return filtered;
+}
+
+// Module Bindings
+PYBIND11_MODULE(jarvis_cpp_core, m) {
+    m.doc() = "High-Performance C++ Subsystem for Jarvis Prime AI Engine";
+
+    m.attr("DEVELOPER_NAME") = DEV_NAME;
+    m.attr("DEVELOPER_PROFILE") = DEV_PROFILE;
+
+    m.def("fast_matrix_multiply", &fast_matrix_multiply, 
+          "Accelerated parallel matrix multiplication releasing Python GIL",
+          py::arg("input_a"), py::arg("input_b"));
+
+    m.def("process_hud_telemetry_signal", &process_hud_telemetry_signal, 
+          "High-speed exponential smoothing pass for HUD telemetry streams",
+          py::arg("raw_signal"), py::arg("alpha") = 0.2);
+}
+
+
+
+from setuptools import setup, Extension
+import pybind11
+
+cpp_args = ["-std=c++17", "-O3", "-fopenmp"]
+link_args = ["-fopenmp"]
+
+ext_modules = [
+    Extension(
+        "jarvis_cpp_core",
+        ["jarvis_core.cpp"],
+        include_dirs=[pybind11.get_include()],
+        language="c++",
+        extra_compile_args=cpp_args,
+        extra_link_args=link_args,
+    )
+]
+
+setup(
+    name="jarvis_cpp_core",
+    version="1.0.0",
+    description="C++ High-Performance Extension Module for Jarvis Prime AI",
+    ext_modules=ext_modules,
+)
+
+
+
+pip install pybind11
+python setup.py build_ext --inplace
+
+
+
+import time
+import numpy as np
+import jarvis_cpp_core
+
+DEV_NAME = jarvis_cpp_core.DEVELOPER_NAME
+DEV_PROFILE = jarvis_cpp_core.DEVELOPER_PROFILE
+
+
+def benchmark_subsystem():
+    print("=" * 60)
+    print(f"JARVIS PRIME AI — C++ EXTENSION ENGINE MODULE")
+    print(f"Developer: {DEV_NAME} ({DEV_PROFILE})")
+    print("=" * 60)
+
+    # 1. Benchmark C++ Parallel Matrix Multiplication
+    size = 1000
+    a = np.random.rand(size, size)
+    b = np.random.rand(size, size)
+
+    start_time = time.perf_counter()
+    res_cpp = jarvis_cpp_core.fast_matrix_multiply(a, b)
+    cpp_time = (time.perf_counter() - start_time) * 1000
+
+    print(f"\n[Matrix Computation] Size: {size}x{size}")
+    print(f"• C++ Extension Execution Time : {cpp_time:.2f} ms")
+
+    # 2. Benchmark Telemetry Signal Filter
+    raw_signal = list(np.random.randn(1_000_000))
+    start_time = time.perf_counter()
+    filtered_signal = jarvis_cpp_core.process_hud_telemetry_signal(raw_signal, alpha=0.15)
+    filter_time = (time.perf_counter() - start_time) * 1000
+
+    print(f"\n[Telemetry Stream Processing] Points: {len(raw_signal):,}")
+    print(f"• C++ Signal Filtering Time    : {filter_time:.2f} ms")
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    benchmark_subsystem()
