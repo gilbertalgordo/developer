@@ -1,0 +1,779 @@
+{
+  "manifest_version": 3,
+  "name": "AI Master - Gilbert Algordo",
+  "version": "1.0.0",
+  "description": "Cross-platform AI Master Assistant for Standard Chrome, Incognito, ChromeOS, and Mobile Browsers.",
+  "incognito": "spanning",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://g.dev/gilbert_algordo*",
+    "https://github.com/gilbertalgordo*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
+  }
+}
+
+
+
+// Background Service Worker for Chrome, Incognito, ChromeOS, and Mobile
+
+chrome.runtime.onInstalled.addListener((details) => {
+  console.log("AI Master Extension installed successfully:", details.reason);
+  
+  // Initialize default storage values
+  chrome.storage.local.set({
+    developerProfile: "https://g.dev/gilbert_algordo",
+    githubSource: "https://github.com/gilbertalgordo",
+    aiEngine: "gemini-nano"
+  });
+});
+
+// Listener for messages from popup or web pages
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "getIncognitoStatus") {
+    sendResponse({ isIncognito: sender.tab ? sender.tab.incognito : false });
+  } else if (request.action === "openProfile") {
+    chrome.tabs.create({ url: "https://g.dev/gilbert_algordo" });
+    sendResponse({ status: "opened" });
+  }
+  return true;
+});
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Master Assistant</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --accent-color: #38bdf8;
+      --text-color: #f8fafc;
+      --border-color: #334155;
+    }
+
+    body {
+      width: 360px;
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      box-sizing: border-box;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+
+    .header h2 {
+      margin: 0;
+      font-size: 16px;
+      color: var(--accent-color);
+    }
+
+    .badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background-color: #334155;
+      color: #94a3b8;
+    }
+
+    .chat-box {
+      height: 200px;
+      overflow-y: auto;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    .message {
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .message.user {
+      color: var(--accent-color);
+      font-weight: 600;
+    }
+
+    .message.ai {
+      color: #e2e8f0;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: #0f172a;
+      color: #fff;
+      font-size: 13px;
+    }
+
+    button {
+      background: var(--accent-color);
+      color: #0f172a;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .footer {
+      margin-top: 12px;
+      text-align: center;
+      font-size: 11px;
+    }
+
+    .footer a {
+      color: var(--accent-color);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>AI Master</h2>
+    <span id="mode-badge" class="badge">Standard</span>
+  </div>
+
+  <div id="chat-box" class="chat-box">
+    <div class="message ai">Hello! AI Master is ready. Ask a question or trigger web processing.</div>
+  </div>
+
+  <div class="input-group">
+    <input type="text" id="user-input" placeholder="Ask AI Master..." />
+    <button id="send-btn">Send</button>
+  </div>
+
+  <div class="footer">
+    Developer: <a href="https://g.dev/gilbert_algordo" target="_blank" id="profile-link">g.dev/gilbert_algordo</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+
+
+
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const chatBox = document.getElementById("chat-box");
+  const userInput = document.getElementById("user-input");
+  const sendBtn = document.getElementById("send-btn");
+  const modeBadge = document.getElementById("mode-badge");
+  const profileLink = document.getElementById("profile-link");
+
+  // Check if running in Incognito Mode
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0] && tabs[0].incognito) {
+      modeBadge.textContent = "Incognito";
+      modeBadge.style.backgroundColor = "#7c3aed";
+      modeBadge.style.color = "#ffffff";
+    }
+  });
+
+  // Handle Profile Link click safely inside extension context
+  profileLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: "https://g.dev/gilbert_algordo" });
+  });
+
+  // Main Prompt Handler
+  async function handlePrompt() {
+    const text = userInput.value.trim();
+    if (!text) return;
+
+    appendMessage("user", `You: ${text}`);
+    userInput.value = "";
+
+    appendMessage("ai", "AI Master thinking...");
+
+    try {
+      // 1. Try Chrome Built-in AI (Gemini Nano) if available
+      if (window.ai && window.ai.languageModel) {
+        const capabilities = await window.ai.languageModel.capabilities();
+        if (capabilities.available !== "no") {
+          const session = await window.ai.languageModel.create();
+          const result = await session.prompt(text);
+          updateLastAiMessage(result);
+          return;
+        }
+      }
+
+      // 2. Fallback execution mechanism for standard web environments
+      setTimeout(() => {
+        updateLastAiMessage(`[AI Master Response] Processed query: "${text}". Connect your Gemini API Key in settings for cloud execution.`);
+      }, 600);
+
+    } catch (err) {
+      updateLastAiMessage(`Error processing AI prompt: ${err.message}`);
+    }
+  }
+
+  function appendMessage(sender, text) {
+    const msgDiv = document.createElement("div");
+    msgDiv.className = `message ${sender}`;
+    msgDiv.textContent = text;
+    chatBox.appendChild(msgDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  function updateLastAiMessage(text) {
+    const aiMessages = chatBox.querySelectorAll(".message.ai");
+    if (aiMessages.length > 0) {
+      aiMessages[aiMessages.length - 1].textContent = text;
+    }
+  }
+
+  sendBtn.addEventListener("click", handlePrompt);
+  userInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") handlePrompt();
+  });
+});
+
+
+
+{
+  "manifest_version": 3,
+  "name": "AI Master Framework - Gilbert Algordo",
+  "version": "2.0.0",
+  "description": "Cross-platform AI engine supporting Standard Chrome, Incognito, ChromeOS, and Mobile Web.",
+  "incognito": "spanning",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "https://g.dev/gilbert_algordo*",
+    "https://github.com/gilbertalgordo*",
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AI Master Control Center"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["popup.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
+
+
+
+/**
+ * Background Service Worker - AI Master Engine
+ * Author: Gilbert Algordo (https://g.dev/gilbert_algordo)
+ */
+
+chrome.runtime.onInstalled.addListener(() => {
+  // Initialize Persistent Configurations
+  chrome.storage.local.set({
+    devProfile: "https://g.dev/gilbert_algordo",
+    devGithub: "https://github.com/gilbertalgordo",
+    aiMode: "hybrid", // Options: 'built-in', 'cloud', 'hybrid'
+    autoAnalyze: false
+  });
+
+  // Register Context Menu Actions
+  chrome.contextMenus.create({
+    id: "ai-master-analyze",
+    title: "AI Master: Analyze Selected Text",
+    contexts: ["selection"]
+  });
+
+  chrome.contextMenus.create({
+    id: "ai-master-open-profile",
+    title: "Developer Profile (g.dev/gilbert_algordo)",
+    contexts: ["action"]
+  });
+});
+
+// Context Menu Event Dispatcher
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === "ai-master-analyze") {
+    chrome.tabs.sendMessage(tab.id, {
+      action: "ANALYZE_SELECTION",
+      text: info.selectionText,
+      isIncognito: tab.incognito
+    });
+  } else if (info.menuItemId === "ai-master-open-profile") {
+    chrome.tabs.create({ url: "https://g.dev/gilbert_algordo" });
+  }
+});
+
+// Global Cross-Context Message Bus
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "GET_ENVIRONMENT") {
+    sendResponse({
+      isIncognito: sender.tab ? sender.tab.incognito : false,
+      userAgent: navigator.userAgent,
+      platform: navigator.platform
+    });
+  }
+  return true;
+});
+
+
+
+/**
+ * Content Script - In-Page AI Master HUD
+ */
+
+(function () {
+  if (window.hasAIMasterHUD) return;
+  window.hasAIMasterHUD = true;
+
+  // Create Encapsulated Shadow DOM Container
+  const host = document.createElement("div");
+  host.id = "ai-master-hud-root";
+  document.body.appendChild(host);
+  const shadow = host.attachShadow({ mode: "closed" });
+
+  const style = document.createElement("style");
+  style.textContent = `
+    .hud-card {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 320px;
+      max-width: 90vw;
+      background: rgba(15, 23, 42, 0.95);
+      color: #f8fafc;
+      border: 1px solid #38bdf8;
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      z-index: 999999;
+      font-family: system-ui, -apple-system, sans-serif;
+      backdrop-filter: blur(8px);
+    }
+    .hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #38bdf8;
+      font-size: 13px;
+    }
+    .hud-body {
+      font-size: 12px;
+      line-height: 1.5;
+      max-height: 150px;
+      overflow-y: auto;
+      color: #e2e8f0;
+    }
+    .hud-close {
+      cursor: pointer;
+      color: #94a3b8;
+      font-size: 14px;
+    }
+    .hud-close:hover { color: #fff; }
+  `;
+
+  const hud = document.createElement("div");
+  hud.className = "hud-card";
+  hud.style.display = "none";
+  hud.innerHTML = `
+    <div class="hud-header">
+      <span>AI Master HUD</span>
+      <span class="hud-close" id="close-hud">✕</span>
+    </div>
+    <div class="hud-body" id="hud-text">Ready...</div>
+  `;
+
+  shadow.appendChild(style);
+  shadow.appendChild(hud);
+
+  shadow.getElementById("close-hud").addEventListener("click", () => {
+    hud.style.display = "none";
+  });
+
+  // Listener for Background Commands
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.action === "ANALYZE_SELECTION") {
+      hud.style.display = "block";
+      const hudText = shadow.getElementById("hud-text");
+      hudText.textContent = `Analyzing (${msg.isIncognito ? "Incognito" : "Standard"}): "${msg.text}"...`;
+      
+      // Execute local analysis trigger
+      window.dispatchEvent(new CustomEvent("AI_MASTER_INSPECT", { detail: msg.text }));
+    }
+  });
+})();
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Master Engine</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card: #131c2e;
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.25);
+      --text: #f1f5f9;
+      --muted: #64748b;
+    }
+    body {
+      width: 350px;
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      box-sizing: border-box;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+    .tag {
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: var(--card);
+      border: 1px solid #1e293b;
+      color: var(--muted);
+    }
+    .tag.incognito {
+      border-color: #a855f7;
+      color: #c084fc;
+      background: rgba(168, 85, 247, 0.1);
+    }
+    .console {
+      height: 180px;
+      background: var(--card);
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 10px;
+      overflow-y: auto;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .log-entry { margin-bottom: 6px; }
+    .log-user { color: var(--accent); font-weight: 600; }
+    .log-ai { color: #e2e8f0; }
+    .controls { display: flex; gap: 6px; }
+    input {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #1e293b;
+      background: #0f172a;
+      color: #fff;
+      font-size: 12px;
+    }
+    input:focus { outline: 1px solid var(--accent); }
+    button {
+      background: var(--accent);
+      color: #090d16;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .footer {
+      margin-top: 12px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">AI MASTER v2.0</div>
+    <div id="env-badge" class="tag">Standard Context</div>
+  </div>
+
+  <div id="console" class="console">
+    <div class="log-entry log-ai">AI Master active. Ready for prompts or page context...</div>
+  </div>
+
+  <div class="controls">
+    <input type="text" id="prompt-input" placeholder="Ask AI Master..." />
+    <button id="exec-btn">Run</button>
+  </div>
+
+  <div class="footer">
+    Engine Source: <a href="https://g.dev/gilbert_algordo" target="_blank" id="profile-btn">g.dev/gilbert_algordo</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+
+
+
+/**
+ * AI Master Controller Script
+ */
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const consoleEl = document.getElementById("console");
+  const inputEl = document.getElementById("prompt-input");
+  const execBtn = document.getElementById("exec-btn");
+  const badgeEl = document.getElementById("env-badge");
+  const profileBtn = document.getElementById("profile-btn");
+
+  // Determine Active Context (Incognito / Platform)
+  chrome.runtime.sendMessage({ action: "GET_ENVIRONMENT" }, (env) => {
+    if (env && env.isIncognito) {
+      badgeEl.textContent = "Incognito Context";
+      badgeEl.classList.add("incognito");
+    }
+  });
+
+  // Handle Safe Profile Navigation
+  profileBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: "https://g.dev/gilbert_algordo" });
+  });
+
+  // Core Prompt Execution Flow
+  async function runPrompt() {
+    const query = inputEl.value.trim();
+    if (!query) return;
+
+    log("user", `Query: ${query}`);
+    inputEl.value = "";
+    
+    const aiLog = log("ai", "Initializing Built-in AI...");
+
+    try {
+      // 1. Native Chrome Built-in AI API (Gemini Nano)
+      if (typeof window.ai !== "undefined" && window.ai.languageModel) {
+        const capabilities = await window.ai.languageModel.capabilities();
+        
+        if (capabilities.available === "readily" || capabilities.available === "after-download") {
+          const session = await window.ai.languageModel.create({
+            systemPrompt: "You are AI Master, an expert developer assistant."
+          });
+
+          // Streaming Response Processing
+          const stream = session.promptStreaming(query);
+          let fullText = "";
+          for await (const chunk of stream) {
+            fullText = chunk;
+            aiLog.textContent = fullText;
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+          }
+          return;
+        }
+      }
+
+      // 2. Hybrid Fallback logic if Built-in AI is disabled or unsupported
+      aiLog.textContent = `[Cloud/Hybrid Fallback] Query processed: "${query}". (Add API Key in settings for full remote LLM execution).`;
+
+    } catch (err) {
+      aiLog.textContent = `Execution Error: ${err.message}`;
+    }
+  }
+
+  function log(type, text) {
+    const entry = document.createElement("div");
+    entry.className = `log-entry log-${type}`;
+    entry.textContent = text;
+    consoleEl.appendChild(entry);
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+    return entry;
+  }
+
+  execBtn.addEventListener("click", runPrompt);
+  inputEl.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") runPrompt();
+  });
+});
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="swirl_red" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#EA4335"/>
+      <stop offset="100%" stop-color="#D93025"/>
+    </linearGradient>
+    <linearGradient id="swirl_yellow" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#FBBC05"/>
+      <stop offset="100%" stop-color="#F9AB00"/>
+    </linearGradient>
+    <linearGradient id="swirl_green" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#34A853"/>
+      <stop offset="100%" stop-color="#1E8E3E"/>
+    </linearGradient>
+  </defs>
+  <path d="M128,0C57.31,0,0,57.31,0,128s57.31,128,128,128,128-57.31,128-128S198.69,0,128,0Zm0,234.67C69.33,234.67,21.33,186.67,21.33,128S69.33,21.33,128,21.33,234.67,69.33,234.67,128,186.67,234.67,128,234.67Z" fill="#fff" opacity=".2"/>
+  <path d="M128,42.67c-47.05,0-85.33,38.28-85.33,85.33s38.28,85.33,85.33,85.33,85.33-38.28,85.33-85.33S175.05,42.67,128,42.67Z" fill="#1A73E8"/>
+  <path d="M128,0v128h128C256,57.31,198.69,0,128,0Z" fill="url(#swirl_red)"/>
+  <path d="M128,256V128H0C0,198.69,57.31,256,128,256Z" fill="url(#swirl_green)"/>
+  <path d="M0,128H128V0C57.31,0,0,57.31,0,128Z" fill="url(#swirl_yellow)"/>
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="48" fill="#202124"/>
+  <path d="M128,56c-11.05,0-20,8.95-20,20s8.95,20,20,20,20-8.95,20-20-8.95-20-20-20Zm0,64c-39.76,0-72,32.24-72,72s32.24,72,72,72,72-32.24,72-72-32.24-72-72-72Zm50.62,106.62c-7.5,7.5-19.66,7.5-27.16,0l-23.46-23.46c-7.5-7.5-7.5-19.66,0-27.16s19.66-7.5,27.16,0l23.46,23.46c7.5,7.5,7.5,19.66,0,27.16Zm-74.08,0c-7.5,7.5-19.66,7.5-27.16,0s-7.5-19.66,0-27.16l23.46-23.46c7.5-7.5,19.66-7.5,27.16,0s7.5,19.66,0,27.16l-23.46,23.46Z" fill="#fff"/>
+  <rect x="100" y="88" width="56" height="12" rx="6" fill="#fff"/>
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="cos_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E8F0FE"/>
+      <stop offset="100%" stop-color="#4285F4"/>
+    </linearGradient>
+  </defs>
+  <circle cx="128" cy="128" r="128" fill="#4285F4"/>
+  <path d="M128,48c-44.18,0-80,35.82-80,80s35.82,80,80,80,80-35.82,80-80-35.82-80-80-80Zm0,144c-35.35,0-64-28.65-64-64s28.65-64,64-64,64,28.65,64,64-28.65,64-64,64Z" fill="#fff"/>
+  <circle cx="128" cy="128" r="48" fill="url(#cos_grad)"/>
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="ai_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="64" fill="url(#ai_grad)"/>
+  <path d="M128,10c-11.05,0-20,8.95-20,20V128H30c-11.05,0-20,8.95-20,20s8.95,20,20,20h78v78c0,11.05,8.95,20,20,20s20-8.95,20-20V168h78c11.05,0,20-8.95,20-20s-8.95-20-20-20H148V30c0-11.05-8.95-20-20-20Z" fill="#fff"/>
+  <circle cx="128" cy="128" r="32" fill="#fff"/>
+</svg>
+
+
+
+<!-- Example of embedding the AI Master icon directly -->
+<div class="icon-container ai-master-icon">
+  <svg> /* Insert contents of ai-master.svg here */ </svg>
+</div>
+
+
+
+/* Optimized CSS for handling the icon set */
+.icon {
+  width: 48px;  /* Default size */
+  height: 48px;
+  display: inline-block;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* Specific Class Assignments */
+.icon-chrome { background-image: url('path/to/chrome-standard.svg'); }
+.icon-incognito { background-image: url('path/to/chrome-incognito.svg'); }
+.icon-chromeos { background-image: url('path/to/chromeos-system.svg'); }
+.icon-ai-master { background-image: url('path/to/ai-master.svg'); }
+
+/* Mobile optimization: Ensure high-DPI scaling */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .icon {
+    /* SVGs scale natively, but if using PNG fallbacks, swap them here */
+  }
+}
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gilbert Algordo - AI Master Icon Integration</title>
+    <link rel="stylesheet" href="icons.css">
+</head>
+<body>
+    <h1>Browser & Framework Icons</h1>
+    
+    <div class="icon-group">
+        <h3>Web</h3>
+        <span class="icon icon-chrome" title="Google Chrome Standard"></span>
+        <span class="icon icon-incognito" title="Chrome Incognito Mode"></span>
+    </div>
+
+    <div class="icon-group">
+        <h3>OS & Framework</h3>
+        <span class="icon icon-chromeos" title="ChromeOS System Icon"></span>
+        <span class="icon icon-ai-master" title="AI Master Framework"></span>
+    </div>
+</body>
+</html>
