@@ -1,0 +1,253 @@
+# Conceptual structure for an Active AI Agent
+class HomeAgent:
+    def __init__(self, api_key):
+        self.api_key = api_key
+
+    def process_command(self, user_input):
+        # LLM integration (Gemini) to parse intent
+        intent = self.analyze_intent(user_input)
+        
+        if intent == "HOUSEKEEPING":
+            return self.trigger_vacuum()
+        elif intent == "SECURITY":
+            return self.arm_security_system()
+
+    def trigger_vacuum(self):
+        # Call Google Home API to start Roomba/Cleaning device
+        pass
+
+    def arm_security_system(self):
+        # Lock doors, activate cameras, notify on map
+        pass
+
+
+
+// Sample integration for a security dashboard
+function initMap() {
+  const map = new google.maps.Map(document.getElementById("map"), {
+    zoom: 18,
+    center: { lat: HOME_LAT, lng: HOME_LNG },
+    mapTypeId: "satellite",
+  });
+
+  // Plot security camera location
+  const cameraMarker = new google.maps.Marker({
+    position: { lat: CAMERA_LAT, lng: CAMERA_LNG },
+    map: map,
+    title: "Front Door Security",
+  });
+}
+
+
+
+import os
+import json
+import logging
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+
+logging.basicConfig(level=logging.INFO)
+
+class ActiveHomeAI:
+    def __init__(self, service_account_file, project_id):
+        self.project_id = project_id
+        self.creds = service_account.Credentials.from_service_account_file(
+            service_account_file,
+            scopes=['https://www.googleapis.com/auth/homegraph']
+        )
+        self.homegraph = build('homegraph', 'v1', credentials=self.creds)
+
+    def evaluate_environment(self, telemetry_data):
+        """
+        Evaluates real-time sensor payloads for security breaches 
+        or housekeeping schedule optimization.
+        """
+        logging.info("Running Active AI environmental scan...")
+        
+        # Security Trigger Detection
+        if telemetry_data.get("motion_detected_unauthorized") and telemetry_data.get("system_armed"):
+            self.trigger_security_protocol()
+
+        # Housekeeping Automation Trigger
+        elif telemetry_data.get("home_empty") and not telemetry_data.get("cleaning_in_progress"):
+            self.trigger_housekeeping_protocol()
+
+    def trigger_security_protocol(self):
+        logging.warning("SECURITY ALERT: Unauthorized movement captured. Locking down grid.")
+        # Execute Google Home API device commands to lock doors and flash lights
+        command_payload = {
+            "command": "action.devices.commands.LockUnlock",
+            "params": {"lock": True}
+        }
+        self.dispatch_command("security_lock_front", command_payload)
+
+    def trigger_housekeeping_protocol(self):
+        logging.info("HOUSEKEEPING: Environment clear. Dispatching automated sanitation routines.")
+        command_payload = {
+            "command": "action.devices.commands.StartStop",
+            "params": {"start": True}
+        }
+        self.dispatch_command("autonomous_vacuum_1", command_payload)
+
+    def dispatch_command(self, device_id, payload):
+        # Dispatches intent through Home Graph API
+        try:
+            body = {
+                "requestId": "req-ai-agent-001",
+                "agentUserId": "user_active_ai_core",
+                "payload": {
+                    "commands": [{
+                        "devices": [{"id": device_id}],
+                        "execution": [payload]
+                    }]
+                }
+            }
+            # Reference execution structure for Google Home Graph
+            logging.info(f"Dispatched command to device {device_id}: {json.dumps(payload)}")
+        except Exception as e:
+            logging.error(f"Failed to dispatch command: {e}")
+
+# Example Usage
+if __name__ == "__main__":
+    ai_engine = ActiveHomeAI("service_account.json", "your-google-home-project-id")
+    
+    sample_telemetry = {
+        "motion_detected_unauthorized": True,
+        "system_armed": True,
+        "home_empty": False,
+        "cleaning_in_progress": False
+    }
+    
+    ai_engine.evaluate_environment(sample_telemetry)
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Active AI Home HUD & Map</title>
+    <style>
+        body, html { height: 100%; margin: 0; padding: 0; background: #0a0a0a; color: #00ffcc; font-family: monospace; }
+        #map { height: 90vh; width: 100%; }
+        #hud-header { height: 10vh; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #00ffcc; }
+    </style>
+</head>
+<body>
+    <div id="hud-header">
+        <h2>ACTIVE AI HUD // SYSTEM: SECURE</h2>
+        <div id="status">Status: Autonomous Monitoring Active</div>
+    </div>
+    <div id="map"></div>
+
+    <script>
+        function initMap() {
+            // Center map on target location
+            const homeCoords = { lat: 14.3500, lng: 121.0500 }; // Example baseline coordinate
+            
+            const map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 19,
+                center: homeCoords,
+                mapTypeId: "satellite",
+                disableDefaultUI: true,
+                styles: [
+                    { elementType: "geometry", stylers: [{ color: "#212121" }] },
+                    { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+                    { elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
+                    { elementType: "labels.text.stroke", stylers: [{ color: "#212121" }] },
+                    {
+                        featureType: "administrative",
+                        elementType: "geometry",
+                        stylers: [{ color: "#757575" }]
+                    },
+                    {
+                        featureType: "poi",
+                        elementType: "labels.text.fill",
+                        stylers: [{ color: "#d59563" }]
+                    },
+                    {
+                        featureType: "water",
+                        elementType: "geometry",
+                        stylers: [{ color: "#000000" }]
+                    }
+                ]
+            });
+
+            // Security Node Marker
+            const securityMarker = new google.maps.Marker({
+                position: { lat: 14.3501, lng: 121.0501 },
+                map: map,
+                title: "Security Grid Point Alpha",
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 8,
+                    fillColor: "#ff0033",
+                    fillOpacity: 1,
+                    strokeWeight: 2,
+                    strokeColor: "#ffffff"
+                }
+            });
+
+            // Housekeeping Autonomous Unit Marker
+            const vacuumMarker = new google.maps.Marker({
+                position: { lat: 14.3499, lng: 121.0499 },
+                map: map,
+                title: "Autonomous Sanitization Node",
+                icon: {
+                    path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                    scale: 6,
+                    fillColor: "#00ffcc",
+                    fillOpacity: 1,
+                    strokeWeight: 1,
+                    strokeColor: "#ffffff"
+                }
+            });
+        }
+    </script>
+    <!-- Replace YOUR_API_KEY with your Google Cloud Console Maps JavaScript API key -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap"></script>
+</body>
+</html>
+
+
+
+<!-- Icon 1: Active AI Core (ai_core.svg) -->
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Google Home Base Shape -->
+  <path d="M64 10L24 42V106H104V42L64 10Z" fill="#4285F4" stroke="#4285F4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- AI Neural Network Symbol (Pulsing) -->
+  <circle cx="64" cy="66" r="16" stroke="#FFFFFF" stroke-width="6"/>
+  <circle cx="44" cy="66" r="6" fill="#FFFFFF"/>
+  <circle cx="84" cy="66" r="6" fill="#FFFFFF"/>
+  <circle cx="64" cy="46" r="6" fill="#FFFFFF"/>
+  <circle cx="64" cy="86" r="6" fill="#FFFFFF"/>
+  <!-- Central Processing Indicator -->
+  <rect x="61" y="63" width="6" height="6" rx="3" fill="#EA4335"/>
+</svg>
+
+
+
+<!-- Icon 2: Housekeeping/Sanitation (housekeeping_map.svg) -->
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Map Grid Background (Subtle) -->
+  <path d="M20 30H108V116H20V30Z" stroke="#34A853" stroke-width="2" stroke-dasharray="6 6"/>
+  <!-- Robotic Vacuum Silhouette -->
+  <circle cx="64" cy="86" r="24" fill="#34A853" fill-opacity="0.2" stroke="#34A853" stroke-width="4"/>
+  <circle cx="64" cy="86" r="10" fill="#FFFFFF" stroke="#34A853" stroke-width="4"/>
+  <!-- Cleaning/Sanitation Sparkles -->
+  <path d="M92 58L96 62M96 58L92 62" stroke="#34A853" stroke-width="4" stroke-linecap="round"/>
+  <path d="M32 42L36 46M36 42L32 46" stroke="#34A853" stroke-width="4" stroke-linecap="round"/>
+</svg>
+
+
+
+<!-- Icon 3: Security/Surveillance (security_map.svg) -->
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Shield Shape -->
+  <path d="M64 10C64 10 24 22 24 62C24 85 44 106 64 118C84 106 104 85 104 62C104 22 64 10 64 10Z" fill="#EA4335" stroke="#EA4335" stroke-width="4" stroke-linejoin="round"/>
+  <!-- Camera Lens/Geospatial Pin -->
+  <circle cx="64" cy="66" r="18" fill="#FFFFFF"/>
+  <circle cx="64" cy="66" r="10" fill="#EA4335"/>
+  <circle cx="64" cy="66" r="4" fill="#FFFFFF"/>
+  <!-- Alert/Activity Indicator (Top of Shield) -->
+  <circle cx="64" cy="28" r="6" fill="#FFFFFF" stroke="#EA4335" stroke-width="2"/>
+</svg>
