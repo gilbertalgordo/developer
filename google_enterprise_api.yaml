@@ -1,0 +1,150 @@
+#!/bin/bash
+
+# Set your project ID
+PROJECT_ID="your-project-id-here"
+
+# Set the project
+gcloud config set project $PROJECT_ID
+
+# List of essential AI and utility APIs to enable
+APIS=(
+  "aiplatform.googleapis.com"      # Vertex AI / Gemini Agent Platform
+  "vision.googleapis.com"          # Cloud Vision API
+  "speech.googleapis.com"          # Speech-to-Text API
+  "language.googleapis.com"        # Natural Language API
+  "videointelligence.googleapis.com" # Video Intelligence API
+  "translate.googleapis.com"       # Cloud Translation API
+)
+
+# Loop and enable APIs
+for api in "${APIS[@]}"; do
+  echo "Enabling $api..."
+  gcloud services enable $api
+done
+
+echo "All specified APIs have been enabled."
+
+
+
+# provider.tf
+provider "google" {
+  project = "your-project-id"
+  region  = "us-central1"
+}
+
+# Enable APIs for Enterprise AI
+resource "google_project_service" "ai_services" {
+  for_each = toset([
+    "aiplatform.googleapis.com",
+    "run.googleapis.com",
+    "artifactregistry.googleapis.com",
+    "iamcredentials.googleapis.com"
+  ])
+  service = each.key
+  disable_on_destroy = false
+}
+
+# Service Account for AI Agents
+resource "google_service_account" "ai_agent_sa" {
+  account_id   = "ai-agent-engine"
+  display_name = "Enterprise AI Agent Service Account"
+}
+
+# Assign roles for Vertex AI and Cloud Run
+resource "google_project_iam_member" "ai_agent_roles" {
+  for_each = toset([
+    "roles/aiplatform.user",
+    "roles/run.invoker"
+  ])
+  role   = each.key
+  member = "serviceAccount:${google_service_account.ai_agent_sa.email}"
+}
+
+
+
+import vertexai
+from vertexai.generative_models import GenerativeModel, Tool, FunctionDeclaration
+
+# Initialize
+vertexai.init(project="your-project-id", location="us-central1")
+
+# Define Agent Tools (e.g., your custom API integrations)
+def get_system_telemetry():
+    """Returns real-time system/infra state."""
+    return {"status": "operational", "load": "low"}
+
+tools = [Tool.from_google_search_retrieval(google_search_retrieval=True)]
+
+model = GenerativeModel("gemini-1.5-pro-002")
+
+# Advanced generation with tool integration
+response = model.generate_content(
+    "Analyze the current system telemetry and optimize the infrastructure.",
+    tools=tools
+)
+
+print(response.text)
+
+
+
+
+
+#!/bin/bash
+PROJECT_ID="your-project-id"
+
+echo "Configuring Google Cloud project..."
+gcloud config set project $PROJECT_ID
+
+echo "Auto-enabling enterprise AI & Vertex APIs..."
+gcloud services enable aiplatform.googleapis.com
+gcloud services enable servicemanagement.googleapis.com
+
+echo "Google Cloud AI environment successfully configured."
+
+
+
+import os
+from google import genai
+from google.genai import types
+
+# Initialize the Google Gen AI client (reads GOOGLE_API_KEY or Vertex credentials automatically)
+client = genai.Client()
+
+def generate_ai_hud_icon(prompt_text: str, output_filename: str = "ai_hud_icon.png"):
+    """
+    Generates a high-resolution HUD-style icon or UI graphic using Imagen 
+    integrated within the Google Gen AI ecosystem.
+    """
+    print(f"Generating asset for prompt: '{prompt_text}'...")
+
+    try:
+        # Request image generation via Imagen model optimized for assets/icons
+        result = client.models.generate_images(
+            model='imagen-3.0-generate-002',
+            prompt=prompt_text,
+            config=types.GenerateImagesConfig(
+                number_of_images=1,
+                aspect_ratio="1:1",  # Perfect square configuration for UI icons
+                output_mime_type="image/png",
+                person_generation="allow_adult",
+            )
+        )
+
+        # Save the generated asset locally
+        for generated_image in result.generated_images:
+            image_bytes = generated_image.image.image_bytes
+            with open(output_filename, "wb5") as f:
+                f.write(image_bytes)
+            print(f"Success! Asset saved to {output_filename}")
+            
+    except Exception as e:
+        print(f"Error during asset generation: {e}")
+
+if __name__ == "__main__":
+    # Example execution: Generating a futuristic, glowing HUD-style system icon
+    hud_prompt = (
+        "Minimalist holographic icon for an active AI system, glowing neon cyan and amber accents, "
+        "transparent dark background, vector precision, high-tech telemetry HUD layout, 3D depth."
+    )
+    
+    generate_ai_hud_icon(hud_prompt, output_filename="active_ai_hud_icon.png")
