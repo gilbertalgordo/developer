@@ -1,0 +1,340 @@
+import time
+import random
+import json
+from dataclasses import dataclass, asdict
+
+@dataclass
+class MicrogridTelemetry:
+    timestamp: float
+    solar_power_kw: float
+    wind_power_kw: float
+    total_generation_kw: float
+    battery_soc_percent: float
+    ev_charger_status: str
+    ev_draw_kw: float
+    device_hub_draw_kw: float
+    grid_import_export_kw: float
+
+class FusionChargingStationController:
+    def __init__(self, battery_capacity_kwh: float = 100.0):
+        self.battery_capacity_kwh = battery_capacity_kwh
+        self.current_battery_kwh = battery_capacity_kwh * 0.65  # Initial 65% State of Charge
+        self.max_ev_charge_rate_kw = 22.0  # Level 2 / Supercharger mix
+        self.max_device_draw_kw = 3.5
+
+    def read_sensors(self) -> dict:
+        """Simulates telemetry polling from hardware via Modbus/TCP or IoT telemetry bus."""
+        # Realistic fluctuations for a combined solar/wind setup
+        solar_kw = round(max(0.0, random.normalvariate(7.2, 1.5)), 2)
+        wind_kw = round(max(0.0, random.normalvariate(3.6, 1.2)), 2)
+        device_load_kw = round(random.uniform(0.8, self.max_device_draw_kw), 2)
+        return {"solar": solar_kw, "wind": wind_kw, "devices": device_load_kw}
+
+    def optimize_power_routing(self, sensor_data: dict, ev_connected: bool) -> MicrogridTelemetry:
+        solar = sensor_data["solar"]
+        wind = sensor_data["wind"]
+        total_gen = solar + wind
+        devices = sensor_data["devices"]
+
+        # Net energy balance after servicing baseline home/device loads
+        net_power = total_gen - devices
+        ev_draw = 0.0
+        grid_flow = 0.0
+
+        if ev_connected:
+            if net_power >= 0:
+                # Surplus energy goes to EV first, then battery storage
+                ev_draw = min(self.max_ev_charge_rate_kw, net_power)
+                surplus_after_ev = net_power - ev_draw
+                
+                # Charge battery with remaining surplus
+                energy_added = surplus_after_ev * (1/60) # 1-minute interval block
+                self.current_battery_kwh = min(self.battery_capacity_kwh, self.current_battery_kwh + energy_added)
+                grid_flow = -surplus_after_ev  # Negative indicates export to grid
+            else:
+                # Deficit: draw from battery storage to support devices and baseline EV trickle
+                deficit = abs(net_power)
+                available_battery_kwh = self.current_battery_kwh
+                
+                if available_battery_kwh >= (deficit * (1/60)):
+                    self.current_battery_kwh -= deficit * (1/60)
+                    ev_draw = 0.0 # Pause fast EV charging to protect house loads
+                else:
+                    # Battery depleted; pull remaining power deficit from grid
+                    self.current_battery_kwh = 0.0
+                    grid_flow = deficit
+        else:
+            # If no EV is plugged in, route all net generation to battery storage or grid
+            if net_power >= 0:
+                energy_added = net_power * (1/60)
+                self.current_battery_kwh = min(self.battery_capacity_kwh, self.current_battery_kwh + energy_added)
+                grid_flow = -net_power
+            else:
+                deficit = abs(net_power)
+                self.current_battery_kwh = max(0.0, self.current_battery_kwh - (deficit * (1/60)))
+                grid_flow = deficit
+
+        soc_percent = round((self.current_battery_kwh / self.battery_capacity_kwh) * 100, 1)
+        ev_status = f"CHARGING ({ev_draw} kW)" if ev_draw > 0 else "STANDBY / IDLE"
+
+        return MicrogridTelemetry(
+            timestamp=time.time(),
+            solar_power_kw=solar,
+            wind_power_kw=wind,
+            total_generation_kw=round(total_gen, 2),
+            battery_soc_percent=soc_percent,
+            ev_charger_status=ev_status,
+            ev_draw_kw=round(ev_draw, 2),
+            device_hub_draw_kw=devices,
+            grid_import_export_kw=round(grid_flow, 2)
+        )
+
+if __name__ == "__main__":
+    station = FusionChargingStationController(battery_capacity_kwh=100.0)
+    print("Initializing Home Super Solar & Wind Fusion Charging Station System...")
+    print("-" * 75)
+    
+    # Run a 5-cycle simulation loop
+    for cycle in range(1, 6):
+        raw_readings = station.read_sensors()
+        telemetry = station.optimize_power_routing(raw_readings, ev_connected=True)
+        
+        print(f"Cycle {cycle} Telemetry JSON Output:")
+        print(json.dumps(asdict(telemetry), indent=2))
+        print("-" * 75)
+        time.sleep(1)
+
+
+
+import asyncio
+import json
+import random
+import time
+from dataclasses import dataclass, asdict
+from typing import AsyncGenerator
+
+@dataclass
+class FusionNodeTelemetry:
+    system_id: str
+    timestamp: float
+    solar_yield_kw: float
+    wind_yield_kw: float
+    total_generation_kw: float
+    battery_soc_pct: float
+    battery_health_soh_pct: float
+    ev_port_active: bool
+    ev_delivery_kw: float
+    device_hub_draw_kw: float
+    grid_exchange_kw: float  # Negative = Exporting, Positive = Importing
+    system_efficiency_ratio: float
+
+class AdvancedFusionMicrogridController:
+    def __init__(self, node_id: str = "HFS-NODE-01", capacity_kwh: float = 120.0):
+        self.node_id = node_id
+        self.capacity_kwh = capacity_kwh
+        self.stored_energy_kwh = capacity_kwh * 0.70  # Initial 70% charge
+        self.battery_soh = 98.5
+        self.max_ev_output_kw = 44.0  # Dual-port DC Fast Charging support
+        self.max_device_output_kw = 5.0
+        
+    async def poll_hardware_sensors(self) -> dict:
+        """Asynchronously polls IoT sensors via Modbus/TCP or MQTT protocols."""
+        await asyncio.sleep(0.1) # Simulate network/hardware I/O delay
+        return {
+            "solar": round(max(0.0, random.gauss(8.4, 1.8)), 3),
+            "wind": round(max(0.0, random.gauss(4.2, 1.5)), 3),
+            "device_load": round(random.uniform(1.2, self.max_device_output_kw), 3),
+            "thermal_temp_c": round(random.uniform(28.5, 34.2), 2)
+        }
+
+    async def execute_power_dispatch_algorithm(self, telemetry: dict, ev_plugged: bool) -> FusionNodeTelemetry:
+        solar = telemetry["solar"]
+        wind = telemetry["wind"]
+        devices = telemetry["device_load"]
+        total_gen = solar + wind
+        
+        net_power = total_gen - devices
+        ev_draw = 0.0
+        grid_exchange = 0.0
+
+        # Dynamic management logic
+        if ev_plugged:
+            if net_power >= 0:
+                # Prioritize EV fast charging with available clean surplus
+                ev_draw = min(self.max_ev_output_kw, net_power)
+                surplus_after_ev = net_power - ev_draw
+                
+                # Route remaining surplus energy into the storage battery stack
+                delta_kwh = surplus_after_ev * (1.0 / 60.0) # Minute block calculation
+                self.stored_energy_kwh = min(self.capacity_kwh, self.stored_energy_kwh + delta_kwh)
+                grid_exchange = -max(0.0, surplus_after_ev - delta_kwh)
+            else:
+                # Deficit scenario: draw from high-density storage stack first
+                deficit = abs(net_power)
+                available_energy = self.stored_energy_kwh
+                
+                if available_energy >= (deficit * (1.0 / 60.0)):
+                    self.stored_energy_kwh -= deficit * (1.0 / 60.0)
+                    ev_draw = 0.0 # Throttle EV to reserve house/device uptime
+                else:
+                    self.stored_energy_kwh = 0.0
+                    grid_exchange = deficit # Fallback grid import
+        else:
+            # Unplugged: Funnel all net generation into storage or export to grid
+            if net_power >= 0:
+                delta_kwh = net_power * (1.0 / 60.0)
+                space_available = self.capacity_kwh - self.stored_energy_kwh
+                absorbed_kwh = min(space_available, delta_kwh)
+                self.stored_energy_kwh += absorbed_kwh
+                grid_exchange = -(delta_kwh - absorbed_kwh) * 60.0 # Convert back to kW
+            else:
+                deficit = abs(net_power)
+                self.stored_energy_kwh = max(0.0, self.stored_energy_kwh - (deficit * (1.0 / 60.0)))
+                grid_exchange = deficit
+
+        # Calculate live State of Charge percentages
+        soc = round((self.stored_energy_kwh / self.capacity_kwh) * 100.0, 2)
+        efficiency = round(min(1.0, (total_gen / max(0.1, total_gen + abs(grid_exchange)))) * 100, 1)
+
+        return FusionNodeTelemetry(
+            system_id=self.node_id,
+            timestamp=time.time(),
+            solar_yield_kw=solar,
+            wind_yield_kw=wind,
+            total_generation_kw=round(total_gen, 3),
+            battery_soc_pct=soc,
+            battery_health_soh_pct=self.battery_soh,
+            ev_port_active=ev_plugged,
+            ev_delivery_kw=round(ev_draw, 3),
+            device_hub_draw_kw=devices,
+            grid_exchange_kw=round(grid_exchange, 3),
+            system_efficiency_ratio=efficiency
+        )
+
+    async def run_telemetry_stream(self, cycles: int = 5) -> AsyncGenerator[str, None]:
+        for i in range(cycles):
+            is_ev_connected = (i % 2 == 0) # Toggle mock EV connection state
+            raw_sensors = await self.poll_hardware_sensors()
+            telemetry_packet = await self.execute_power_dispatch_algorithm(raw_sensors, is_ev_connected)
+            yield json.dumps(asdict(telemetry_packet), indent=2)
+            await asyncio.sleep(0.5)
+
+async def main():
+    controller = AdvancedFusionMicrogridController()
+    print(f"Starting Control Daemon for Node: {controller.node_id}")
+    print("=" * 60)
+    
+    async for telemetry_json in controller.run_telemetry_stream(cycles=3):
+        print(telemetry_json)
+        print("-" * 60)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+
+from PIL import Image, ImageDraw, ImageFont
+import os
+
+def create_fusion_charging_icon(icon_type: str, output_filename: str, size: int = 512):
+    """Generates a high-contrast UI icon for the microgrid fusion charging station."""
+    # Create image with transparent background (RGBA)
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    
+    # Define color palette (Deep Navy background, Cyan/Green energy accents)
+    bg_color = (15, 23, 42, 255)      # Slate Dark
+    panel_color = (30, 41, 59, 255)   # Slate Panel
+    solar_color = (56, 189, 248, 255) # Electric Sky Blue
+    wind_color = (45, 212, 191, 255)  # Teal Green
+    accent_color = (74, 222, 128, 255)# Bright Green (Power)
+    white = (255, 255, 255, 255)
+    
+    # Outer rounded container badge
+    margin = int(size * 0.05)
+    draw.rounded_rectangle(
+        [margin, margin, size - margin, size - margin],
+        radius=int(size * 0.2),
+        fill=bg_color,
+        outline=panel_color,
+        width=int(size * 0.02)
+    )
+    
+    center = size // 2
+    
+    if icon_type == "solar":
+        # Draw Solar Panel Grid Icon
+        box_size = int(size * 0.45)
+        left = center - box_size // 2
+        top = center - box_size // 2
+        right = center + box_size // 2
+        bottom = center + box_size // 2
+        
+        # Panel Background
+        draw.rectangle([left, top, right, bottom], fill=panel_color, outline=solar_color, width=4)
+        # Inner grid lines (Solar cells)
+        draw.line([left + box_size//2, top, left + box_size//2, bottom], fill=solar_color, width=3)
+        draw.line([left, top + box_size//2, right, top + box_size//2], fill=solar_color, width=3)
+        
+        # Sun rays accent
+        draw.ellipse([center - 25, top - 45, center + 25, top + 5], fill=accent_color)
+
+    elif icon_type == "wind":
+        # Draw Wind Turbine Icon
+        tower_top = int(size * 0.3)
+        tower_bottom = int(size * 0.75)
+        # Tower
+        draw.rectangle([center - 6, tower_top, center + 6, tower_bottom], fill=white)
+        # Base mount
+        draw.rectangle([center - 20, tower_bottom, center + 20, tower_bottom + 12], fill=wind_color)
+        
+        # Blades (Vertical axis / standard turbine stylization)
+        blade_length = int(size * 0.22)
+        draw.ellipse([center - blade_length, tower_top - 35, center + blade_length, tower_top + 15], outline=wind_color, width=6)
+
+    elif icon_type == "ev_charger":
+        # Draw EV Station & Lightning Bolt
+        station_w = int(size * 0.35)
+        station_h = int(size * 0.55)
+        sx = center - station_w // 2
+        sy = int(size * 0.25)
+        
+        draw.rounded_rectangle([sx, sy, sx + station_w, sy + station_h], radius=16, fill=panel_color, outline=accent_color, width=4)
+        # Screen display area
+        draw.rectangle([sx + 20, sy + 25, sx + station_w - 20, sy + 75], fill=bg_color)
+        
+        # Lightning Bolt Symbol
+        bolt = [
+            (center + 10, sy + 90),
+            (center - 15, sy + 130),
+            (center + 5, sy + 130),
+            (center - 10, sy + 175),
+            (center + 20, sy + 120),
+            (center, sy + 120)
+        ]
+        draw.polygon(bolt, fill=accent_color)
+
+    elif icon_type == "fusion_hub":
+        # Draw Central Microgrid Nexus Hub Icon (Merging symbols)
+        radius = int(size * 0.28)
+        draw.ellipse([center - radius, center - radius, center + radius, center + radius], fill=panel_color, outline=solar_color, width=6)
+        
+        # Core energy symbol / Node cross
+        draw.rectangle([center - 10, center - int(size*0.18), center + 10, center + int(size*0.18)], fill=wind_color)
+        draw.rectangle([center - int(size*0.18), center - 10, center + int(size*0.18), center + 10], fill=solar_color)
+        draw.ellipse([center - 18, center - 18, center + 18, center + 18], fill=accent_color)
+
+    # Save output asset
+    os.makedirs("icons", exist_ok=True)
+    filepath = os.path.join("icons", output_filename)
+    img.save(filepath, "PNG")
+    print(f"Successfully generated icon: {filepath}")
+
+if __name__ == "__main__":
+    print("Building Microgrid UI Icon Pack...")
+    create_fusion_charging_icon("solar", "icon_solar_array.png")
+    create_fusion_charging_icon("wind", "icon_wind_turbine.png")
+    create_fusion_charging_icon("ev_charger", "icon_ev_station.png")
+    create_fusion_charging_icon("fusion_hub", "icon_fusion_hub.png")
+    print("All icons compiled successfully inside the 'icons/' directory!")
