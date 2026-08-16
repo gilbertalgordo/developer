@@ -1,0 +1,531 @@
+/* 
+ * iPhone 18 Active Mini - Hardware Abstraction Layer (HAL)
+ * Real-Size Profile: 131.5mm x 64.2mm x 6.8mm (Compact Form Factor)
+ * Substrate: Advanced Red Multi-Layer Motherboard (PCB)
+ */
+
+#include <iostream>
+#include <memory>
+#include <string>
+
+// Real-Size Mini Form Factor Dimensional Constants (mm)
+namespace MiniSpecs {
+    constexpr double LENGTH = 131.5;
+    constexpr double WIDTH = 64.2;
+    constexpr double THICKNESS = 6.8;
+}
+
+enum class HueIndicatorState { OFF, PULSING_CYAN, ACTIVE_MAGENTA, STEALTH_MODE };
+
+// 1 & 6. Camera Systems
+struct OpticsArray {
+    // Rear: Dual 19MP + 1x 3D Mapping Camera + Flashlight + Sleek Mesh Exhaust Corners
+    struct RearCamera {
+        uint8_t primary_mp = 19;
+        uint8_t secondary_mp = 19;
+        bool sensor_3d_mapping = true;
+        bool flashlight_active = false;
+        std::string housing_style = "Circled Lenses with Sleek Mesh Corner Thermal Exhausts";
+    } rear;
+
+    // Front: Dual 19MP Cameras + Left Hue Indicator
+    struct FrontCamera {
+        uint8_t cam1_mp = 19;
+        uint8_t cam2_mp = 19;
+        bool left_hue_indicator = true;
+    } front;
+};
+
+// 2, 3, 4, 5, 8, 10. Silicon, Storage, & Power Systems
+class InternalBoard {
+public:
+    std::string motherboard_type = "Advance Red Multi-Layer PCB"; // 10. Red Motherboard
+    std::string soc_chip = "Advance Apple Micro Chip (A20 Active Mini)"; // 5. Apple Micro Chip
+    std::string ble_chip = "Advance BLE Core v6.2"; // 8. BLE Chip
+    std::string comm_circuitry = "Sub-THz High-Bandwidth RF Circuitry"; // 10. Communication Circuitry
+
+    struct PowerSystem {
+        std::string battery_type = "Mini Quantum Battery"; // 4. Quantum Cell
+        double thickness_mm = 2.1; // Fits within 6.8mm chassis
+        uint8_t charge_percentage = 100;
+    } quantum_battery;
+
+    struct HardwareTray {
+        bool sd_card_slot_active = true; // 2. SD Card Placement
+        bool dual_sim_active = true;     // 3. Dual SIM
+    } tray;
+};
+
+// 7 & 9. Enclosure & Chassis Management
+class ActiveMiniiPhone18 {
+private:
+    OpticsArray optics;
+    InternalBoard internals;
+
+    std::string chassis_back = "High-Tensile Carbon Fiber Cover"; // 7. Carbon Fiber
+    std::string chassis_siding = "Grade 5 Titanium Lid Siding";   // 7. Titanium Siding
+    std::string front_glass = "Advance Gorilla Glass (Diamond-Hardened)"; // 9. Gorilla Glass
+
+    HueIndicatorState front_hue_led = HueIndicatorState::OFF;
+    HueIndicatorState rear_hue_led = HueIndicatorState::OFF;
+    HueIndicatorState logo_hue_led = HueIndicatorState::OFF;
+
+    bool extra_secret_button_pressed = false;
+
+public:
+    ActiveMiniiPhone18() {
+        std::cout << "[BOOT]: Activating iPhone 18 Active Mini Core System...\n";
+    }
+
+    // 7. Extra Secret Button Under Apple Logo
+    void triggerSecretButton() {
+        extra_secret_button_pressed = true;
+        logo_hue_led = HueIndicatorState::STEALTH_MODE;
+        front_hue_led = HueIndicatorState::ACTIVE_MAGENTA;
+        rear_hue_led = HueIndicatorState::PULSING_CYAN;
+
+        std::cout << "[SECURITY]: Extra Secret Button actuated beneath Apple Logo.\n";
+        std::cout << "[STATUS]: Stealth encrypted data protocol engaged over Advance BLE Chip.\n";
+    }
+
+    void displaySystemManifest() const {
+        std::cout << "\n=======================================================\n";
+        std::cout << " iPhone 18 Active Mini - Hardware Manifest\n";
+        std::cout << "=======================================================\n";
+        std::cout << "Dimensions (Real-Size): " << MiniSpecs::LENGTH << "mm x " 
+                  << MiniSpecs::WIDTH << "mm x " << MiniSpecs::THICKNESS << "mm\n";
+        std::cout << "Chassis: " << chassis_back << " | " << chassis_siding << "\n";
+        std::cout << "Display Shield: " << front_glass << "\n";
+        std::cout << "Motherboard: " << internals.motherboard_type << "\n";
+        std::cout << "SoC: " << internals.soc_chip << " | BLE: " << internals.ble_chip << "\n";
+        std::cout << "Power: " << internals.quantum_battery.battery_type << " (Slim Profile Fit)\n";
+        std::cout << "Expandability: SD Card Placement [ACTIVE] | Dual SIM [ACTIVE]\n";
+        std::cout << "Front Optics: Dual " << (int)optics.front.cam1_mp << "MP + Left Hue LED\n";
+        std::cout << "Rear Optics: Dual " << (int)optics.rear.primary_mp << "MP + 3D Mapping Camera\n";
+        std::cout << "Rear Design: " << optics.rear.housing_style << "\n";
+        std::cout << "=======================================================\n";
+    }
+};
+
+int main() {
+    auto miniDevice = std::make_unique<ActiveMiniiPhone18>();
+    miniDevice->displaySystemManifest();
+    miniDevice->triggerSecretButton();
+    return 0;
+}
+
+
+
+
+//! iPhone 18 Active Mini - Hardware Abstraction Layer & Real-Size System Core
+//! Hardware Profile: Real-Size MMR (131.5mm x 64.2mm x 6.8mm)
+//! Target PCB: Advanced Red Multi-Layer Motherboard
+
+use std::sync::atomic::{AtomicBool, Ordering};
+
+// 1:1 Scale Mechanical Dimensions (mm)
+pub mod real_size_mmr {
+    pub const LENGTH_MM: f64 = 131.5;
+    pub const WIDTH_MM: f64 = 64.2;
+    pub const THICKNESS_MM: f64 = 6.8; // Slim profile for Mini Quantum Battery
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum HueLedState {
+    Off,
+    ActiveCyan,
+    ActiveMagenta,
+    StealthPulse,
+}
+
+// 1 & 6. Advanced Optical Subsystems
+pub struct OpticsMatrix {
+    // Rear: Dual 19MP + 1x 3D Mapping Sensor + Flashlight + Mesh Exhausts
+    pub rear_main_mp: u8,
+    pub rear_ultrawide_mp: u8,
+    pub rear_3d_mapping_active: bool,
+    pub mesh_corner_thermal_exhaust: bool,
+    pub rear_hue_indicator: HueLedState,
+
+    // Front: Dual 19MP + Left Hue Indicator
+    pub front_cam1_mp: u8,
+    pub front_cam2_mp: u8,
+    pub left_front_hue_indicator: HueLedState,
+}
+
+// 2, 3, 4, 5, 8, 10. Internal Circuitry & Storage Expansion
+pub struct SiliconAndPowerCore {
+    pub apple_micro_chip: &'static str,      // 5. Advance Apple Micro Chip
+    pub advance_ble_chip: &'static str,      // 8. Advance BLE Chip
+    pub red_motherboard_pcb: &'static str,   // 10. Advance Red Motherboard
+    pub comm_circuitry: &'static str,        // 10. Advance Communication Circuitry
+    
+    pub quantum_battery_cell_mm: f64,        // 4. Slim Fit Mini Quantum Battery (2.1mm)
+    pub sd_card_tray_mounted: bool,          // 2. SD Card Placement
+    pub dual_sim_active: bool,               // 3. Dual SIM Configuration
+}
+
+// 7 & 9. Structural Enclosure & Peripheral Control
+pub struct ActiveMiniSystem {
+    pub optics: OpticsMatrix,
+    pub core: SiliconAndPowerCore,
+    
+    pub carbon_fiber_rear_cover: &'static str,  // 7. Carbon Fiber Cover
+    pub titanium_lid_siding: &'static str,      // 7. Titanium Lid Siding
+    pub gorilla_glass_shield: &'static str,     // 9. Advance Gorilla Glass
+    
+    pub logo_hue_indicator: HueLedState,        // 7. Apple Logo Hue LED
+    pub secret_button_triggered: AtomicBool,    // 7. Extra Secret Button
+}
+
+impl ActiveMiniSystem {
+    pub fn initialize_real_size() -> Self {
+        Self {
+            optics: OpticsMatrix {
+                rear_main_mp: 19,
+                rear_ultrawide_mp: 19,
+                rear_3d_mapping_active: true,
+                mesh_corner_thermal_exhaust: true,
+                rear_hue_indicator: HueLedState::ActiveCyan,
+
+                front_cam1_mp: 19,
+                front_cam2_mp: 19,
+                left_front_hue_indicator: HueLedState::ActiveCyan,
+            },
+            core: SiliconAndPowerCore {
+                apple_micro_chip: "Apple A20 Micro Chip (Active Node)",
+                advance_ble_chip: "Advance BLE Core v6.2 (Extended Range)",
+                red_motherboard_pcb: "High-Density Red Multi-Layer Substrate",
+                comm_circuitry: "Sub-THz Active RF Circuitry",
+                quantum_battery_cell_mm: 2.1,
+                sd_card_tray_mounted: true,
+                dual_sim_active: true,
+            },
+            carbon_fiber_rear_cover: "Reinforced Carbon Fiber Weave",
+            titanium_lid_siding: "Grade 5 Titanium Lid Siding",
+            gorilla_glass_shield: "Advance Gorilla Glass (Diamond-Hardened Layer)",
+            logo_hue_indicator: HueLedState::ActiveCyan,
+            secret_button_triggered: AtomicBool::new(false),
+        }
+    }
+
+    /// Executed via tactile press on the hidden sensor under the Apple Logo
+    pub fn trigger_extra_secret_button(&mut self) {
+        self.secret_button_triggered.store(true, Ordering::SeqCst);
+        self.logo_hue_indicator = HueLedState::StealthPulse;
+        self.optics.left_front_hue_indicator = HueLedState::ActiveMagenta;
+        self.optics.rear_hue_indicator = HueLedState::ActiveMagenta;
+
+        println!("[HARDWARE EVENT]: Extra Secret Button actuated beneath Apple Logo.");
+        println!("[SECURITY]: Stealth encryption engaged over Advance BLE Chip.");
+    }
+}
+
+fn main() {
+    let mut phone = ActiveMiniSystem::initialize_real_size();
+
+    println!("=======================================================");
+    println!(" iPhone 18 Active Mini - 1:1 Scale Hardware Manifest");
+    println!("=======================================================");
+    println!("Real Size: {}mm x {}mm x {}mm", 
+        real_size_mmr::LENGTH_MM, 
+        real_size_mmr::WIDTH_MM, 
+        real_size_mmr::THICKNESS_MM
+    );
+    println!("Chassis: {} | {}", phone.carbon_fiber_rear_cover, phone.titanium_lid_siding);
+    println!("Protection: {}", phone.gorilla_glass_shield);
+    println!("Motherboard: {}", phone.core.red_motherboard_pcb);
+    println!("SoC / Connectivity: {} | {}", phone.core.apple_micro_chip, phone.core.advance_ble_chip);
+    println!("Tray Status: SD Card [MOUNTED] | Dual SIM [ACTIVE]");
+    println!("Front Cameras: Dual {}MP + Left Active Hue LED", phone.optics.front_cam1_mp);
+    println!("Rear Cameras: Dual {}MP + 1x 3D Mapping + Mesh Thermal Corners", phone.optics.rear_main_mp);
+    println!("=======================================================");
+
+    phone.trigger_extra_secret_button();
+}
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPhone 18 Active Mini - Hardware Feature Icon Set</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #141c2e;
+            --border-color: #23314d;
+            --accent-cyan: #00f2ff;
+            --accent-magenta: #ff007f;
+            --accent-red: #ff2a4b;
+            --text-main: #f0f4f8;
+            --text-sub: #8a99ad;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header {
+            text-align: center;
+            max-width: 800px;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: var(--text-sub);
+            font-size: 0.95rem;
+        }
+
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .icon-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .icon-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent-cyan);
+        }
+
+        .svg-container {
+            width: 64px;
+            height: 64px;
+            background: rgba(0, 242, 255, 0.05);
+            border: 1px solid rgba(0, 242, 255, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .icon-card:nth-child(even) .svg-container {
+            background: rgba(255, 0, 127, 0.05);
+            border-color: rgba(255, 0, 127, 0.2);
+        }
+
+        .icon-card:nth-child(10) .svg-container {
+            background: rgba(255, 42, 75, 0.08);
+            border-color: rgba(255, 42, 75, 0.3);
+        }
+
+        .icon-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .icon-desc {
+            font-size: 0.85rem;
+            color: var(--text-sub);
+            line-height: 1.4;
+        }
+
+        .tag {
+            display: inline-block;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--accent-cyan);
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>iPhone 18 Active Mini - Hardware Vector Icons</h1>
+        <p>1:1 Scale Profile: 131.5 mm × 64.2 mm × 6.8 mm | System Subsystem Icons</p>
+    </div>
+
+    <div class="icon-grid">
+
+        <!-- 1. Triple Rear Camera Array -->
+        <div class="icon-card">
+            <span class="tag">Feature 01</span>
+            <div class="svg-container">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="2" y="2" width="36" height="36" rx="8" stroke="#00f2ff" stroke-width="2"/>
+                    <path d="M4 12 L12 4 M36 28 L28 36" stroke="#8a99ad" stroke-width="1.5"/>
+                    <circle cx="13" cy="13" r="5" stroke="#00f2ff" stroke-width="2"/>
+                    <circle cx="27" cy="13" r="5" stroke="#00f2ff" stroke-width="2"/>
+                    <circle cx="13" cy="27" r="4" stroke="#ff007f" stroke-width="2"/>
+                    <circle cx="27" cy="27" r="2" fill="#00f2ff"/>
+                </svg>
+            </div>
+            <div class="icon-title">Triple Rear Optics</div>
+            <div class="icon-desc">Dual 19MP + 1x 3D Mapping Sensor, circled housings, flashlight, and sleek mesh corners.</div>
+        </div>
+
+        <!-- 2. SD Card Placement -->
+        <div class="icon-card">
+            <span class="tag">Feature 02</span>
+            <div class="svg-container">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 6 H26 L32 12 V34 H10 Z" stroke="#ff007f" stroke-width="2" fill="none"/>
+                    <line x1="14" y1="12" x2="14" y2="18" stroke="#ff007f" stroke-width="2"/>
+                    <line x1="18" y1="12" x2="18" y2="18" stroke="#ff007f" stroke-width="2"/>
+                    <line x1="22" y1="12" x2="22" y2="18" stroke="#ff007f" stroke-width="2"/>
+                    <line x1="26" y1="12" x2="26" y2="18" stroke="#ff007f" stroke-width="2"/>
+                </svg>
+            </div>
+            <div class="icon-title">SD Card Placement</div>
+            <div class="icon-desc">Dedicated expansion slot integrated into the chassis for removable storage.</div>
+        </div>
+
+        <!-- 3. Dual SIM -->
+        <div class="icon-card">
+            <span class="tag">Feature 03</span>
+            <div class="svg-container">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M6 10 H18 L22 14 V30 H6 Z" stroke="#00f2ff" stroke-width="1.5"/>
+                    <path d="M18 10 H30 L34 14 V30 H18 Z" stroke="#00f2ff" stroke-width="2" fill="#141c2e"/>
+                    <rect x="22" y="20" width="8" height="6" stroke="#00f2ff" stroke-width="1"/>
+                </svg>
+            </div>
+            <div class="icon-title">Dual SIM Tray</div>
+            <div class="icon-desc">Dual active network SIM architecture for simultaneous cellular connections.</div>
+        </div>
+
+        <!-- 4. Mini Quantum Battery -->
+        <div class="icon-card">
+            <span class="tag">Feature 04</span>
+            <div class="svg-container">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="6" y="12" width="28" height="16" rx="3" stroke="#ff007f" stroke-width="2"/>
+                    <path d="M34 17 V23" stroke="#ff007f" stroke-width="2"/>
+                    <path d="M12 20 L18 15 V20 L28 14" stroke="#00f2ff" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="icon-title">Mini Quantum Battery</div>
+            <div class="icon-desc">Slim-design energy cell engineered to fit the 6.8mm ultra-compact frame.</div>
+        </div>
+
+        <!-- 5. Apple Micro Chip -->
+        <div class="icon-card">
+            <span class="tag">Feature 05</span>
+            <div class="svg-container">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="10" y="10" width="20" height="20" rx="3" stroke="#00f2ff" stroke-width="2"/>
+                    <path d="M15 10 V5 M20 10 V5 M25 10 V5 M15 30 V35 M20 30 V35 M25 30 V35" stroke="#00f2ff" stroke-width="1.5"/>
+                    <path d="M10 15 H5 M10 20 H5 M10 25 H5 M30 15 H35 M30 20 H35 M30 25 H35" stroke="#00f2ff" stroke-width="1.5"/>
+                    <circle cx="20" cy="20" r="4" fill="#00f2ff"/>
+                </svg>
+            </div>
+            <div class="icon-title">Apple Micro Chip</div>
+            <div class="icon-desc">Advanced central processing architecture built on high-density silicon nodes.</div>
+        </div>
+
+        <!-- 6. Dual Front Optics & Left Hue Indicator -->
+        <div class="icon-card">
+            <span class="tag">Feature 06</span>
+            <div class="svg-container">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="6" y="14" width="28" height="12" rx="6" stroke="#ff007f" stroke-width="2"/>
+                    <circle cx="10" cy="20" r="2" fill="#00f2ff"/>
+                    <circle cx="22" cy="20" r="3" stroke="#ff007f" stroke-width="1.5"/>
+                    <circle cx="29" cy="20" r="3" stroke="#ff007f" stroke-width="1.5"/>
+                </svg>
+            </div>
+            <div class="icon-title">Dual Front Optics</div>
+            <div class="icon-desc">Dual 19MP selfie cameras paired with an integrated Left Active Hue Light.</div>
+        </div>
+
+        <!-- 7. Carbon Cover, Titanium & Secret Button -->
+        <div class="icon-card">
+            <span class="tag">Feature 07</span>
+            <div class="svg-container">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="8" y="4" width="24" height="32" rx="4" stroke="#8a99ad" stroke-width="2"/>
+                    <path d="M12 8 L28 24 M12 16 L28 32 M12 4 L32 24" stroke="#23314d" stroke-width="1"/>
+                    <circle cx="20" cy="20" r="4" fill="#00f2ff"/>
+                    <rect x="32" y="16" width="2" height="8" rx="1" fill="#ff007f"/>
+                </svg>
+            </div>
+            <div class="icon-title">Chassis & Secret Button</div>
+            <div class="icon-desc">Carbon fiber back, titanium siding, and Apple Logo Hue LED secret button.</div>
+        </div>
+
+        <!-- 8. Advance BLE Chip -->
+        <div class="icon-card">
+            <span class="tag">Feature 08</span>
+            <div class="svg-container">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14 12 L24 28 L19 33 V7 L24 12 L14 28" stroke="#00f2ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="8" cy="20" r="2" fill="#00f2ff"/>
+                    <circle cx="32" cy="20" r="2" fill="#00f2ff"/>
+                </svg>
+            </div>
+            <div class="icon-title">Advance BLE Chip</div>
+            <div class="icon-desc">Ultra-low power Bluetooth Low Energy controller for long-range peripheral mesh.</div>
+        </div>
+
+        <!-- 9. Advance Gorilla Glass -->
+        <div class="icon-card">
+            <span class="tag">Feature 09</span>
+            <div class="svg-container">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 4 L32 10 V20 C32 28 20 36 20 36 C20 36 8 28 8 20 V10 L20 4 Z" stroke="#ff007f" stroke-width="2" fill="none"/>
+                    <path d="M16 18 L24 22 M22 14 L18 26" stroke="#00f2ff" stroke-width="1.5"/>
+                </svg>
+            </div>
+            <div class="icon-title">Advance Gorilla Glass</div>
+            <div class="icon-desc">Diamond-strained optical protection glass covering front and rear displays.</div>
+        </div>
+
+        <!-- 10. Advance Red Motherboard -->
+        <div class="icon-card">
+            <span class="tag" style="color: var(--accent-red);">Feature 10</span>
+            <div class="svg-container">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="6" y="6" width="28" height="28" rx="2" fill="#ff2a4b" fill-opacity="0.2" stroke="#ff2a4b" stroke-width="2"/>
+                    <path d="M10 10 H20 V20 H30 M20 20 V30 M10 25 H15" stroke="#ff2a4b" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="20" cy="20" r="2" fill="#ffffff"/>
+                    <circle cx="30" cy="20" r="2" fill="#ffffff"/>
+                    <circle cx="10" cy="10" r="2" fill="#ffffff"/>
+                </svg>
+            </div>
+            <div class="icon-title">Red PCB & Comm Circuitry</div>
+            <div class="icon-desc">High-density crimson red multi-layer PCB housing high-bandwidth communication lines.</div>
+        </div>
+
+    </div>
+
+</body>
+</html>
