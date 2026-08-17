@@ -1,0 +1,732 @@
+{
+  "sender": { "id": "USER_ID" },
+  "recipient": { "id": "PAGE_ID" },
+  "timestamp": 123456789,
+  "referral": {
+    "ref": "is_ai=1",
+    "source": "SHORTLINK",
+    "type": "OPEN_THREAD"
+  }
+}
+
+
+
+app.post('/webhook', (req, res) => {
+    let body = req.body;
+
+    if (body.object === 'page') {
+        body.entry.forEach(function(entry) {
+            let webhook_event = entry.messaging[0];
+            
+            // Check if this is a referral event from your link
+            if (webhook_event.referral && webhook_event.referral.ref === 'is_ai=1') {
+                handleAiExpansion(webhook_event.sender.id);
+            }
+        });
+        res.status(200).send('EVENT_RECEIVED');
+    }
+});
+
+function handleAiExpansion(senderId) {
+    // Feature Expansion: Enable AI-mode context or specific welcome flows
+    console.log("AI-optimized flow triggered for user:", senderId);
+    
+    // You can now call the Send API to initiate a rich message
+    sendMessage(senderId, {
+        "text": "Hello! I've activated our AI assistant mode to help you faster today. What can I help you with?"
+    });
+}
+
+
+
+/**
+ * Advanced Meta Messenger Webhook with AI Expansion Engine
+ * Endpoint target: https://m.me/1398345928009373?is_ai=1
+ */
+
+const express = require('express');
+const crypto = require('crypto');
+const axios = require('axios');
+
+const app = express();
+app.use(express.json({ verify: verifyRequestSignature }));
+
+// Environment Configuration
+const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+const APP_SECRET = process.env.APP_SECRET;
+
+// In-Memory User Session & Telemetry Store
+const userSessions = new Map();
+
+// -----------------------------------------------------------------------
+// 1. WEBHOOK VERIFICATION & PAYLOAD ROUTING
+// -----------------------------------------------------------------------
+
+app.get('/webhook', (req, res) => {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    if (mode && token) {
+        if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+            console.log('[SYSTEM] Webhook verified successfully.');
+            return res.status(200).send(challenge);
+        }
+        return res.sendStatus(403);
+    }
+});
+
+app.post('/webhook', (req, res) => {
+    const body = req.body;
+
+    if (body.object === 'page') {
+        body.entry.forEach((entry) => {
+            const webhookEvent = entry.messaging[0];
+            const senderPsid = webhookEvent.sender.id;
+
+            // Initialize or fetch session context
+            let session = userSessions.get(senderPsid) || {
+                psid: senderPsid,
+                aiMode: false,
+                referralSource: null,
+                kaizenIterations: 0,
+            };
+
+            // Process Referral Links (e.g., https://m.me/1398345928009373?is_ai=1)
+            if (webhookEvent.referral || (webhookEvent.postback && webhookEvent.postback.referral)) {
+                const referralData = webhookEvent.referral || webhookEvent.postback.referral;
+                handleReferralExpansion(senderPsid, referralData.ref, session);
+            } 
+            // Process Messages
+            else if (webhookEvent.message) {
+                handleMessage(senderPsid, webhookEvent.message, session);
+            }
+            // Process Postback Buttons
+            else if (webhookEvent.postback) {
+                handlePostback(senderPsid, webhookEvent.postback, session);
+            }
+
+            userSessions.set(senderPsid, session);
+        });
+
+        res.status(200).send('EVENT_RECEIVED');
+    } else {
+        res.sendStatus(404);
+    }
+});
+
+// Security: Verify App Secret Signature
+function verifyRequestSignature(req, res, buf) {
+    const signature = req.headers['x-hub-signature-256'];
+    if (!signature) {
+        console.warn('[SECURITY] Missing X-Hub-Signature-256 header.');
+    } else {
+        const elements = signature.split('=');
+        const expectedHash = crypto
+            .createHmac('sha256', APP_SECRET)
+            .update(buf)
+            .digest('hex');
+
+        if (elements[1] !== expectedHash) {
+            throw new Error('[SECURITY] Invalid request signature.');
+        }
+    }
+}
+
+// -----------------------------------------------------------------------
+// 2. EXPANSION LOGIC & REFERRAL PARSING
+// -----------------------------------------------------------------------
+
+function handleReferralExpansion(psid, ref, session) {
+    console.log(`[REFERRAL] User ${psid} linked with ref parameter: ${ref}`);
+
+    // Parse queries like "is_ai=1" or URL-encoded JSON strings
+    const params = new URLSearchParams(ref);
+    const isAiEnabled = params.get('is_ai') === '1' || ref === 'is_ai=1';
+
+    if (isAiEnabled) {
+        session.aiMode = true;
+        session.referralSource = 'm.me/1398345928009373?is_ai=1';
+        session.kaizenIterations += 1;
+
+        // Send telemetry greeting and expanded controls
+        sendAiActivationDashboard(psid, session);
+    } else {
+        sendStandardGreeting(psid);
+    }
+}
+
+// -----------------------------------------------------------------------
+// 3. EXPANDED MESSENGER TEMPLATES & HUD GRAPHICS
+// -----------------------------------------------------------------------
+
+async function sendAiActivationDashboard(psid, session) {
+    // Typing indicator on
+    await sendSenderAction(psid, 'typing_on');
+
+    const telemetryCard = {
+        recipient: { id: psid },
+        message: {
+            attachment: {
+                type: 'template',
+                payload: {
+                    template_type: 'generic',
+                    elements: [
+                        {
+                            title: '⚡ ACTIVE AI HUD: ONLINE',
+                            subtitle: `Session ID: ${psid.slice(-6)} | Kaizen State: ${session.kaizenIterations} | Real-Time Telemetry`,
+                            image_url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200',
+                            buttons: [
+                                {
+                                    type: 'postback',
+                                    title: '📊 Query System Status',
+                                    payload: 'ACTION_SYSTEM_STATUS',
+                                },
+                                {
+                                    type: 'postback',
+                                    title: '⚙️ Toggle AI/Manual Mode',
+                                    payload: 'ACTION_TOGGLE_MODE',
+                                },
+                                {
+                                    type: 'web_url',
+                                    url: 'https://github.com/gilbertalgordo/dev',
+                                    title: '📁 Developer Sources',
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+            quick_replies: [
+                {
+                    content_type: 'text',
+                    title: '🚀 Optimize Processing',
+                    payload: 'QR_OPTIMIZE',
+                },
+                {
+                    content_type: 'text',
+                    title: '🤖 Run AI Simulation',
+                    payload: 'QR_SIMULATION',
+                },
+            ],
+        },
+    };
+
+    await callSendAPI(telemetryCard);
+    await sendSenderAction(psid, 'typing_off');
+}
+
+async function handleMessage(psid, message, session) {
+    if (session.aiMode) {
+        // Echo HUD indicator and trigger LLM/AI response processing
+        console.log(`[AI ENGINE] Processing text for ${psid}: ${message.text}`);
+        
+        // Simulating high-speed AI response logic
+        const aiResponse = `[AI Active] Telemetry acknowledged. Received parameter input: "${message.text}". System performance at 100%.`;
+        
+        await sendTextMessage(psid, aiResponse);
+    } else {
+        await sendTextMessage(psid, "Standard Mode Active. Click your referral link again with '?is_ai=1' to launch the AI engine.");
+    }
+}
+
+async function handlePostback(psid, postback, session) {
+    const payload = postback.payload;
+
+    if (payload === 'ACTION_SYSTEM_STATUS') {
+        const statusMsg = `⚙️ SYSTEM TELEMETRY:\n• AI Mode: ${session.aiMode ? 'ENABLED' : 'DISABLED'}\n• Endpoint: https://m.me/1398345928009373\n• Optimization Engine: Active\n• Stream Quality: HD/3D Ready`;
+        await sendTextMessage(psid, statusMsg);
+    } else if (payload === 'ACTION_TOGGLE_MODE') {
+        session.aiMode = !session.aiMode;
+        await sendTextMessage(psid, `AI Engine state toggled to: ${session.aiMode ? 'ENABLED ⚡' : 'DISABLED ⏸️'}`);
+    }
+}
+
+// -----------------------------------------------------------------------
+// 4. META GRAPH MESSAGING HELPERS
+// -----------------------------------------------------------------------
+
+async function sendTextMessage(psid, text) {
+    const requestPayload = {
+        recipient: { id: psid },
+        message: { text: text },
+    };
+    return await callSendAPI(requestPayload);
+}
+
+async function sendSenderAction(psid, action) {
+    const requestPayload = {
+        recipient: { id: psid },
+        sender_action: action,
+    };
+    return await callSendAPI(requestPayload);
+}
+
+async function callSendAPI(requestBody) {
+    try {
+        const response = await axios.post(
+            `https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+            requestBody
+        );
+        return response.data;
+    } catch (error) {
+        console.error('[API ERROR]', error.response ? error.response.data : error.message);
+    }
+}
+
+// Server Startup
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`[SERVER] Messenger AI Webhook operating on port ${PORT}`);
+});
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messenger AI HUD Icon Suite</title>
+    <style>
+        :root {
+            --cyan-glow: #00f3ff;
+            --blue-glow: #0066ff;
+            --meta-blue: #0084ff;
+            --bg-dark: #0a0d14;
+            --card-bg: rgba(16, 23, 38, 0.85);
+            --border-glow: rgba(0, 243, 255, 0.3);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #ffffff;
+            font-family: 'Segoe UI', Roboto, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .hud-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .hud-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hud-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--cyan-glow), transparent);
+        }
+
+        /* SVG Icon Base Styling */
+        .ai-icon {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 0 8px var(--cyan-glow));
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
+
+        .hud-card:hover .ai-icon {
+            transform: scale(1.08);
+            filter: drop-shadow(0 0 15px var(--cyan-glow));
+        }
+
+        /* Continuous Pulse Animation */
+        @keyframes pulseRing {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        .pulsing-ring {
+            transform-origin: center;
+            animation: pulseRing 2s infinite ease-in-out;
+        }
+
+        /* Rotation Animation for AI Core */
+        @keyframes spinCore {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .rotating-core {
+            transform-origin: 50px 50px;
+            animation: spinCore 12s linear infinite;
+        }
+
+        /* Action Launch Button */
+        .hud-btn {
+            margin-top: 16px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--blue-glow), var(--meta-blue));
+            border: 1px solid var(--cyan-glow);
+            color: #ffffff;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+            box-shadow: 0 0 10px rgba(0, 132, 255, 0.4);
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .hud-btn:hover {
+            box-shadow: 0 0 20px var(--cyan-glow);
+            transform: translateY(-2deg);
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            background: rgba(0, 243, 255, 0.15);
+            color: var(--cyan-glow);
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--cyan-glow);
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>⚡ Messenger AI Telemetry & Icon Suite</h2>
+
+    <div class="hud-container">
+
+        <!-- ICON 1: Messenger AI Dual Core -->
+        <div class="hud-card">
+            <svg class="ai-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <!-- Outer Pulse Ring -->
+                <circle class="pulsing-ring" cx="50" cy="50" r="44" stroke="#00f3ff" stroke-width="1.5" fill="none" stroke-dasharray="6, 4"/>
+                <!-- Messenger Bubble Base -->
+                <path d="M50 12C28.5 12 11 27.8 11 47.3c0 10.5 5.1 19.8 13.2 26.1v12.2l11.7-6.4c4.3 1.2 8.9 1.8 13.7 1.8 21.5 0 39-15.8 39-35.3S71.5 12 50 12z" fill="url(#blue-gradient)" opacity="0.85"/>
+                <!-- Lightning / AI Spark Center -->
+                <path d="M48 28L34 50h12l-4 22 20-26H50l4-18z" fill="#00f3ff"/>
+                <defs>
+                    <linearGradient id="blue-gradient" x1="0" y1="0" x2="100" y2="100">
+                        <stop offset="0%" stop-color="#0084ff"/>
+                        <stop offset="100%" stop-color="#000524"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+            <span class="badge">Page ID: 1398345928009373</span>
+            <h3>AI Messenger Core</h3>
+            <a href="https://m.me/1398345928009373?is_ai=1" target="_blank" class="hud-btn">
+                Launch AI Thread
+            </a>
+        </div>
+
+        <!-- ICON 2: HUD Orbital Telemetry -->
+        <div class="hud-card">
+            <svg class="ai-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <!-- Rotating HUD Ring -->
+                <circle class="rotating-core" cx="50" cy="50" r="42" stroke="#00f3ff" stroke-width="2" fill="none" stroke-dasharray="20 10 5 10"/>
+                <circle cx="50" cy="50" r="30" stroke="#0084ff" stroke-width="1" fill="none"/>
+                <!-- Core Node -->
+                <circle cx="50" cy="50" r="12" fill="#00f3ff"/>
+                <circle cx="50" cy="50" r="6" fill="#ffffff"/>
+            </svg>
+            <span class="badge">Ref Parameter: is_ai=1</span>
+            <h3>Active Telemetry Ring</h3>
+            <a href="https://m.me/1398345928009373?is_ai=1" target="_blank" class="hud-btn">
+                Connect HUD
+            </a>
+        </div>
+
+        <!-- ICON 3: Expanded Multi-Feature AI Matrix -->
+        <div class="hud-card">
+            <svg class="ai-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <!-- Grid Nodes -->
+                <path d="M25 25h50v50H25z" fill="none" stroke="#00f3ff" stroke-width="1.5"/>
+                <circle cx="25" cy="25" r="4" fill="#0066ff"/>
+                <circle cx="75" cy="25" r="4" fill="#0066ff"/>
+                <circle cx="25" cy="75" r="4" fill="#0066ff"/>
+                <circle cx="75" cy="75" r="4" fill="#0066ff"/>
+                <circle cx="50" cy="50" r="8" fill="#00f3ff" class="pulsing-ring"/>
+            </svg>
+            <span class="badge">Full Expansion Engine</span>
+            <h3>Matrix AI Connector</h3>
+            <a id="dynamic-link" href="#" target="_blank" class="hud-btn">
+                Launch Dynamic
+            </a>
+        </div>
+
+    </div>
+
+    <!-- 2. DYNAMIC LINK GENERATOR WITH FULL EXPANSION PARAMETERS -->
+    <script>
+        /**
+         * Constructs fully expanded m.me referral links dynamically
+         * with custom payload JSON encoded into the 'ref' parameter.
+         */
+        function generateExpandedLink(pageId, features) {
+            const baseUrl = `https://m.me/${pageId}`;
+            
+            // Build key-value parameters or serialized JSON
+            const refParams = new URLSearchParams();
+            refParams.append('is_ai', '1');
+            
+            if (features.mode) refParams.append('mode', features.mode);
+            if (features.source) refParams.append('src', features.source);
+            if (features.hud) refParams.append('hud', 'active');
+
+            return `${baseUrl}?ref=${encodeURIComponent(refParams.toString())}`;
+        }
+
+        // Example Usage: Generate Expanded Link for Icon 3
+        const expandedUrl = generateExpandedLink('1398345928009373', {
+            mode: 'advanced_kaizen',
+            source: 'hud_ui_v2',
+            hud: true
+        });
+
+        document.getElementById('dynamic-link').href = expandedUrl;
+        console.log("Generated Expanded Link:", expandedUrl);
+    </script>
+</body>
+</html>
+
+
+
+
+<!-- METRIC 1: ACTIVE AI MESSENGER CORE -->
+<div class="hud-icon-card">
+  <svg class="hud-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle class="ring-pulse" cx="50" cy="50" r="44" stroke="#00f3ff" stroke-width="1.5" fill="none" stroke-dasharray="6, 4"/>
+    <path d="M50 12C28.5 12 11 27.8 11 47.3c0 10.5 5.1 19.8 13.2 26.1v12.2l11.7-6.4c4.3 1.2 8.9 1.8 13.7 1.8 21.5 0 39-15.8 39-35.3S71.5 12 50 12z" fill="url(#hud-blue)"/>
+    <path d="M48 28L34 50h12l-4 22 20-26H50l4-18z" fill="#00f3ff"/>
+    <defs>
+      <linearGradient id="hud-blue" x1="0" y1="0" x2="100" y2="100">
+        <stop offset="0%" stop-color="#0084ff"/>
+        <stop offset="100%" stop-color="#000524"/>
+      </linearGradient>
+    </defs>
+  </svg>
+  <a href="https://m.me/1398345928009373?is_ai=1" class="hud-link">Launch AI Thread</a>
+</div>
+
+<!-- METRIC 2: HUD RADAR TELEMETRY NODE -->
+<div class="hud-icon-card">
+  <svg class="hud-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle class="spin-ring" cx="50" cy="50" r="42" stroke="#00f3ff" stroke-width="2" fill="none" stroke-dasharray="18 8 4 8"/>
+    <circle cx="50" cy="50" r="28" stroke="#0084ff" stroke-width="1.2" fill="none"/>
+    <circle cx="50" cy="50" r="10" fill="#00f3ff"/>
+    <circle cx="50" cy="50" r="4" fill="#ffffff"/>
+  </svg>
+  <a href="https://m.me/1398345928009373?is_ai=1&hud=active" class="hud-link">Telemetry Connect</a>
+</div>
+
+
+
+:root {
+  --cyan-primary: #00f3ff;
+  --cyan-glow: rgba(0, 243, 255, 0.6);
+  --blue-primary: #0084ff;
+  --blue-glow: rgba(0, 132, 255, 0.4);
+  --danger-red: #ff2a5f;
+  --bg-hud: rgba(10, 13, 20, 0.95);
+}
+
+/* ==========================================================================
+   1. KEYFRAME DEFINITIONS
+   ========================================================================== */
+
+/* Dual-axis orbital rotation for HUD rings */
+@keyframes orbitalSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes reverseOrbitalSpin {
+  0% {
+    transform: rotate(360deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+/* High-frequency radar / energy core pulse */
+@keyframes energyPulse {
+  0% {
+    transform: scale(0.96);
+    filter: drop-shadow(0 0 4px var(--cyan-primary));
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 16px var(--cyan-primary));
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.96);
+    filter: drop-shadow(0 0 4px var(--cyan-primary));
+    opacity: 0.8;
+  }
+}
+
+/* Vertical HUD CRT Scanline Sweep */
+@keyframes hudScanline {
+  0% {
+    top: -100%;
+  }
+  100% {
+    top: 200%;
+  }
+}
+
+/* Neon Telemetry Glitch Effect (Activated on hover or click) */
+@keyframes telemetryGlitch {
+  0% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-2px, 1px);
+  }
+  40% {
+    transform: translate(2px, -1px);
+  }
+  60% {
+    transform: translate(-1px, -2px);
+  }
+  80% {
+    transform: translate(1px, 2px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+/* Dash array offset for active data transmission rings */
+@keyframes dataTransmission {
+  0% {
+    stroke-dashoffset: 100;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ==========================================================================
+   2. UTILITY & SVG CLASS ATTACHMENTS
+   ========================================================================== */
+
+/* Outer Radar / Telemetry Ring */
+.spin-ring {
+  transform-origin: 50px 50px;
+  animation: orbitalSpin 10s linear infinite;
+}
+
+.spin-ring-reverse {
+  transform-origin: 50px 50px;
+  animation: reverseOrbitalSpin 6s linear infinite;
+}
+
+/* Central AI Core Lightning & Nodes */
+.ring-pulse {
+  transform-origin: 50px 50px;
+  animation: energyPulse 2.5s ease-in-out infinite;
+}
+
+/* Streaming Data Ring */
+.data-stream-ring {
+  stroke-dasharray: 20, 10;
+  animation: dataTransmission 4s linear infinite;
+}
+
+/* Card Container Hover & Scanline FX */
+.hud-icon-card {
+  position: relative;
+  background: var(--bg-hud);
+  border: 1px solid rgba(0, 243, 255, 0.2);
+  border-radius: 12px;
+  padding: 20px;
+  overflow: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Scanline Overlay */
+.hud-icon-card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(0, 243, 255, 0.15),
+    transparent
+  );
+  animation: hudScanline 4s linear infinite;
+  pointer-events: none;
+}
+
+/* Interactive Hover Triggering Increased Telemetry Output */
+.hud-icon-card:hover {
+  border-color: var(--cyan-primary);
+  box-shadow: 0 0 25px var(--cyan-glow), inset 0 0 15px rgba(0, 243, 255, 0.1);
+}
+
+.hud-icon-card:hover .spin-ring {
+  animation-duration: 3s; /* Accelerates rotation on interaction */
+}
+
+.hud-icon-card:hover .hud-svg {
+  animation: telemetryGlitch 0.2s ease-in-out 2;
+}
+
+/* CTA Launcher Button Animation */
+.hud-link {
+  display: inline-block;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, var(--blue-primary), #000524);
+  color: var(--cyan-primary);
+  border: 1px solid var(--cyan-primary);
+  border-radius: 6px;
+  text-decoration: none;
+  font-family: monospace;
+  font-weight: bold;
+  letter-spacing: 1px;
+  transition: all 0.2s ease;
+}
+
+.hud-link:hover {
+  background: var(--cyan-primary);
+  color: #000;
+  box-shadow: 0 0 15px var(--cyan-primary);
+}
