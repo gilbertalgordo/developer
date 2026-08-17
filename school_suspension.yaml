@@ -1,0 +1,787 @@
+const express = require('express');
+const axios = require('axios');
+const cron = require('node-cron');
+const http = require('http');
+const { Server } = require('socket.io');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+app.use(express.json());
+app.use(express.static('public'));
+
+// Global HUD State
+let systemState = {
+    status: 'NORMAL',
+    triggerSource: 'None',
+    details: 'All systems normal. Monitoring weather maps and news feeds.',
+    affectedLevels: 'None',
+    workSuspension: false,
+    timestamp: new Date().toISOString()
+};
+
+// Simulated AI Decision Matrix based on official disaster criteria
+function evaluateDisasterData(weatherData, newsData) {
+    const { typhoonSignal, rainfallWarning, floodDetected } = weatherData;
+    const { LGUDeclaration } = newsData;
+
+    // Automatic triggers (e.g., Orange/Red rainfall, TCWS 3+, or severe flooding)
+    if (rainfallWarning === 'RED' || rainfallWarning === 'ORANGE' || typhoonSignal >= 2 || floodDetected || LGUDeclaration) {
+        return {
+            status: 'CRITICAL',
+            triggerSource: LGUDeclaration ? 'Official News / LGU Bulletin' : 'PAGASA Weather Map / Sensor Array',
+            details: `Alert Level Met. Signal: ${typhoonSignal}, Rainfall: ${rainfallWarning}, Flood Status: ${floodDetected ? 'Active' : 'Clear'}`,
+            affectedLevels: 'All Levels (Preschool to Tertiary & Graduate School)',
+            workSuspension: typhoonSignal >= 3 || rainfallWarning === 'RED' || LGUDeclaration
+        };
+    }
+    
+    return {
+        status: 'NORMAL',
+        triggerSource: 'None',
+        details: 'Weather parameters within safe operational bounds.',
+        affectedLevels: 'None',
+        workSuspension: false
+    };
+}
+
+// Polling simulation for Weather Maps and News Feeds
+async function runAIMonitoringLoop() {
+    try {
+        // In production, fetch from real APIs (e.g., PAGASA open API, NewsAPI, Mapbox hazard layers)
+        // Mock payload representing live fetched data check:
+        const simulatedLiveFeed = {
+            weatherData: {
+                typhoonSignal: 0, // e.g., 0 to 5
+                rainfallWarning: 'NONE', // NONE, YELLOW, ORANGE, RED
+                floodDetected: false
+            },
+            newsData: {
+                LGUDeclaration: false // Flag picked up from web scraping or news parsing tickers
+            }
+        };
+
+        const evaluation = evaluateDisasterData(simulatedLiveFeed.weatherData, simulatedLiveFeed.newsData);
+        
+        if (evaluation.status !== systemState.status) {
+            systemState = { ...evaluation, timestamp: new Date().toISOString() };
+            
+            // Broadcast update to all HUD clients via WebSockets
+            io.emit('hudUpdate', systemState);
+
+            if (systemState.status === 'CRITICAL') {
+                await dispatchNotifications(systemState);
+            }
+        }
+    } catch (error) {
+        console.error('Error in AI Monitoring Loop:', error);
+    }
+}
+
+// Notification Dispatcher (SMS, Push, Webhook)
+async function dispatchNotifications(state) {
+    console.log('[NOTIFICATION DISPATCHER] Critical Weather Event Detected!');
+    console.log(`-> ANNOUNCEMENT: NO CLASSES IN ALL LEVELS & WORK SUSPENSION`);
+    console.log(`-> Details: ${state.details}`);
+    
+    // Example integration hook for Twilio / OneSignal / Firebase Cloud Messaging (FCM)
+    /*
+    await axios.post('https://api.twilio.com/2010-04-10/Accounts/...', {
+        To: '+63917XXXXXXXX',
+        Body: `WALANG PASOK: Classes in all levels and work suspended due to severe weather warnings.`
+    });
+    */
+}
+
+// Schedule AI check every 1 minute
+cron.schedule('* * * * *', () => {
+    runAIMonitoringLoop();
+});
+
+// Manual override endpoint for testing or admin override
+app.post('/api/trigger-emergency', (req, res) => {
+    systemState = {
+        status: 'CRITICAL',
+        triggerSource: 'Manual Admin Override / Direct News Feed Match',
+        details: 'Manual forced activation due to rapid flash flood reports.',
+        affectedLevels: 'All Levels (Pre-school to Tertiary)',
+        workSuspension: true,
+        timestamp: new Date().toISOString()
+    };
+    io.emit('hudUpdate', systemState);
+    dispatchNotifications(systemState);
+    res.json({ success: true, state: systemState });
+});
+
+app.get('/api/status', (req, res) => {
+    res.json(systemState);
+});
+
+server.listen(3000, () => {
+    console.log('AI Disaster Response & HUD Server running on port 3000');
+});
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Emergency & Suspension Command HUD</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --normal-green: #22c55e;
+            --alert-red: #ef4444;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+        .hud-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .status-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+            border-left: 8px solid var(--normal-green);
+            transition: all 0.3s ease;
+        }
+        .status-card.critical {
+            border-left-color: var(--alert-red);
+            animation: pulse-border 2s infinite;
+        }
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        h1, h2, h3 { margin: 0 0 10px 0; }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+        .badge.normal { background-color: rgba(34, 197, 94, 0.2); color: var(--normal-green); }
+        .badge.critical { background-color: rgba(239, 68, 68, 0.2); color: var(--alert-red); }
+        button {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background-color: #2563eb; }
+    </style>
+</head>
+<body>
+    <div class="hud-container">
+        <header>
+            <h1>🚨 AI Disaster & Suspension HUD</h1>
+            <div>System Time: <span id="clock">--:--:--</span></div>
+        </header>
+
+        <div id="statusCard" class="status-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>System Status: <span id="systemStatusText">NORMAL</span></h2>
+                <span id="statusBadge" class="badge normal">MONITORING</span>
+            </div>
+            <p><strong>Trigger Source:</strong> <span id="triggerSource">None</span></p>
+            <p><strong>Diagnostic Details:</strong> <span id="details">Initializing AI feeds...</span></p>
+        </div>
+
+        <div class="grid">
+            <div class="panel">
+                <h3>📢 Suspension Directives</h3>
+                <p><strong>Affected School Levels:</strong> <br><span id="affectedLevels" style="font-size: 1.2rem; color: #38bdf8;">None</span></p>
+                <p><strong>Government/Private Work:</strong> <br><span id="workSuspension" style="font-size: 1.2rem; color: #38bdf8;">Normal Operations</span></p>
+            </div>
+            <div class="panel">
+                <h3>⚙️ Operations Control</h3>
+                <p>Manually simulate an incoming weather alert or high-level flood notification map match.</p>
+                <button onclick="triggerEmergencyTest()">Test Emergency Signal</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+        }, 1000);
+
+        socket.on('hudUpdate', (state) => {
+            updateHUD(state);
+        });
+
+        // Initial fetch
+        fetch('/api/status')
+            .then(res => res.json())
+            .then(state => updateHUD(state));
+
+        function updateHUD(state) {
+            const card = document.getElementById('statusCard');
+            const badge = document.getElementById('statusBadge');
+            
+            document.getElementById('systemStatusText').innerText = state.status;
+            document.getElementById('triggerSource').innerText = state.triggerSource;
+            document.getElementById('details').innerText = state.details;
+            document.getElementById('affectedLevels').innerText = state.affectedLevels;
+            document.getElementById('workSuspension').innerText = state.workSuspension ? 'SUSPENDED' : 'Normal Operations';
+
+            if (state.status === 'CRITICAL') {
+                card.classList.add('critical');
+                badge.className = 'badge critical';
+                badge.innerText = 'AUTOMATED SUSPENSION ACTIVE';
+            } else {
+                card.classList.remove('critical');
+                badge.className = 'badge normal';
+                badge.innerText = 'MONITORING';
+            }
+        }
+
+        function triggerEmergencyTest() {
+            fetch('/api/trigger-emergency', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => console.log('Emergency simulated', data));
+        }
+    </script>
+</body>
+</html>
+
+
+
+{
+  "name": "ai-suspension-hud",
+  "version": "1.0.0",
+  "description": "AI Automated Class & Work Suspension Monitoring System",
+  "main": "server.js",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "express": "^4.19.2",
+    "node-cron": "^3.0.3",
+    "socket.io": "^4.7.5"
+  }
+}
+
+
+
+npm install
+
+
+
+node server.js
+
+
+
+
+const express = require('express');
+const axios = require('axios');
+const cron = require('node-cron');
+const http = require('http');
+const { Server } = require('socket.io');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+app.use(express.json());
+app.use(express.static('public'));
+
+// Mission Control State Matrix
+let commandState = {
+    systemStatus: 'STANDBY',
+    threatLevel: 'ALPHA (Normal)',
+    activeTriggers: [],
+    directive: {
+        classes: 'Normal Operations',
+        work: 'Normal Operations',
+        scope: 'None'
+    },
+    lastUpdated: new Date().toISOString(),
+    telemetryLogs: []
+};
+
+function logTelemetry(message, level = 'INFO') {
+    const entry = { timestamp: new Date().toISOString(), level, message };
+    commandState.telemetryLogs.unshift(entry);
+    if (commandState.telemetryLogs.length > 50) commandState.telemetryLogs.pop();
+    console.log(`[${entry.timestamp}] [${level}] ${message}`);
+}
+
+/**
+ * Advanced AI Heuristic Engine
+ * Evaluates multi-source feeds: GIS Map overlays, News broadcast NLP extractions, and PAGASA/NDRRMC bulletins.
+ */
+async function evaluateAdvancedAIThreats() {
+    try {
+        logTelemetry('Scanning GIS weather vectors, news NLP tickers, and flood sensor arrays...', 'SCAN');
+
+        // Simulated ingestion from external GIS maps & NLP News Scrapers
+        const ingestedData = await fetchExternalDisasterFeeds();
+
+        let triggers = [];
+        let isCritical = false;
+
+        // 1. Check Typhoon Signal Thresholds (TCWS 2+ triggers suspension for lower levels, TCWS 3+ for all levels)
+        if (ingestedData.typhoonSignal >= 3) {
+            triggers.push(`Typhoon Cyclone Wind Signal #${ingestedData.typhoonSignal} Active`);
+            isCritical = true;
+        }
+
+        // 2. Check Rainfall Warnings (Orange/Red triggers auto-suspension matrices)
+        if (['ORANGE', 'RED'].includes(ingestedData.rainfallWarning)) {
+            triggers.push(`PAGASA Rainfall Warning: ${ingestedData.rainfallWarning} Tier`);
+            isCritical = true;
+        }
+
+        // 3. Check GIS Flood Mapping Data (Water level sensor threshold > 1.5 meters)
+        if (ingestedData.floodSensorLevelMeters >= 1.5 || ingestedData.gisMapFloodPolygonMatch) {
+            triggers.push(`GIS Map Flood Polygon Collision (Level: ${ingestedData.floodSensorLevelMeters}m)`);
+            isCritical = true;
+        }
+
+        // 4. NLP Keyword Matching from Live TV/News Bulletins (e.g., "Walang Pasok", "Suspended")
+        if (ingestedData.newsNLPDetectedSuspension) {
+            triggers.push(`NLP News/TV Bulletin Match: Official LGU Suspension Declaration Detected`);
+            isCritical = true;
+        }
+
+        if (isCritical) {
+            commandState.systemStatus = 'CRITICAL_EMERGENCY';
+            commandState.threatLevel = 'OMEGA (Immediate Action)';
+            commandState.activeTriggers = triggers;
+            commandState.directive = {
+                classes: 'NO CLASSES IN ALL LEVELS (Pre-School to Tertiary / Grad School)',
+                work: 'GOVERNMENT & PRIVATE WORK SUSPENDED',
+                scope: 'Targeted Regional Zone / Nationwide Autonomic Protocol'
+            };
+            commandState.lastUpdated = new Date().toISOString();
+
+            logTelemetry('CRITICAL THRESHOLD MET. Initiating autonomous broadcast sequences.', 'ALERT');
+            
+            // Broadcast state update to HUD clients
+            io.emit('hudSync', commandState);
+
+            // Dispatch message notifications via SMS, Push, and Webhooks
+            await dispatchOmniChannelNotifications(commandState);
+        } else {
+            if (commandState.systemStatus !== 'STANDBY') {
+                logTelemetry('Threat parameters normalized. Resetting to standby monitoring.', 'INFO');
+                commandState.systemStatus = 'STANDBY';
+                commandState.threatLevel = 'ALPHA (Normal)';
+                commandState.activeTriggers = [];
+                commandState.directive = { classes: 'Normal Operations', work: 'Normal Operations', scope: 'None' };
+                commandState.lastUpdated = new Date().toISOString();
+                io.emit('hudSync', commandState);
+            }
+        }
+    } catch (error) {
+        logTelemetry(`AI Engine Error: ${error.message}`, 'ERROR');
+    }
+}
+
+// Mock integration layer connecting to APIs (PAGASA, Mapbox GIS layers, News APIs)
+async function fetchExternalDisasterFeeds() {
+    // In production, execute async Axios calls to weather APIs, GIS spatial queries, and NLP news scrapers.
+    return {
+        typhoonSignal: 0,
+        rainfallWarning: 'NONE',
+        floodSensorLevelMeters: 0.4,
+        gisMapFloodPolygonMatch: false,
+        newsNLPDetectedSuspension: false
+    };
+}
+
+/**
+ * Multi-Channel Notification Dispatcher
+ */
+async function dispatchOmniChannelNotifications(state) {
+    const messagePayload = `🚨 EMERGENCY DIRECTIVE 🚨\nSTATUS: NO CLASSES IN ALL LEVELS & WORK SUSPENDED.\nTriggers: ${state.activeTriggers.join(', ')}\nTimestamp: ${state.lastUpdated}`;
+    
+    logTelemetry('Dispatching SMS/Push gateways (Twilio / Firebase FCM / Telegram)...', 'DISPATCH');
+    
+    // Example Twilio SMS / Telegram Bot dispatch block
+    /*
+    await axios.post('https://api.telegram.org/bot<TOKEN>/sendMessage', {
+        chat_id: '<CHANNEL_ID>',
+        text: messagePayload
+    });
+    */
+}
+
+// High-frequency polling loop (Every 30 seconds)
+cron.schedule('*/30 * * * * *', () => {
+    evaluateAdvancedAIThreats();
+});
+
+// API Endpoints for HUD & Manual Override
+app.get('/api/telemetry', (req, res) => {
+    res.json(commandState);
+});
+
+app.post('/api/force-trigger', (req, res) => {
+    commandState.systemStatus = 'CRITICAL_EMERGENCY';
+    commandState.threatLevel = 'OMEGA (Manual Override)';
+    commandState.activeTriggers = ['Manual Administrative Force-Trigger Test'];
+    commandState.directive = {
+        classes: 'NO CLASSES IN ALL LEVELS (Forced Override)',
+        work: 'WORK SUSPENDED (Forced Override)',
+        scope: 'System-Wide Universal Broadcast'
+    };
+    commandState.lastUpdated = new Date().toISOString();
+    
+    logTelemetry('Manual override triggered by command operator.', 'WARN');
+    io.emit('hudSync', commandState);
+    dispatchOmniChannelNotifications(commandState);
+    
+    res.json({ success: true, commandState });
+});
+
+server.listen(4000, () => {
+    console.log('[AI ENGINE] Advanced Disaster Monitoring Core active on port 4000');
+});
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced AI Disaster Response & HUD Command</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root {
+            --bg-deep: #030712;
+            --panel-bg: #111827;
+            --border-color: #1f2937;
+            --text-main: #f3f4f6;
+            --accent-blue: #3b82f6;
+            --alert-green: #10b981;
+            --alert-red: #ef4444;
+        }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .status-banner {
+            padding: 20px;
+            border-radius: 8px;
+            background-color: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--alert-green);
+            margin-bottom: 20px;
+            transition: all 0.4s ease-in-out;
+        }
+        .status-banner.critical {
+            background-color: rgba(239, 68, 68, 0.15);
+            border-color: var(--alert-red);
+            animation: pulse-alert 1.5s infinite;
+        }
+        @keyframes pulse-alert {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .log-box {
+            background-color: #000;
+            border: 1px solid #374151;
+            padding: 10px;
+            height: 250px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            color: #34d399;
+            border-radius: 4px;
+        }
+        button {
+            background-color: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            font-family: inherit;
+        }
+        button:hover { background-color: #2563eb; }
+        .directive-highlight {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #38bdf8;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h2>🛡️ NEXUS AI // Disaster Response & Autonomic HUD</h2>
+            <div>SYSTEM TIME: <span id="clock">--:--:--</span></div>
+        </header>
+
+        <div id="statusBanner" class="status-banner">
+            <h1 style="margin:0;">STATUS: <span id="systemStatus">STANDBY</span></h1>
+            <p>Threat Vector: <strong id="threatLevel">ALPHA (Normal)</strong></p>
+        </div>
+
+        <div class="grid-layout">
+            <div class="panel">
+                <h3>📢 Active Government & AI Directives</h3>
+                <p>School Suspension Directive:</p>
+                <div id="classesDirective" class="directive-highlight">Normal Operations</div>
+                <p style="margin-top: 15px;">Work Suspension Directive:</p>
+                <div id="workDirective" class="directive-highlight">Normal Operations</div>
+                <p style="margin-top: 15px;">Active Triggers detected by Map/News AI:</p>
+                <ul id="triggersList" style="color: #fca5a5; margin: 0; padding-left: 20px;">
+                    <li>None</li>
+                </ul>
+            </div>
+
+            <div class="panel">
+                <h3>⚙️ Command Controls</h3>
+                <p style="font-size: 0.9rem; color: #9ca3af;">Manually override autonomic sensors to test message notifications and HUD alarm states.</p>
+                <button onclick="triggerManualOverride()">FORCE EMERGENCY BROADCAST</button>
+                
+                <h4 style="margin-top: 20px;">Live Telemetry Stream</h4>
+                <div id="logBox" class="log-box"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+        }, 1000);
+
+        socket.on('hudSync', (state) => {
+            renderHUD(state);
+        });
+
+        fetch('/api/telemetry')
+            .then(res => res.json())
+            .then(state => renderHUD(state));
+
+        function renderHUD(state) {
+            const banner = document.getElementById('statusBanner');
+            document.getElementById('systemStatus').innerText = state.systemStatus;
+            document.getElementById('threatLevel').innerText = state.threatLevel;
+            document.getElementById('classesDirective').innerText = state.directive.classes;
+            document.getElementById('workDirective').innerText = state.directive.work;
+
+            const triggerUl = document.getElementById('triggersList');
+            triggerUl.innerHTML = '';
+            if (state.activeTriggers.length === 0) {
+                triggerUl.innerHTML = '<li>None</li>';
+            } else {
+                state.activeTriggers.forEach(t => {
+                    const li = document.createElement('li');
+                    li.innerText = t;
+                    triggerUl.appendChild(li);
+                });
+            }
+
+            if (state.systemStatus === 'CRITICAL_EMERGENCY') {
+                banner.classList.add('critical');
+            } else {
+                banner.classList.remove('critical');
+            }
+
+            const logBox = document.getElementById('logBox');
+            logBox.innerHTML = '';
+            state.telemetryLogs.forEach(log => {
+                const div = document.createElement('div');
+                div.innerText = `[${log.timestamp.slice(11, 19)}] [${log.level}] ${log.message}`;
+                logBox.appendChild(div);
+            });
+        }
+
+        function triggerManualOverride() {
+            fetch('/api/force-trigger', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => console.log('Manual override response:', data));
+        }
+    </script>
+</body>
+</html>
+
+
+
+{
+  "name": "nexus-ai-disaster-hud",
+  "version": "2.0.0",
+  "description": "Advanced Autonomic AI Flood & Typhoon Suspension Monitoring Core",
+  "main": "server.js",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "express": "^4.19.2",
+    "node-cron": "^3.0.3",
+    "socket.io": "^4.7.5"
+  }
+}
+
+
+
+
+npm install
+
+
+
+node server.js
+
+
+
+<!-- SVG Vector Icon Pack: AI Disaster & Suspension HUD Icons -->
+<!-- 
+  Usage: Save as icons.svg or inline directly into HTML/HUD dashboards.
+  Scalable vector graphics optimized for high-contrast dark-mode emergency control centers.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+
+    <!-- 1. ACTIVE AI RADAR ICON -->
+    <symbol id="icon-ai-radar" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="4 2"/>
+        <circle cx="12" cy="12" r="6" fill="none" stroke="#38bdf8" stroke-width="1.5"/>
+        <circle cx="12" cy="12" r="2" fill="#38bdf8"/>
+        <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+        <path d="M12 12L18 6" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- 2. FLOOD & WATER HAZARD ICON -->
+    <symbol id="icon-flood-warning" viewBox="0 0 24 24">
+        <path d="M2 18h20M2 14h20M4 10h16" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+        <path d="M12 2v6m-3-3l3-3 3 3" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5 21h14" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- 3. TYPHOON WIND SIGNAL ICON -->
+    <symbol id="icon-typhoon" viewBox="0 0 24 24">
+        <path d="M12 2a10 10 0 0 1 7.07 17.07M12 6a6 6 0 0 1 4.24 10.24M12 10a2 2 0 0 1 1.41 3.41" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+        <path d="M3 12c0-3.3 2-6 5-6M21 12c0 3.3-2 6-5 6" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- 4. NO CLASSES IN ALL LEVELS ICON -->
+    <symbol id="icon-no-classes" viewBox="0 0 24 24">
+        <path d="M2 3l20 18M12 3l9 4.5v3.5c0 5.5-3.8 10.7-9 12-5.2-1.3-9-6.5-9-12V7.5L12 3z" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 8v4m0 4h.01" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- 5. WORK SUSPENSION ICON -->
+    <symbol id="icon-work-suspension" viewBox="0 0 24 24">
+        <rect x="2" y="7" width="20" height="14" rx="2" ry="2" fill="none" stroke="#f97316" stroke-width="2"/>
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" fill="none" stroke="#f97316" stroke-width="2"/>
+        <line x1="4" y1="12" x2="20" y2="12" stroke="#ef4444" stroke-width="2.5"/>
+    </symbol>
+
+    <!-- 6. PUSH MESSAGE NOTIFICATION ICON -->
+    <symbol id="icon-message-alert" viewBox="0 0 24 24">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="18" cy="4" r="3" fill="#ef4444"/>
+    </symbol>
+
+</svg>
+
+
+
+<div class="hud-icon-grid" style="display: flex; gap: 15px; background: #111827; padding: 15px; border-radius: 8px; border: 1px solid #1f2937;">
+    
+    <!-- Radar Active Status -->
+    <div style="text-align: center;">
+        <svg width="36" height="36"><use href="#icon-ai-radar"/></svg>
+        <div style="font-size: 0.75rem; color: #38bdf8; margin-top: 5px;">AI SCAN</div>
+    </div>
+
+    <!-- Flood Warning Icon -->
+    <div style="text-align: center;">
+        <svg width="36" height="36"><use href="#icon-flood-warning"/></svg>
+        <div style="font-size: 0.75rem; color: #ef4444; margin-top: 5px;">FLOOD MAP</div>
+    </div>
+
+    <!-- Typhoon Signal Icon -->
+    <div style="text-align: center;">
+        <svg width="36" height="36"><use href="#icon-typhoon"/></svg>
+        <div style="font-size: 0.75rem; color: #f59e0b; margin-top: 5px;">TYPHOON</div>
+    </div>
+
+    <!-- No Classes All Levels Icon -->
+    <div style="text-align: center;">
+        <svg width="36" height="36"><use href="#icon-no-classes"/></svg>
+        <div style="font-size: 0.75rem; color: #ef4444; margin-top: 5px;">NO CLASSES</div>
+    </div>
+
+    <!-- Work Suspension Icon -->
+    <div style="text-align: center;">
+        <svg width="36" height="36"><use href="#icon-work-suspension"/></svg>
+        <div style="font-size: 0.75rem; color: #f97316; margin-top: 5px;">WORK SUSPEND</div>
+    </div>
+
+    <!-- Notification Alert Icon -->
+    <div style="text-align: center;">
+        <svg width="36" height="36"><use href="#icon-message-alert"/></svg>
+        <div style="font-size: 0.75rem; color: #10b981; margin-top: 5px;">PUSH PING</div>
+    </div>
+
+</div>
