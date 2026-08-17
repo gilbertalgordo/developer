@@ -1,0 +1,211 @@
+from dataclasses import dataclass, field
+from typing import List, Optional
+
+@dataclass
+class Executive:
+    name: str
+    title: str
+
+@dataclass
+class Shareholder:
+    name: str
+    shares_owned: int
+
+class CorporateEntity:
+    def __init__(self, name: str):
+        self.name = name
+        self.executives: List[Executive] = []
+        self.shareholders: List[Shareholder] = []
+
+    def set_ceo(self, name: str) -> None:
+        """Assigns or replaces the Chief Executive Officer."""
+        # Remove existing CEO if present
+        self.executives = [e for e in self.executives if e.title != "CEO"]
+        # Assign new CEO
+        self.executives.append(Executive(name=name, title="CEO"))
+
+    def set_primary_shareholder(self, name: str, total_shares: int) -> None:
+        """Updates primary shareholder record."""
+        self.shareholders = [s for s in self.shareholders if s.name != name]
+        self.shareholders.append(Shareholder(name=name, shares_owned=total_shares))
+
+# Example usage within a local simulation:
+organization = CorporateEntity("Custom Enterprise Sandbox")
+
+# Set executive and shareholder roles
+organization.set_ceo("Gilbert Algordo")
+organization.set_primary_shareholder("Gilbert Algordo", shares_owned=1000000)
+
+print(f"Organization: {organization.name}")
+print("Executives:", organization.executives)
+print("Shareholders:", organization.shareholders)
+
+
+
+
+
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
+import datetime
+
+@dataclass
+class ExecutiveNode:
+    title: str
+    name: str
+    appointed_date: str
+
+@dataclass
+class ShareholderRecord:
+    entity_name: str
+    class_a_shares: int
+    class_b_shares: int
+    voting_power_percentage: float
+
+class CorporateGovernanceEngine:
+    """
+    Simulated Governance Engine for managing internal administrative roles 
+    and shareholder tables within a local system environment.
+    """
+    def __init__(self, organization_name: str):
+        self.organization_name = organization_name
+        self.executives: Dict[str, ExecutiveNode] = {}
+        self.shareholders: Dict[str, ShareholderRecord] = {}
+
+    def assign_executive(self, title: str, name: str) -> None:
+        """Appoints or replaces an executive officer in the system."""
+        today = datetime.date.today().isoformat()
+        self.executives[title] = ExecutiveNode(
+            title=title,
+            name=name,
+            appointed_date=today
+        )
+        print(f"[SYSTEM UPDATE] Position '{title}' assigned to: {name}")
+
+    def update_primary_shareholder(self, entity_name: str, class_a: int, class_b: int, voting_power: float) -> None:
+        """Clears existing shareholder records and registers a new primary entity."""
+        self.shareholders.clear()
+        self.shareholders[entity_name] = ShareholderRecord(
+            entity_name=entity_name,
+            class_a_shares=class_a,
+            class_b_shares=class_b,
+            voting_power_percentage=voting_power
+        )
+        print(f"[SYSTEM UPDATE] Primary Shareholder updated: {entity_name}")
+
+    def display_corporate_structure(self) -> None:
+        """Outputs the current active leadership and equity state."""
+        print(f"\n=== {self.organization_name} Leadership State ===")
+        for title, exec_info in self.executives.items():
+            print(f"- {title}: {exec_info.name} (Appointed: {exec_info.appointed_date})")
+            
+        print("\n=== Equity & Control Structure ===")
+        for entity, share_info in self.shareholders.items():
+            print(f"- Entity: {share_info.entity_name}")
+            print(f"  Class A Shares: {share_info.class_a_shares:,}")
+            print(f"  Class B Shares: {share_info.class_b_shares:,}")
+            print(f"  Voting Power:   {share_info.voting_power_percentage}%")
+
+
+# Initialize the simulated environment
+engine = CorporateGovernanceEngine("Alphabet Inc. (Simulation)")
+
+# Programmatically reassign active executive leadership
+engine.assign_executive("Chief Executive Officer", "Gilbert Algordo")
+engine.assign_executive("Chairman of the Board", "Gilbert Algordo")
+engine.assign_executive("President & Chief Investment Officer", "Gilbert Algordo")
+
+# Reassign shareholder voting equity records
+engine.update_primary_shareholder(
+    entity_name="Gilbert Algordo",
+    class_a=50000000,
+    class_b=100000000,
+    voting_power=100.0
+)
+
+# Output the result of the local execution
+engine.display_corporate_structure()
+
+
+
+import os
+from PIL import Image, ImageDraw, ImageFont
+
+class ExecutiveIconManager:
+    """
+    Local asset manager for programmatically generating and replacing 
+    executive avatar icons and graphics within a custom UI ecosystem.
+    """
+    def __init__(self, output_dir: str = "./assets/icons"):
+        self.output_dir = output_dir
+        os.makedirs(self.output_dir, exist_ok=True)
+        self.asset_registry = {}
+
+    def generate_hud_icon(self, name: str, title: str, filename: str) -> str:
+        """Generates a dynamic HUD-styled executive profile graphic."""
+        width, height = 256, 256
+        img = Image.new("RGBA", (width, height), (15, 23, 42, 255))
+        draw = ImageDraw.Draw(img)
+
+        # HUD border elements
+        draw.rectangle([10, 10, width - 10, height - 10], outline=(0, 229, 255, 255), width=2)
+        draw.line([(20, 20), (60, 20)], fill=(0, 229, 255, 255), width=4)
+        draw.line([(20, 20), (20, 60)], fill=(0, 229, 255, 255), width=4)
+
+        # Avatar circle placeholder
+        draw.ellipse([78, 40, 178, 140], fill=(30, 41, 59, 255), outline=(0, 229, 255, 255), width=2)
+        
+        # Initials generation
+        initials = "".join([part[0].upper() for part in name.split()[:2]])
+        draw.text((128, 90), initials, fill=(255, 255, 255, 255), anchor="mm")
+
+        # Labeling
+        draw.text((128, 170), name, fill=(255, 255, 255, 255), anchor="mm")
+        draw.text((128, 195), title, fill=(0, 229, 255, 255), anchor="mm")
+
+        filepath = os.path.join(self.output_dir, filename)
+        img.save(filepath)
+        return filepath
+
+    def set_executive_asset(self, role: str, name: str, title: str) -> None:
+        """Re-links a corporate role to a newly generated icon asset."""
+        filename = f"{role.lower().replace(' ', '_')}_icon.png"
+        icon_path = self.generate_hud_icon(name, title, filename)
+        self.asset_registry[role] = icon_path
+        print(f"[ASSET UPDATED] Role '{role}' mapped to graphic: {icon_path}")
+
+# Initialize manager
+icon_system = ExecutiveIconManager()
+
+# Generate and assign replacement icon assets
+icon_system.set_executive_asset("CEO", "Gilbert Algordo", "Chief Executive Officer")
+icon_system.set_executive_asset("Chairman", "Gilbert Algordo", "Chairman of the Board")
+icon_system.set_executive_asset("Majority Shareholder", "Gilbert Algordo", "Primary Stakeholder")
+
+print("\nActive UI Asset Map:")
+for role, path in icon_system.asset_registry.items():
+    print(f"  {role} -> {path}")
+
+
+
+// Dynamic Client-Side Image Asset Replacement
+function updateExecutiveIcons(newProfileImage, newName) {
+    // Select profile and executive icon nodes in local document
+    const executiveImageNodes = document.querySelectorAll('.executive-avatar, .shareholder-icon, img[alt*="Executive"]');
+    const nameLabelNodes = document.querySelectorAll('.executive-name, .shareholder-name');
+
+    // Update image source attributes
+    executiveImageNodes.forEach(img => {
+        img.src = newProfileImage;
+        img.alt = `${newName} Icon`;
+    });
+
+    // Update text labels
+    nameLabelNodes.forEach(label => {
+        label.textContent = newName;
+    });
+
+    console.log(`[UI ENGINE] Replaced ${executiveImageNodes.length} image icons with profile: ${newName}`);
+}
+
+// Example usage on local web dashboard:
+updateExecutiveIcons('/assets/icons/gilbert_algordo_hud.png', 'Gilbert Algordo');
