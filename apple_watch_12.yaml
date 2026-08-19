@@ -1,0 +1,609 @@
+import SwiftUI
+
+// MARK: - Apple Watch Series 12 Main View Structure
+struct AppleWatchSeries12View: View {
+    @State private var isBlinking: Bool = false
+    @State private var isExpanded: Bool = false
+
+    var body: some View {
+        ZStack {
+            // Background environment simulating CAD layout workspace
+            Color(UIColor.systemGray6)
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                // Header HUD Info
+                VStack(spacing: 4) {
+                    Text("APPLE WATCH SERIES 12 — SPECIFICATIONS HUD")
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .foregroundColor(.secondary)
+                    Text("Actual Scale: 45mm Titanium Edition | Transparent Waterproofing")
+                        .font(.system(size: 10, weight: .regular, design: .monospaced))
+                        .foregroundColor(.gray)
+                }
+
+                // Main Interactive Device Mockup
+                ZStack {
+                    // Outer Titanium Casing Layer (Actual proportion sizing: ~368x448 points equivalent layout)
+                    RoundedRectangle(cornerRadius: 48, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(.systemGray), Color(.darkGray), Color(.black)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 220, height: 270)
+                        .shadow(color: Color.black.opacity(0.4), radius: 15, x: 0, y: 10)
+                        .overlay(
+                            // Transparent Waterproofing Outer Layer Glass Effect
+                            RoundedRectangle(cornerRadius: 48, style: .continuous)
+                                .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
+                        )
+
+                    // Blinking Colorful LED Status Border
+                    RoundedRectangle(cornerRadius: 44, style: .continuous)
+                        .stroke(
+                            AngularGradient(
+                                gradient: Gradient(colors: [.red, .yellow, .green, .cyan, .blue, .purple, .red]),
+                                center: .center
+                            ),
+                            lineWidth: isBlinking ? 4 : 2
+                        )
+                        .frame(width: 206, height: 256)
+                        .opacity(isBlinking ? 1.0 : 0.6)
+                        .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isBlinking)
+
+                    // Strong Slim LCD / LTPO Display Screen
+                    RoundedRectangle(cornerRadius: 40, style: .continuous)
+                        .fill(Color.black)
+                        .frame(width: 198, height: 248)
+                        .overlay(
+                            VStack {
+                                // Front Camera & Mic Notch/Punch hole element
+                                HStack(spacing: 6) {
+                                    Circle()
+                                        .fill(Color.black)
+                                        .frame(width: 8, height: 8)
+                                        .overlay(Circle().stroke(Color.gray.opacity(0.5), lineWidth: 0.5))
+                                    Rectangle()
+                                        .fill(Color.black)
+                                        .frame(width: 20, height: 4)
+                                        .cornerRadius(2)
+                                }
+                                .padding(.top, 6)
+
+                                Spacer()
+
+                                // Internal Component View Layer (Toggled via button)
+                                if isExpanded {
+                                    VStack(spacing: 4) {
+                                        Text("INTERNAL HUD")
+                                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                            .foregroundColor(.red)
+                                        
+                                        // Red Motherboard Graphic Representation
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(Color.red.opacity(0.8))
+                                            .frame(width: 120, height: 50)
+                                            .overlay(
+                                                Text("S12 Microchip & BLE")
+                                                    .font(.system(size: 7, weight: .bold))
+                                                    .foregroundColor(.white)
+                                            )
+
+                                        // Quantum Micro Battery Unit
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(Color.cyan.opacity(0.7))
+                                            .frame(width: 110, height: 35)
+                                            .overlay(
+                                                Text("Quantum Micro Battery")
+                                                    .font(.system(size: 7, weight: .bold))
+                                                    .foregroundColor(.black)
+                                            )
+                                    }
+                                    .transition(.scale.combined(with: .opacity))
+                                } else {
+                                    // Standard Watch Face UI with Health Metrics
+                                    VStack(spacing: 2) {
+                                        HStack {
+                                            Image(systemName: "heart.fill")
+                                                .foregroundColor(.red)
+                                                .font(.system(size: 14))
+                                            Text("124 BPM")
+                                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                                .foregroundColor(.white)
+                                        }
+                                        Text("HEALTH STATUS: OPTIMAL")
+                                            .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                                            .foregroundColor(.green)
+
+                                        // Simulated Activity Rings
+                                        ZStack {
+                                            Circle().stroke(Color.red.opacity(0.3), lineWidth: 4).frame(width: 60, height: 60)
+                                            Circle().stroke(Color.green.opacity(0.3), lineWidth: 4).frame(width: 48, height: 48)
+                                            Circle().stroke(Color.blue.opacity(0.3), lineWidth: 4).frame(width: 36, height: 36)
+                                        }
+                                        .padding(.vertical, 4)
+                                    }
+                                }
+
+                                Spacer()
+                            }
+                        )
+
+                    // Side Hardware: Digital Crown & Side Button casing indicators
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 16) {
+                            // Digital Crown
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(LinearGradient(colors: [.gray, .white, .gray], startPoint: .leading, endPoint: .trailing))
+                                .frame(width: 6, height: 32)
+                        }
+                        .offset(x: 7)
+                    }
+                }
+                .onAppear {
+                    isBlinking = true
+                }
+
+                // Interactive Controls for Architecture Toggle
+                Button(action: {
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                        isExpanded.toggle()
+                    }
+                }) {
+                    Text(isExpanded ? "Show Watch Face Display" : "Inspect Red Motherboard & Sensors")
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                }
+
+                // Detailed Telemetry HUD panel
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Label("Titanium Casing", systemImage: "shield.fill")
+                        Spacer()
+                        Label("Transparent Waterproof", systemImage: "drop.fill")
+                    }
+                    HStack {
+                        Label("Advanced BLE", systemImage: "wave.3.left")
+                        Spacer()
+                        Label("Micro-Sensors Array", systemImage: "cpu")
+                    }
+                }
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 24)
+            }
+            .padding()
+        }
+    }
+}
+
+// Preview Provider
+struct AppleWatchSeries12View_Previews: PreviewProvider {
+    static var previews: some View {
+        AppleWatchSeries12View()
+    }
+}
+
+
+
+import SwiftUI
+
+// MARK: - Advanced Apple Watch Series 12 Complete Implementation
+struct AppleWatchSeries12ProView: View {
+    @State private var ledPulse: Bool = false
+    @State private var activeMode: WatchMode = .telemetry
+    @State private var rotationAngle: Double = 0.0
+
+    enum WatchMode {
+        case telemetry, motherboard, diagnostics
+    }
+
+    var body: some View {
+        ZStack {
+            // CAD Blueprint / Engineering Grid Workspace Background
+            LinearGradient(
+                colors: [Color(UIColor.systemBackground), Color(UIColor.secondarySystemBackground)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 24) {
+                // HUD Header Spec Display
+                VStack(spacing: 4) {
+                    Text("APPLE WATCH SERIES 12 // ARCHITECTURAL SPEC")
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundColor(.red)
+                    Text("Titanium Grade-5 Casing | Transparent Waterproofing Membrane")
+                        .font(.system(size: 9, weight: .regular, design: .monospaced))
+                        .foregroundColor(.gray)
+                }
+
+                // Core Watch Assembly (Actual Scale Mockup Layout: ~45mm Proportional Frame)
+                ZStack {
+                    // Outer Transparent Waterproofing Seal Layer
+                    RoundedRectangle(cornerRadius: 52, style: .continuous)
+                        .stroke(Color.cyan.opacity(0.4), lineWidth: 4)
+                        .frame(width: 232, height: 282)
+
+                    // Titanium Side Casing Chassis
+                    RoundedRectangle(cornerRadius: 48, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(.systemGray2), Color(.systemGray4), Color(.black)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 220, height: 270)
+                        .shadow(color: Color.black.opacity(0.5), radius: 20, x: 0, y: 12)
+
+                    // Blinking Colorful LED Health Status Border
+                    RoundedRectangle(cornerRadius: 44, style: .continuous)
+                        .stroke(
+                            AngularGradient(
+                                gradient: Gradient(colors: [.red, .yellow, .green, .cyan, .blue, .purple, .red]),
+                                center: .center
+                            ),
+                            lineWidth: ledPulse ? 5 : 2.5
+                        )
+                        .frame(width: 206, height: 256)
+                        .opacity(ledPulse ? 1.0 : 0.5)
+                        .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: ledPulse)
+
+                    // Strong Slim LCD Screen / LTPO Panel
+                    RoundedRectangle(cornerRadius: 40, style: .continuous)
+                        .fill(Color.black)
+                        .frame(width: 198, height: 248)
+                        .overlay(
+                            VStack {
+                                // Front Camera & Mic Notch Complex
+                                HStack(spacing: 8) {
+                                    Circle()
+                                        .fill(Color(.systemGray6))
+                                        .frame(width: 6, height: 6)
+                                        .overlay(Circle().stroke(Color.red, lineWidth: 0.8))
+                                    Capsule()
+                                        .fill(Color.black)
+                                        .frame(width: 18, height: 3)
+                                }
+                                .padding(.top, 8)
+
+                                Spacer()
+
+                                // Dynamic Mode Render View
+                                groupModeView()
+
+                                Spacer()
+                            }
+                        )
+
+                    // Hardware Controls: Digital Crown & Mic Housing
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 20) {
+                            // Digital Crown with Red Ring Accents
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(LinearGradient(colors: [.gray, .white, .gray], startPoint: .leading, endPoint: .trailing))
+                                    .frame(width: 7, height: 36)
+                                Rectangle()
+                                    .fill(Color.red)
+                                    .frame(width: 7, height: 4)
+                            }
+                        }
+                        .offset(x: 7.5)
+                    }
+                }
+                .onAppear {
+                    ledPulse = true
+                }
+
+                // Interactive Architecture Switcher Controls
+                HStack(spacing: 12) {
+                    modeButton(title: "Telemetry", mode: .telemetry)
+                    modeButton(title: "Red Motherboard", mode: .motherboard)
+                    modeButton(title: "Diagnostics", mode: .diagnostics)
+                }
+
+                // Advanced Hardware Specs Readout Footnote
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("• Processor: S12 Microchip (BLE Core)")
+                        Spacer()
+                        Text("• Power: Quantum Micro Battery")
+                    }
+                    HStack {
+                        Text("• Casing: Titanium Grade-5")
+                        Spacer()
+                        Text("• Display: Strong Slim LCD Matrix")
+                    }
+                }
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 20)
+            }
+            .padding()
+        }
+    }
+
+    // MARK: - Dynamic Views Based on Mode
+    @ViewBuilder
+    private func groupModeView() -> some View {
+        switch activeMode {
+        case .telemetry:
+            VStack(spacing: 4) {
+                HStack(spacing: 4) {
+                    Image(systemName: "heart.fill")
+                        .foregroundColor(.red)
+                    Text("132 BPM")
+                        .font(.system(size: 16, weight: .heavy, design: .rounded))
+                        .foregroundColor(.white)
+                }
+                Text("STATUS: BLINKING LED OPTIMAL")
+                    .font(.system(size: 7, weight: .bold, design: .monospaced))
+                    .foregroundColor(.green)
+
+                // Rings UI
+                ZStack {
+                    Circle().stroke(Color.red.opacity(0.3), lineWidth: 4).frame(width: 54, height: 54)
+                    Circle().stroke(Color.green.opacity(0.3), lineWidth: 4).frame(width: 44, height: 44)
+                    Circle().stroke(Color.blue.opacity(0.3), lineWidth: 4).frame(width: 34, height: 34)
+                }
+                .padding(.top, 4)
+            }
+            .transition(.opacity)
+
+        case .motherboard:
+            VStack(spacing: 6) {
+                Text("ADVANCED RED MOTHERBOARD")
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .foregroundColor(.red)
+
+                // Simulated High-Density Red PCB Layout
+                VStack(spacing: 4) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.red)
+                        .frame(width: 140, height: 50)
+                        .overlay(
+                            Text("S12 Chip & Quantum Module")
+                                .font(.system(size: 7, weight: .bold))
+                                .foregroundColor(.white)
+                        )
+                    HStack(spacing: 4) {
+                        RoundedRectangle(cornerRadius: 3).fill(Color.black).frame(width: 66, height: 24)
+                            .overlay(Text("BLE 6.0").font(.system(size: 6)).foregroundColor(.cyan))
+                        RoundedRectangle(cornerRadius: 3).fill(Color.black).frame(width: 66, height: 24)
+                            .overlay(Text("Sensors").font(.system(size: 6)).foregroundColor(.green))
+                    }
+                }
+            }
+            .transition(.scale)
+
+        case .diagnostics:
+            VStack(spacing: 4) {
+                Text("QUANTUM POWER & BLE MESH")
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .foregroundColor(.cyan)
+                
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.cyan.opacity(0.2))
+                    .frame(width: 140, height: 60)
+                    .overlay(
+                        VStack(spacing: 2) {
+                            Text("Micro Battery: 99.8%")
+                                .font(.system(size: 8, weight: .semibold))
+                                .foregroundColor(.white)
+                            Text("Waterproofing: Active")
+                                .font(.system(size: 7))
+                                .foregroundColor(.green)
+                        }
+                    )
+            }
+            .transition(.opacity)
+        }
+    }
+
+    // MARK: - Helper Buttons
+    private func modeButton(title: String, mode: WatchMode) -> some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                activeMode = mode
+            }
+        }) {
+            Text(title)
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(activeMode == mode ? Color.red : Color(.systemGray5))
+                .foregroundColor(activeMode == mode ? .white : .primary)
+                .cornerRadius(6)
+        }
+    }
+}
+
+// MARK: - Preview Provider
+struct AppleWatchSeries12ProView_Previews: PreviewProvider {
+    static var previews: some View {
+        AppleWatchSeries12ProView()
+    }
+}
+
+
+
+import SwiftUI
+
+// MARK: - Apple Watch Series 12 System Iconography Suite
+struct AppleWatchSeries12Icons: View {
+    var body: some View {
+        ZStack {
+            Color(UIColor.systemGroupedBackground)
+                .ignoresSafeArea()
+
+            ScrollView {
+                VStack(spacing: 32) {
+                    // Header Section
+                    VStack(spacing: 4) {
+                        Text("APPLE WATCH SERIES 12 // ASSET ICON SET")
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .foregroundColor(.primary)
+                        Text("System Glyphs: Telemetry, Motherboard, Hardware Casing & Quantum Cell")
+                            .font(.system(size: 9, weight: .regular, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.top, 16)
+
+                    // Icon Grid
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 24) {
+                        
+                        // 1. Full Watch Vector Icon
+                        IconCard(title: "Watch Vector Icon") {
+                            ZStack {
+                                // Titanium Casing Base
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(LinearGradient(colors: [.gray, .black], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .frame(width: 80, height: 98)
+
+                                // Blinking LED Border
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(
+                                        AngularGradient(gradient: Gradient(colors: [.red, .yellow, .green, .cyan, .blue, .purple, .red]), center: .center),
+                                        lineWidth: 2
+                                    )
+                                    .frame(width: 74, height: 92)
+
+                                // Screen Display
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.black)
+                                    .frame(width: 70, height: 88)
+                                    .overlay(
+                                        VStack(spacing: 2) {
+                                            Image(systemName: "heart.fill")
+                                                .foregroundColor(.red)
+                                                .font(.system(size: 14))
+                                            Text("120")
+                                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                                .foregroundColor(.white)
+                                            Circle()
+                                                .fill(Color.green)
+                                                .frame(width: 4, height: 4)
+                                        }
+                                    )
+                            }
+                        }
+
+                        // 2. Red Motherboard Icon
+                        IconCard(title: "Red PCB & Microchip") {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color(.systemGray6))
+                                    .frame(width: 90, height: 90)
+
+                                VStack(spacing: 4) {
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.red)
+                                        .frame(width: 64, height: 36)
+                                        .overlay(
+                                            Text("S12")
+                                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                                .foregroundColor(.white)
+                                        )
+                                    HStack(spacing: 3) {
+                                        RoundedRectangle(cornerRadius: 3).fill(Color.black).frame(width: 30, height: 16)
+                                        RoundedRectangle(cornerRadius: 3).fill(Color.black).frame(width: 30, height: 16)
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3. Quantum Micro Battery Icon
+                        IconCard(title: "Quantum Micro Battery") {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color(.systemGray6))
+                                    .frame(width: 90, height: 90)
+
+                                VStack(spacing: 6) {
+                                    Image(systemName: "bolt.fill")
+                                        .foregroundColor(.cyan)
+                                        .font(.system(size: 20))
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.cyan.opacity(0.3))
+                                        .frame(width: 60, height: 22)
+                                        .overlay(
+                                            Text("99.9%")
+                                                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                                .foregroundColor(.cyan)
+                                        )
+                                }
+                            }
+                        }
+
+                        // 4. Titanium & Transparent Waterproofing Icon
+                        IconCard(title: "Titanium & Seal") {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color(.systemGray6))
+                                    .frame(width: 90, height: 90)
+
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .stroke(Color.cyan, lineWidth: 2)
+                                        .frame(width: 64, height: 76)
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.gray)
+                                        .frame(width: 54, height: 66)
+                                    Image(systemName: "drop.fill")
+                                        .foregroundColor(.white.opacity(0.8))
+                                        .font(.system(size: 16))
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Reusable Icon Display Card Wrapper
+struct IconCard<Content: View>: View {
+    let title: String
+    let content: Content
+
+    init(title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(UIColor.systemBackground))
+                    .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 4)
+                content
+                    .padding(16)
+            }
+            Text(title)
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+// MARK: - Preview Provider
+struct AppleWatchSeries12Icons_Previews: PreviewProvider {
+    static var previews: some View {
+        AppleWatchSeries12Icons()
+    }
+}
