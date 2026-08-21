@@ -1,0 +1,396 @@
+-- Example of a simple item ability script
+function CustomItemAbility(keys)
+    local caster = keys.caster
+    -- Add your custom effect logic here
+end
+
+
+
+// Addon Game Mode Initialization
+import { Logger } from "./logger";
+
+const log = new Logger("GameMode");
+
+class GameMode {
+    public static Init(): GameMode {
+        const instance = new GameMode();
+        instance.RegisterServerEvents();
+        return instance;
+    }
+
+    private RegisterServerEvents(): void {
+        // Hook game events for rewards and tracking
+        ListenToGameEvent("entity_killed", (keys) => this.OnEntityKilled(keys), this);
+        log.Info("Active AI Dota 2 Expansion GameMode Initialized.");
+    }
+
+    private OnEntityKilled(keys:reszt.EntityKilledEvent): void {
+        const killedUnit = EntIndexToHScript(keys.entindex_killed) as CDOTA_BaseNPC;
+        const killerUnit = EntIndexToHScript(keys.entindex_attacker) as CDOTA_BaseNPC;
+
+        if (killerUnit && killerUnit.IsRealHero() && killedUnit.IsNeutralUnitType()) {
+            // Trigger custom reward / currency loop
+            this.GrantMatchReward(killerUnit, 50);
+        }
+    }
+
+    private GrantMatchReward(hero: CDOTA_BaseNPC, amount: number): void {
+        const playerID = hero.GetPlayerID();
+        // Send custom event to Panorama HUD to display reward points
+        CustomGameEventManager.Send_ServerToPlayer(
+            PlayerResource.GetPlayer(playerID),
+            "player_reward_granted",
+            { points: amount }
+        );
+    }
+}
+
+// Start Game
+GameMode.Init();
+
+
+
+
+"DOTAAbilities"
+{
+    "item_expansion_plasma_core"
+    {
+        "BaseClass"             "item_datadriven"
+        "AbilityBehavior"       "DOTA_ABILITY_BEHAVIOR_NO_TARGET | DOTA_ABILITY_BEHAVIOR_IMMEDIATE"
+        "AbilityTextureName"    "item_sphere"
+        
+        // Item stats
+        "ItemCost"              "3200"
+        "ItemShopTags"          "mana=150;regen=10"
+        
+        "AbilityCooldown"       "15.0"
+        "AbilityManaCost"       "75"
+
+        "Modifiers"
+        {
+            "modifier_plasma_core_buff"
+            {
+                "Passive"       "1"
+                "Attributes"    "MODIFIER_ATTRIBUTE_MULTIPLE"
+                "Properties"
+                {
+                    "MODIFIER_PROPERTY_STATS_INTELLECT_BONUS" "35"
+                    "MODIFIER_PROPERTY_MANA_REGEN_CONSTANT"   "4.2"
+                }
+            }
+        }
+
+        "OnSpellStart"
+        {
+            "RunScript"
+            {
+                "ScriptFile"    "items/plasma_core.lua"
+                "Function"      "OnPlasmaCoreActivated"
+            }
+        }
+    }
+}
+
+
+
+function OnPlasmaCoreActivated(keys)
+    local caster = keys.caster
+    local duration = 6.0
+
+    -- Apply active particle upgrade visual effect
+    local particleName = "particles/items2_fx/orchid_pop.vpcf"
+    local pfx = ParticleManager:CreateParticle(particleName, PATTACH_ABSORIGIN_FOLLOW, caster)
+    ParticleManager:SetParticleControl(pfx, 0, caster:GetAbsOrigin())
+    
+    -- Grant temporary attack damage & movement speed boost (Kaizen loop optimization metric)
+    caster:AddNewModifier(caster, keys.ability, "modifier_plasma_core_active", {duration = duration})
+    
+    EmitSoundOn("DOTA_Item.BKB.Activate", caster)
+end
+
+
+
+
+<root>
+    <styles>
+        <include src="file://{resources}/styles/custom_game/hud.css" />
+    </styles>
+    <script src="file://{resources}/scripts/custom_game/hud.js" />
+    
+    <Panel class="ExpansionHUDContainer" hittest="false">
+        <Panel id="RewardTrackerPanel" class="hud-box">
+            <Label id="RewardLabel" text="EXPANSION REWARDS: 0 PTS" />
+        </Panel>
+    </Panel>
+</root>
+
+
+
+
+import { registerModifier, BaseModifier } from "./lib/dota_ts_adapter";
+
+export class ExpansionAIController {
+    public static InitializeAIUnit(unit: CDOTA_BaseNPC): void {
+        unit.SetContextThink("AIThinkLoop", () => {
+            if (!unit.IsAlive()) return nil;
+            
+            // Execute Active AI behavior: Scan for targets within 800 range
+            const enemies = FindUnitsInRadius(
+                unit.GetTeamNumber(),
+                unit.GetAbsOrigin(),
+                undefined,
+                800,
+                DOTA_UNIT_TARGET_TEAM.DOTA_UNIT_TARGET_TEAM_ENEMY,
+                DOTA_UNIT_TARGET_TYPE.DOTA_UNIT_TARGET_HERO | DOTA_UNIT_TARGET_TYPE.DOTA_UNIT_TARGET_BASIC,
+                DOTA_UNIT_TARGET_FLAGS.DOTA_UNIT_TARGET_FLAG_NONE,
+                FindOrder.FIND_CLOSEST,
+                false
+            );
+
+            if (enemies.length > 0) {
+                // Engage target aggressively with tactical movement
+                const target = enemies[0];
+                ExecuteOrderFromTable({
+                    UnitIndex: unit.GetEntityIndex(),
+                    OrderType: dotaunitorder_t.DOTA_UNIT_ORDER_ATTACK_TARGET,
+                    TargetIndex: target.GetEntityIndex()
+                });
+            }
+
+            return 1.0; // Refresh think loop every 1 second
+        }, 0.5);
+    }
+}
+
+
+
+
+import { registerAbility, registerModifier, BaseAbility, BaseModifier } from "./lib/dota_ts_adapter";
+
+@registerAbility("item_expansion_quantum_blade")
+export class item_expansion_quantum_blade extends BaseAbility {
+    OnSpellStart() {
+        const caster = this.GetCaster();
+        const duration = 5.0;
+
+        // Apply visual upgrade particle effect
+        const pfx = ParticleManager:CreateParticle(
+            "particles/units/heroes/hero_juggernaut/jugg_crit_blur.vpcf",
+            ParticleAttachment.PATTACH_ABSORIGIN_FOLLOW,
+            caster
+        );
+        ParticleManager:SetParticleControl(pfx, 0, caster.GetAbsOrigin());
+
+        // Apply stat buff modifier
+        caster.AddNewModifier(caster, this, "modifier_quantum_blade_active", { duration: duration });
+        EmitSoundOn("DOTA_Item.DiffusalBlade.Activate", caster);
+    }
+}
+
+@registerModifier()
+export class modifier_quantum_blade_active extends BaseModifier {
+    DeclareFunctions() {
+        return [
+            modifierfunction.MODIFIER_PROPERTY_ATTACKSPEED_BONUS_CONSTANT,
+            modifierfunction.MODIFIER_PROPERTY_MOVESPEED_BONUS_PERCENTAGE
+        ];
+    }
+    GetModifierAttackSpeedBonusConstant() { return 75; }
+    GetModifierMoveSpeedBonusPercentage() { return 15; }
+}
+
+
+
+<!-- content/panorama/layout/custom_game/hud.xml -->
+<root>
+    <styles>
+        <include src="file://{resources}/styles/custom_game/hud.css" />
+    </styles>
+    <Panel class="ExpansionHUD" hittest="false">
+        <Label id="RewardPointsLabel" text="REWARDS: 0 PTS" />
+    </Panel>
+</root>
+
+
+
+// src/panorama/hud.ts
+GameEvents.Subscribe("player_reward_granted", (data: { points: number }) => {
+    const label = $.GetContextPanel().FindChildTraverse("RewardPointsLabel") as LabelPanel;
+    if (label) {
+        label.text = `REWARDS: ${data.points} PTS`;
+    }
+});
+
+
+
+"AddonHudTextures"
+{
+    "TextureData"
+    {
+        // Custom Quantum Blade Item Icon
+        "item_expansion_quantum_blade"
+        {
+            "file"   "materials/vgui/hud/items/quantum_blade.vmat"
+            "x"      "0"
+            "y"      "0"
+            "width"  "128"
+            "height" "128"
+        }
+        
+        // Custom Active AI Unit Minimap Icon
+        "expansion_ai_commander_icon"
+        {
+            "file"   "materials/vgui/hud/minimap/ai_commander.vmat"
+            "x"      "0"
+            "y"      "0"
+            "width"  "64"
+            "height" "64"
+        }
+    }
+}
+
+
+
+
+{
+    "Shader" "ui.vfx"
+    
+    // Enable stencil masking and translucency for clean icon borders
+    "F_STENCIL_MASKING" "1"
+    "F_TRANSLUCENT"     "1"
+    
+    // Path reference to your compiled texture source
+    "Texture"           "materials/vgui/hud/items/quantum_blade.png"
+}
+
+
+
+
+"DOTAAbilities"
+{
+    "item_expansion_quantum_blade"
+    {
+        "BaseClass"           "item_datadriven"
+        "AbilityTextureName"  "item_expansion_quantum_blade" // Links to addon_hud_textures.txt
+        "AbilityBehavior"     "DOTA_ABILITY_BEHAVIOR_NO_TARGET"
+        // Additional balance and cooldown properties...
+    }
+}
+
+
+
+
+<root>
+    <styles>
+        <include src="file://{resources}/styles/custom_game/mobile_hud.css" />
+    </styles>
+    <script src="file://{resources}/scripts/custom_game/mobile_hud.js" />
+
+    <Panel class="MobileRootContainer" hittest="false">
+        {/* Top Bar Status / Rewards Tracker */}
+        <Panel id="TopBarStatus" class="top-bar">
+            <Label id="RewardPointsLabel" text="REWARDS: 0 PTS" />
+        </Panel>
+
+        {/* Virtual On-Screen Action Controls */}
+        <Panel id="TouchControlJoystick" class="joystick-container" />
+        <Button id="ActiveAbilityButton" class="action-button" onactivate="OnActiveAbilityPressed()">
+            <Label text="ACTIVE AI SKILL" />
+        </Button>
+    </Panel>
+</root>
+
+
+
+"use strict";
+
+function OnActiveAbilityPressed() {
+    // Trigger custom active AI item or expansion spell from mobile client
+    GameEvents.SendCustomGameEventToServer("mobile_ability_activated", {
+        player_id: Players.GetLocalPlayer(),
+        timestamp: Game.GetTime()
+    });
+    $.Msg("Mobile active expansion command sent.");
+}
+
+// Listen for server reward updates to refresh mobile HUD instantly
+function InitializeMobileListeners() {
+    GameEvents.Subscribe("player_reward_granted", function(data) {
+        let rewardLabel = $.GetContextPanel().FindChildTraverse("RewardPointsLabel");
+        if (rewardLabel) {
+            rewardLabel.text = "REWARDS: " + data.points + " PTS";
+        }
+    });
+}
+
+// Run initialization on load
+InitializeMobileListeners();
+
+
+
+.MobileRootContainer {
+    width: 100%;
+    height: 100%;
+    flow-children: down;
+}
+
+.top-bar {
+    width: 400px;
+    height: 60px;
+    background-color: gradient(linear, 0% 0%, 0% 100%, from(#111f), to(#222f));
+    border: 2px solid #334;
+    border-radius: 8px;
+    margin: 20px;
+    align: center top;
+}
+
+#RewardPointsLabel {
+    color: #00ffcc;
+    font-size: 22px;
+    font-weight: bold;
+    align: center center;
+}
+
+.action-button {
+    width: 120px;
+    height: 120px;
+    background-color: #ff4400;
+    border-radius: 60px;
+    align: right bottom;
+    margin-right: 40px;
+    margin-bottom: 40px;
+    box-shadow: #000000aa 0px 8px 16px;
+}
+
+.action-button Label {
+    color: white;
+    font-size: 14px;
+    text-align: center;
+    align: center center;
+}
+
+
+
+export class MobileRewardsManager {
+    private static playerPoints: Map<number, number> = new Map();
+
+    public static Initialize(): void {
+        CustomGameEventManager.RegisterListener("mobile_ability_activated", (userId, event) => {
+            const playerID = event.player_id;
+            MobileRewardsManager.AddPoints(playerID, 10);
+        });
+    }
+
+    private static AddPoints(playerID: PlayerID, amount: number): void {
+        let current = this.playerPoints.get(playerID) || 0;
+        current += amount;
+        this.playerPoints.set(playerID, current);
+
+        // Push real-time update back to mobile client HUD
+        CustomGameEventManager.Send_ServerToPlayer(
+            PlayerResource.GetPlayer(playerID),
+            "player_reward_granted",
+            { points: current }
+        );
+    }
+}
