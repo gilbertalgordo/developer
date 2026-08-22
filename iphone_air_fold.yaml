@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="in">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPhone Air Fold - Technical Blueprint & Specification</title>
+    <style>
+        :root {
+            --blueprint-bg: #0b2545;
+            --grid-color: rgba(255, 255, 255, 0.08);
+            --line-color: #64dfdf;
+            --text-color: #90e0ef;
+            --accent-red: #ff4d4d;
+            --accent-glow: #00f5d4;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: var(--blueprint-bg);
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: var(--text-color);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        header {
+            text-align: center;
+            border: 2px solid var(--line-color);
+            padding: 15px;
+            margin-bottom: 25px;
+            background: rgba(11, 37, 69, 0.9);
+            box-shadow: 0 0 15px rgba(100, 223, 223, 0.2);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            color: var(--line-color);
+            text-transform: uppercase;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .view-panel {
+            border: 1px dashed var(--line-color);
+            padding: 20px;
+            background: rgba(11, 37, 69, 0.5);
+            position: relative;
+        }
+
+        .view-panel h2 {
+            font-size: 1.1rem;
+            border-bottom: 1px solid var(--line-color);
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .schematic-box {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            height: 380px;
+            border: 1px solid rgba(100, 223, 223, 0.3);
+            margin-bottom: 15px;
+            position: relative;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        /* CSS Phone Mockups representing Front & Rear Views */
+        .phone-mockup {
+            width: 140px;
+            height: 280px;
+            border: 3px solid var(--line-color);
+            border-radius: 12px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 8px;
+            box-shadow: inset 0 0 10px rgba(100, 223, 223, 0.2);
+        }
+
+        .phone-mockup.unfolded {
+            width: 220px;
+            height: 280px;
+        }
+
+        .screen-content {
+            flex: 1;
+            border: 1px solid var(--line-color);
+            font-size: 0.6rem;
+            padding: 5px;
+            background: rgba(100, 223, 223, 0.05);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Internal Component Layers for Rear View */
+        .internal-layer {
+            position: absolute;
+            top: 8px; left: 8px; right: 8px; bottom: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding: 4px;
+        }
+
+        .motherboard-red {
+            background-color: var(--accent-red);
+            height: 80px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            color: #fff;
+            font-weight: bold;
+            box-shadow: 0 0 5px var(--accent-red);
+        }
+
+        .battery-quantum {
+            background-color: #2a9d8f;
+            height: 90px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            color: #fff;
+        }
+
+        .chips-row {
+            display: flex;
+            gap: 4px;
+            height: 35px;
+        }
+
+        .chip {
+            flex: 1;
+            background: #e76f51;
+            border-radius: 3px;
+            font-size: 0.45rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: #fff;
+        }
+
+        .camera-module-rear {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 45px;
+            height: 45px;
+            border: 2px solid var(--accent-glow);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-glow);
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 5px var(--accent-glow); }
+            50% { box-shadow: 0 0 15px var(--accent-glow), 0 0 5px #fff; }
+            100% { box-shadow: 0 0 5px var(--accent-glow); }
+        }
+
+        .specs-list {
+            list-style: none;
+            font-size: 0.85rem;
+        }
+
+        .specs-list li {
+            padding: 6px 0;
+            border-bottom: 1px dotted rgba(100, 223, 223, 0.2);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .specs-list span.highlight {
+            color: var(--line-color);
+            font-weight: bold;
+        }
+
+        .specs-list span.code-val {
+            color: #ffb703;
+        }
+
+        footer {
+            margin-top: 25px;
+            text-align: center;
+            font-size: 0.75rem;
+            border-top: 1px solid var(--line-color);
+            padding-top: 10px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>iPhone Air Fold — Technical Blueprint & Architecture</h1>
+        <p>Actual Size Scale 1:1 | Slim Sleek Titanium Siding | Lengthwise Hinge Styling</p>
+    </header>
+
+    <div class="container">
+        <!-- LEFT VIEW: FRONT ELEVATION -->
+        <div class="view-panel">
+            <h2>Left View: Front Elevation (Folded & Unfolded)</h2>
+            <div class="schematic-box">
+                <!-- Unfolded State -->
+                <div class="phone-mockup unfolded">
+                    <div class="screen-content">
+                        <div>[ Dynamic Island ]</div>
+                        <div style="text-align:center;">Strong LCD Panel<br>Flexible Layer Active</div>
+                        <div>Status: Unfolded (1:1 Scale)</div>
+                    </div>
+                </div>
+                <!-- Folded State -->
+                <div class="phone-mockup">
+                    <div class="screen-content">
+                        <div>[ Cover Display ]</div>
+                        <div style="text-align:center; font-size: 0.5rem;">Lengthwise Closing</div>
+                        <div>10:09</div>
+                    </div>
+                </div>
+            </div>
+            <ul class="specs-list">
+                <li><span>1. Strong LCD Display</span> <span class="code-val">High-Durability Flexible IPS LCD</span></li>
+                <li><span>Titanium Siding</span> <span class="code-val">Grade 5 Aerospace Alloy</span></li>
+                <li><span>Opening/Closing Style</span> <span class="code-val">Lengthwise Vertical Axis Hinge</span></li>
+                <li><span>7. Invisible Waterproofing</span> <span class="code-val">Nanoscale IP68 Internal Sealing</span></li>
+            </ul>
+        </div>
+
+        <!-- RIGHT VIEW: REAR ELEVATION & INTERNAL ARCHITECTURE -->
+        <div class="view-panel">
+            <h2>Right View: Rear Chassis & Internals</h2>
+            <div class="schematic-box" style="justify-content: center;">
+                <div class="phone-mockup" style="width: 180px; background: rgba(5, 15, 30, 0.8);">
+                    <div class="camera-module-rear"></div>
+                    <div class="internal-layer">
+                        <div class="motherboard-red">
+                            2. RED MOTHERBOARD + 3. NEW APPLE PROCESSOR
+                        </div>
+                        <div class="battery-quantum">
+                            4. QUANTUM MICRO BATTERY (Ultra-Slim)
+                        </div>
+                        <div class="chips-row">
+                            <div class="chip">5. BLE Micro Chip</div>
+                            <div class="chip">Secure Enclave</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <ul class="specs-list">
+                <li><span>2. Red Motherboards</span> <span class="code-val">Custom High-Density PCB Layout</span></li>
+                <li><span>3. New Apple Processor</span> <span class="code-val">Next-Gen A-Series Silicon Core</span></li>
+                <li><span>4. Quantum Micro Battery</span> <span class="code-val">Solid-State Slim Architecture</span></li>
+                <li><span>5. BLE Micro Chip</span> <span class="code-val">Ultra-Low Power Bluetooth 5.5</span></li>
+                <li><span>6. LED Camera Border Lights</span> <span class="code-val">RGB Programmable Ring Halo</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <footer>
+        Schematic Blueprint Version 3.1 | Designed for Precision Engineering & Hardware Specification
+    </footer>
+
+</body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPhone Air Fold - Advanced Engineering HUD Blueprint</title>
+    <style>
+        :root {
+            --bg-deep: #030a14;
+            --grid-line: rgba(0, 245, 212, 0.05);
+            --hud-cyan: #00f5d4;
+            --hud-blue: #48cae4;
+            --hud-dim: rgba(72, 202, 228, 0.6);
+            --accent-red: #ff3366;
+            --accent-gold: #ffd166;
+            --panel-bg: rgba(5, 20, 35, 0.85);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Courier New', monospace;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            background-image: 
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 30px 30px;
+            color: var(--hud-blue);
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        header {
+            border: 1px solid var(--hud-cyan);
+            background: var(--panel-bg);
+            padding: 15px 25px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(0, 245, 212, 0.15);
+            position: relative;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: var(--hud-cyan);
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            letter-spacing: 3px;
+            color: var(--hud-cyan);
+            text-transform: uppercase;
+        }
+
+        .sys-status {
+            font-size: 0.8rem;
+            color: var(--accent-gold);
+            display: flex;
+            gap: 15px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 1024px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .blueprint-panel {
+            border: 1px solid var(--hud-dim);
+            background: var(--panel-bg);
+            padding: 20px;
+            position: relative;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+        }
+
+        .blueprint-panel h2 {
+            font-size: 0.95rem;
+            letter-spacing: 2px;
+            color: var(--hud-cyan);
+            border-bottom: 1px solid var(--hud-dim);
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .viewport-3d {
+            height: 420px;
+            border: 1px dashed var(--hud-dim);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            position: relative;
+            background: radial-gradient(circle at center, rgba(3,37,69,0.4) 0%, rgba(2,10,20,0.8) 100%);
+            margin-bottom: 15px;
+            perspective: 1000px;
+        }
+
+        /* Phone Hardware Mockups */
+        .device-shell {
+            width: 150px;
+            height: 300px;
+            border: 2px solid var(--hud-cyan);
+            border-radius: 14px;
+            position: relative;
+            background: rgba(10, 15, 25, 0.9);
+            box-shadow: 0 0 15px rgba(0, 245, 212, 0.2);
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .device-shell.unfolded {
+            width: 230px;
+        }
+
+        .screen-lcd {
+            flex: 1;
+            border: 1px solid var(--hud-blue);
+            background: rgba(0, 245, 212, 0.03);
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 0.6rem;
+            color: #fff;
+            position: relative;
+        }
+
+        .titanium-rail {
+            position: absolute;
+            left: -4px; top: 15%; bottom: 15%; width: 4px;
+            background: linear-gradient(to bottom, #8d99ae, #2b2d42);
+            border-radius: 2px;
+        }
+
+        /* Internal Component Layers (Rear View) */
+        .internal-chassis {
+            position: absolute;
+            inset: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .pcb-red {
+            background: linear-gradient(135deg, var(--accent-red), #b7094c);
+            height: 95px;
+            border-radius: 4px;
+            border: 1px solid #ff70a6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            color: #fff;
+            font-weight: bold;
+            box-shadow: 0 0 8px rgba(255, 51, 102, 0.4);
+        }
+
+        .quantum-battery {
+            background: linear-gradient(135deg, #1d3557, #457b9d);
+            height: 110px;
+            border-radius: 4px;
+            border: 1px solid var(--hud-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            color: #fff;
+            letter-spacing: 1px;
+        }
+
+        .chips-cluster {
+            display: flex;
+            gap: 6px;
+            height: 40px;
+        }
+
+        .micro-chip-box {
+            flex: 1;
+            background: #2b2d42;
+            border: 1px solid var(--accent-gold);
+            border-radius: 3px;
+            font-size: 0.45rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-gold);
+            text-align: center;
+        }
+
+        .camera-cluster-hud {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid var(--hud-cyan);
+            box-shadow: 0 0 12px var(--hud-cyan), inset 0 0 8px var(--hud-cyan);
+            animation: ringGlow 2s infinite alternate;
+        }
+
+        @keyframes ringGlow {
+            0% { border-color: var(--hud-cyan); box-shadow: 0 0 5px var(--hud-cyan); }
+            50% { border-color: var(--accent-red); box-shadow: 0 0 15px var(--accent-red); }
+            100% { border-color: var(--accent-gold); box-shadow: 0 0 10px var(--accent-gold); }
+        }
+
+        .specs-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+
+        .specs-table th, .specs-table td {
+            border: 1px solid rgba(72, 202, 228, 0.2);
+            padding: 6px 10px;
+            text-align: left;
+        }
+
+        .specs-table th {
+            background: rgba(0, 245, 212, 0.08);
+            color: var(--hud-cyan);
+        }
+
+        .specs-table td span {
+            color: var(--accent-gold);
+        }
+
+        .watermark-hud {
+            position: absolute;
+            bottom: 5px;
+            right: 10px;
+            font-size: 0.5rem;
+            opacity: 0.5;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>iPhone Air Fold // Advanced HUD Architecture</h1>
+            <p style="font-size: 0.75rem; color: var(--hud-dim);">Scale 1:1 Engineering Build | Lengthwise Dynamic Axis</p>
+        </div>
+        <div class="sys-status">
+            <span>SYS: OPTIMAL</span>
+            <span>SECURE: IP68 ACTIVE</span>
+        </div>
+    </header>
+
+    <div class="grid-container">
+        <!-- FRONT ELEVATION VIEW -->
+        <div class="blueprint-panel">
+            <h2><span>View 01: Front Elevation</span> <span>Unfolded / Folded</span></h2>
+            <div class="viewport-3d">
+                <!-- Unfolded State -->
+                <div class="device-shell unfolded">
+                    <div class="titanium-rail"></div>
+                    <div class="screen-lcd">
+                        <div style="text-align: center; color: var(--hud-cyan);">[ Dynamic Island ]</div>
+                        <div style="margin-top: 40px; text-align: center; font-weight: bold;">1. Strong Flexible LCD Panel</div>
+                        <div class="watermark-hud">7. Invisible IP68 Sealing</div>
+                    </div>
+                </div>
+                <!-- Folded State Cover -->
+                <div class="device-shell">
+                    <div class="screen-lcd" style="display: flex; flex-direction: column; justify-content: space-between;">
+                        <div>Cover Display</div>
+                        <div style="text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--hud-cyan);">10:09</div>
+                        <div style="font-size: 0.5rem;">Lengthwise Closing</div>
+                    </div>
+                </div>
+            </div>
+            
+            <table class="specs-table">
+                <tr>
+                    <th>Subsystem</th>
+                    <th>Specification Details</th>
+                </tr>
+                <tr>
+                    <td>1. Strong LCD</td>
+                    <td><span>Impact-Resistant Flexible IPS Panel</span> with ultra-thin protective glass membrane.</td>
+                </tr>
+                <tr>
+                    <td>Titanium Siding</td>
+                    <td><span>Grade 5 Aerospace Alloy</span> featuring precision lengthwise closing channels.</td>
+                </tr>
+                <tr>
+                    <td>7. Waterproofing</td>
+                    <td><span>Invisible Nanoscale IP68</span> molecular barrier applied to all internal framing.</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- REAR ELEVATION & INTERNAL ARCHITECTURE VIEW -->
+        <div class="blueprint-panel">
+            <h2><span>View 02: Rear Elevation</span> <span>Internal Components</span></h2>
+            <div class="viewport-3d" style="justify-content: center;">
+                <div class="device-shell" style="width: 200px; background: rgba(3, 15, 30, 0.95);">
+                    <div class="camera-cluster-hud"></div>
+                    <div class="internal-chassis">
+                        <div class="pcb-red">
+                            <span>2. RED MOTHERBOARD</span>
+                            <span>3. New Apple Processor Core</span>
+                        </div>
+                        <div class="quantum-battery">
+                            4. QUANTUM MICRO BATTERY
+                        </div>
+                        <div class="chips-cluster">
+                            <div class="micro-chip-box">5. BLE Micro Chip</div>
+                            <div class="micro-chip-box">Secure Enclave</div>
+                        </div>
+                    </div>
+                    <div class="watermark-hud">6. LED Camera Border Lights (RGB Halo)</div>
+                </div>
+            </div>
+
+            <table class="specs-table">
+                <tr>
+                    <th>Component ID</th>
+                    <th>Hardware Specifications</th>
+                </tr>
+                <tr>
+                    <td>2. Red Motherboards</td>
+                    <td><span>Dual-Layer High-Density Red PCB</span> custom milled for compact fold clearance.</td>
+                </tr>
+                <tr>
+                    <td>3. Apple Processor</td>
+                    <td><span>Next-Gen Silicon A-Series Chipset</span> with dedicated neural compute engine.</td>
+                </tr>
+                <tr>
+                    <td>4. Quantum Battery</td>
+                    <td><span>Solid-State Quantum Micro Cell</span> providing high density in an ultra-slim profile.</td>
+                </tr>
+                <tr>
+                    <td>5. BLE Micro Chip</td>
+                    <td><span>Ultra-Low Power Bluetooth 5.5</span> transceiver for instant accessory sync.</td>
+                </tr>
+                <tr>
+                    <td>6. LED Camera Border</td>
+                    <td><span>Programmable RGB Border Matrix</span> embedded seamlessly around the lens housing.</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+</body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPhone Air Fold - Engineering Schematics</title>
+    <style>
+        :root {
+            --bg-deep: #031022;
+            --blueprint-line: #58a6ff;
+            --hud-text: #c9d1d9;
+            --accent-red: #ff4444;
+            --accent-gold: #ffb347;
+            --accent-green: #00e676;
+            --panel-bg: #0d1b2a;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--hud-text);
+            font-family: 'SF Mono', 'Courier New', monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            border: 1px solid var(--blueprint-line);
+            padding: 15px;
+            background: var(--panel-bg);
+            width: 90%;
+            max-width: 800px;
+            box-shadow: 0 0 15px rgba(88, 166, 255, 0.3);
+        }
+
+        h1 { margin: 0; font-size: 1.5rem; color: var(--blueprint-line); text-transform: uppercase; letter-spacing: 2px; }
+        p { margin: 5px 0 0; font-size: 0.9rem; opacity: 0.8; }
+
+        .views-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            justify-content: center;
+        }
+
+        .view-box {
+            border: 1px solid #30363d;
+            background: var(--panel-bg);
+            padding: 20px;
+            width: 350px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .view-title {
+            font-size: 1.1rem;
+            color: var(--hud-text);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #30363d;
+            width: 100%;
+            text-align: center;
+            padding-bottom: 10px;
+        }
+
+        /* CSS Art Phone Mockups */
+        .phone-frame {
+            width: 160px;
+            height: 320px;
+            border: 4px solid var(--blueprint-line);
+            border-radius: 20px;
+            position: relative;
+            background: #010409;
+            margin-bottom: 20px;
+            box-shadow: 0 0 10px rgba(88, 166, 255, 0.5);
+        }
+
+        .phone-frame.unfolded { width: 300px; height: 300px; border-radius: 16px; display: flex; }
+        .phone-frame.unfolded .left-half, .phone-frame.unfolded .right-half { width: 50%; height: 100%; position: relative; }
+        .phone-frame.unfolded .left-half { border-right: 2px solid #161b22; }
+
+        /* 1. Strong LCD/OLED Display (Icon on screen) */
+        .screen-display {
+            position: absolute;
+            inset: 8px;
+            background: #161b22;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.6rem;
+            color: var(--blueprint-line);
+            border: 1px solid #30363d;
+        }
+        .phone-frame.unfolded .screen-display { border-radius: 8px; }
+        .icon-lcd { font-size: 2rem; margin-bottom: 10px; }
+
+        /* Titanium Siding (Rails) */
+        .titanium-rail {
+            position: absolute;
+            top: 0; bottom: 0;
+            width: 6px;
+            background: linear-gradient(to right, #6e7681, #30363d);
+            border: 1px solid #484f58;
+        }
+        .rail-left { left: -10px; border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+        .rail-right { right: -10px; border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
+        /* Fold/Hinge Area */
+        .unfolded .hinge-center {
+            position: absolute;
+            top: 0; bottom: 0;
+            left: 50%; width: 4px;
+            margin-left: -2px;
+            background: #0d1b2a;
+            z-index: 10;
+            border-left: 1px solid #484f58;
+            border-right: 1px solid #484f58;
+        }
+
+        /* Rear Camera (6. LED Camera Border Lights) */
+        .camera-bump {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: #161b22;
+            border-radius: 10px;
+            border: 1px solid #30363d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+        }
+        .camera-lens {
+            width: 12px; height: 12px; background: #0d1b2a; border-radius: 50%;
+            border: 1px solid var(--blueprint-line);
+            position: relative;
+        }
+        /* The LED Border Light */
+        .camera-lens::after {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            border-top-color: var(--accent-gold);
+            border-right-color: var(--accent-green);
+            animation: rotate-glow 2s linear infinite;
+        }
+
+        @keyframes rotate-glow { 100% { transform: rotate(360deg); } }
+
+        /* Internal Components (Rear View Only) */
+        .internal-view { display: none; }
+        .view-box[data-view="rear"] .internal-view { display: block; position: absolute; inset: 8px; }
+
+        .component {
+            position: absolute;
+            border: 1px solid;
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.5rem;
+            color: #fff;
+        }
+
+        /* 2. Red Motherboards */
+        .motherboard {
+            background: var(--accent-red);
+            border-color: #ff70a6;
+            box-shadow: 0 0 5px rgba(255, 68, 68, 0.5);
+        }
+        .mb-main { top: 10px; left: 10px; width: 80px; height: 120px; }
+        .mb-sub { top: 140px; left: 10px; width: 80px; height: 60px; }
+
+        /* 3. New Apple Processor (Label on MB) */
+        .processor {
+            position: absolute;
+            top: 30px; left: 20px;
+            width: 40px; height: 40px;
+            background: #010409;
+            border-radius: 2px;
+            border: 1px solid var(--accent-gold);
+            color: var(--accent-gold);
+            font-size: 0.4rem;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        /* 4. Quantum Micro Battery */
+        .battery {
+            background: var(--accent-green);
+            border-color: #69f0ae;
+            box-shadow: 0 0 5px rgba(0, 230, 118, 0.5);
+            top: 10px; right: 10px;
+            width: 90px; height: 190px;
+        }
+
+        /* 5. BLE Micro Chip */
+        .ble-chip {
+            background: var(--accent-gold);
+            border-color: #ffe082;
+            top: 150px; right: 25px;
+            width: 20px; height: 20px;
+            font-size: 0.3rem;
+        }
+
+        /* Legend / Specs List */
+        .specs-legend {
+            margin-top: 30px;
+            width: 90%;
+            max-width: 800px;
+            border: 1px solid #30363d;
+            background: var(--panel-bg);
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            font-size: 0.8rem;
+        }
+        .spec-item { display: flex; align-items: flex-start; }
+        .spec-bullet { margin-right: 10px; font-weight: bold; }
+        .spec-id-1 { color: var(--blueprint-line); }
+        .spec-id-2 { color: var(--accent-red); }
+        .spec-id-3 { color: var(--accent-gold); }
+        .spec-id-4 { color: var(--accent-green); }
+        .spec-id-6 { color: var(--accent-gold); /* shared with BLE */ }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>IPHONE AIR FOLD — ENGINEERING SCHEMATICS</h1>
+        <p>ARCHITECTURAL PREVIEW — SCALE 1:1 — TITANIUM CHASSIS</p>
+    </header>
+
+    <div class="views-container">
+
+        <!-- VIEW 1: FRONT ELEVATION -->
+        <div class="view-box" data-view="front">
+            <div class="view-title">View 01: Front Elevation (Unfolded & Folded)</div>
+            
+            <!-- Unfolded State -->
+            <div class="phone-frame unfolded">
+                <div class="left-half">
+                    <div class="screen-display">
+                        <div class="icon-lcd">📱</div>
+                        1.<br>STRONG FLEXIBLE<br>OLED PANEL
+                    </div>
+                    <div class="titanium-rail rail-left"></div>
+                </div>
+                <div class="right-half">
+                    <div class="screen-display">
+                        <div class="icon-lcd">📱</div>
+                        1.<br>STRONG FLEXIBLE<br>OLED PANEL
+                    </div>
+                    <div class="titanium-rail rail-right"></div>
+                </div>
+                <div class="hinge-center"></div>
+            </div>
+
+            <!-- Folded State (Reference) -->
+            <div class="phone-frame" title="Folded State Reference">
+                <div class="screen-display" style="justify-content: flex-start; padding-top: 20px;">
+                    <div style="font-size: 1.5rem; color: #fff;">10:09</div>
+                    <div style="opacity: 0.7;">Cover Display</div>
+                </div>
+                <div class="titanium-rail rail-left"></div>
+                <div class="titanium-rail rail-right"></div>
+            </div>
+        </div>
+
+        <!-- VIEW 2: REAR ELEVATION -->
+        <div class="view-box" data-view="rear">
+            <div class="view-title">View 02: Rear Elevation & Internal Architecture</div>
+            
+            <div class="phone-frame">
+                <!-- External View -->
+                <div class="external-view">
+                    <div class="titanium-rail rail-left"></div>
+                    <div class="titanium-rail rail-right"></div>
+                    <!-- 6. LED Camera Border Lights -->
+                    <div class="camera-bump">
+                        <div class="camera-lens"></div>
+                        <div class="camera-lens"></div>
+                        <div class="camera-lens"></div>
+                    </div>
+                    <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 0.5rem; opacity: 0.5;">TITANIUM PANEL</div>
+                </div>
+
+                <!-- Internal View (Revealed) -->
+                <div class="internal-view">
+                    <!-- 2. Red Motherboards -->
+                    <div class="component motherboard mb-main">2. MAIN PCB (RED)</div>
+                    <div class="component motherboard mb-sub">2. I/O PCB (RED)</div>
+                    <!-- 3. New Apple Processor -->
+                    <div class="component processor">3. A-SERIES<br>NEXT-GEN</div>
+                    <!-- 4. Quantum Micro Battery -->
+                    <div class="component battery">4. SOLID-STATE<br>QUANTUM CELL</div>
+                    <!-- 5. BLE Micro Chip -->
+                    <div class="component ble-chip">5. BLE</div>
+                </div>
+            </div>
+            <!-- 7. Invisible Waterproofing (Annotation) -->
+            <div style="margin-top: 10px; font-size: 0.7rem; color: var(--accent-green); border: 1px dashed var(--accent-green); padding: 5px;">
+                7. NANO-COAT INVISIBLE WATERPROOFING (IPX8)
+            </div>
+        </div>
+
+    </div>
+
+    <div class="specs-legend">
+        <div class="spec-item"><span class="spec-bullet spec-id-1">1.</span> <span><b>Strong Flexible OLED/LCD:</b> Impact-resistant, ultra-thin display substrate utilizing advanced polymer encapsulation for folding durability.</span></div>
+        <div class="spec-item"><span class="spec-bullet spec-id-2">2.</span> <span><b>Red Motherboards:</b> High-density, multi-layer rigid-flex PCBs, customized in a distinctive red substrate color for component identification.</span></div>
+        <div class="spec-item"><span class="spec-bullet spec-id-3">3.</span> <span><b>New Apple Processor:</b> Next-generation A-series system-on-a-chip, optimized for foldable power management and neural processing.</span></div>
+        <div class="spec-item"><span class="spec-bullet spec-id-4">4.</span> <span><b>Quantum Micro Battery:</b> Solid-state, ultra-slim battery cells conforming to the folding chassis, providing high energy density.</span></div>
+        <div class="spec-item"><span class="spec-bullet spec-id-6">5/6.</span> <span><b>BLE Micro Chip & LED Lights:</b> Dedicated Bluetooth Low Energy chip for low-power handoff; integrated individually addressable RGB LED ring lights bordering the camera array.</span></div>
+        <div class="spec-item"><span class="spec-bullet spec-id-1">1/7.</span> <span><b>Titanium Siding & Waterproofing:</b> Grade 5 titanium alloy structural rails and hinge; proprietary invisible nanoscale waterproofing applied to all internal connectors and seals.</span></div>
+    </div>
+
+</body>
+</html>
