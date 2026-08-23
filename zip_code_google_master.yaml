@@ -1,0 +1,569 @@
+import os
+import sys
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM, TextStreamer
+
+class OfflineGoogleAI:
+    def __init__(self, model_id: str = "google/gemma-2b-it", local_dir: str = "./models/gemma"):
+        self.model_id = model_id
+        self.local_dir = local_dir
+        self.tokenizer = None
+        self.model = None
+
+    def initialize_model(self):
+        """Loads model weights locally from cached directory or Hugging Face local store."""
+        print(f"[*] Initializing local engine using model path: {self.local_dir}")
+        
+        # Force offline mode for HuggingFace Transformers
+        os.environ["HF_HUB_OFFLINE"] = "1"
+        os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
+        try:
+            target_path = self.local_dir if os.path.exists(self.local_dir) else self.model_id
+            
+            self.tokenizer = AutoTokenizer.from_pretrained(target_path, local_files_only=True)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                target_path,
+                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+                device_map="auto" if torch.cuda.is_available() else "cpu",
+                local_files_only=True
+            )
+            print("[+] Model successfully loaded in offline mode.")
+        except Exception as e:
+            print(f"[-] Error loading offline model: {e}")
+            print("[i] Ensure weights are saved to './models/gemma' or cached in HF store.")
+            sys.exit(1)
+
+    def generate_response(self, prompt: str, max_new_tokens: int = 512, temperature: float = 0.7):
+        """Generates streaming text output strictly offline."""
+        if not self.model or not self.tokenizer:
+            raise RuntimeError("Model engine not initialized. Call initialize_model() first.")
+
+        # Format prompt according to Gemma instruction template
+        formatted_prompt = f"<start_of_turn>user\n{prompt}<end_of_turn>\n<start_of_turn>model\n"
+        
+        inputs = self.tokenizer(formatted_prompt, return_tensors="pt").to(self.model.device)
+        streamer = TextStreamer(self.tokenizer, skip_prompt=True)
+
+        print("\n--- AI Output ---")
+        self.model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            do_sample=True if temperature > 0 else False,
+            streamer=streamer
+        )
+        print("\n-----------------\n")
+
+def main():
+    ai = OfflineGoogleAI()
+    ai.initialize_model()
+
+    print("\nGoogle AI Master - Offline Mode Ready. Type 'exit' or 'quit' to close.\n")
+    while True:
+        try:
+            user_input = input("You > ")
+            if user_input.strip().lower() in ["exit", "quit"]:
+                break
+            if user_input.strip():
+                ai.generate_response(user_input)
+        except KeyboardInterrupt:
+            break
+
+if __name__ == "__main__":
+    main()
+
+
+
+import os
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+MODEL_NAME = "google/gemma-2b-it"
+SAVE_DIR = "./models/gemma"
+
+def download_and_save():
+    print(f"Downloading {MODEL_NAME} for offline deployment...")
+    os.makedirs(SAVE_DIR, exist_ok=True)
+    
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    tokenizer.save_pretrained(SAVE_DIR)
+    
+    model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+    model.save_pretrained(SAVE_DIR)
+    
+    print(f"[+] Download complete. Saved to '{SAVE_DIR}'. Ready for offline usage.")
+
+if __name__ == "__main__":
+    download_and_save()
+
+
+
+import os
+import zipfile
+
+FILES = {
+    "requirements.txt": "torch>=2.0.0\ntransformers>=4.38.0\naccelerate>=0.26.0\n",
+    "README.md": """# Google AI Master - Offline Mode
+
+## Quick Start
+1. Install dependencies: `pip install -r requirements.txt`
+2. Download model (online phase): `python download_weights.py`
+3. Launch offline engine: `python app.py`
+""",
+}
+
+def create_bundle():
+    zip_filename = "google-ai-master-offline.zip"
+    
+    with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        # Add generated project files
+        for filename, content in FILES.items():
+            zipf.writestr(filename, content)
+        
+        # Add app and downloader scripts
+        if os.path.exists("app.py"):
+            zipf.write("app.py")
+        if os.path.exists("download_weights.py"):
+            zipf.write("download_weights.py")
+
+    print(f"[+] Archive generated successfully: {zip_filename}")
+
+if __name__ == "__main__":
+    create_bundle()
+
+
+
+import os
+import time
+import json
+import asyncio
+import psutil
+from typing import AsyncGenerator
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from llama_cpp import Llama
+
+# Force offline execution mode
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
+APP_META = {
+    "name": "Google AI Master Offline Engine",
+    "developer_profile": "https://g.dev/gilbert_algordo",
+    "version": "2.4.0-Pro",
+    "architecture": "Gemma GGUF + llama.cpp C++ Backend"
+}
+
+app = FastAPI(title=APP_META["name"])
+
+# Load GGUF model locally
+MODEL_PATH = os.getenv("MODEL_PATH", "./models/gemma-2-2b-it.Q4_K_M.gguf")
+
+print(f"[*] Loading quantized Gemma model from: {MODEL_PATH}")
+llm = Llama(
+    model_path=MODEL_PATH,
+    n_ctx=4096,
+    n_threads=os.cpu_count() or 4,
+    n_gpu_layers=-1, # Offload all layers to GPU if available
+    verbose=False
+)
+
+class PromptRequest(BaseModel):
+    prompt: str
+    max_tokens: int = 1024
+    temperature: float = 0.7
+    top_p: float = 0.9
+
+@app.get("/telemetry")
+async def get_telemetry():
+    """Returns real-time hardware telemetry for the local HUD."""
+    ram = psutil.virtual_memory()
+    cpu = psutil.cpu_percent(interval=None)
+    return {
+        "cpu_usage_percent": cpu,
+        "ram_used_gb": round(ram.used / (1024**3), 2),
+        "ram_total_gb": round(ram.total / (1024**3), 2),
+        "ram_percent": ram.percent,
+        "developer": APP_META["developer_profile"]
+    }
+
+async def stream_generation(prompt: str, max_tokens: int, temperature: float, top_p: float) -> AsyncGenerator[str, None]:
+    formatted_prompt = f"<start_of_turn>user\n{prompt}<end_of_turn>\n<start_of_turn>model\n"
+    start_time = time.perf_counter()
+    token_count = 0
+
+    stream = llm(
+        formatted_prompt,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        top_p=top_p,
+        stream=True
+    )
+
+    for chunk in stream:
+        token = chunk["choices"][0]["text"]
+        token_count += 1
+        elapsed = time.perf_counter() - start_time
+        tps = round(token_count / elapsed, 2) if elapsed > 0 else 0.0
+
+        payload = {
+            "token": token,
+            "metrics": {
+                "tokens_generated": token_count,
+                "elapsed_sec": round(elapsed, 2),
+                "tokens_per_sec": tps
+            }
+        }
+        yield f"data: {json.dumps(payload)}\n\n"
+        await asyncio.sleep(0) # Yield control back to event loop
+
+    yield "data: [DONE]\n\n"
+
+@app.post("/api/generate")
+async def generate_endpoint(req: PromptRequest):
+    return StreamingResponse(
+        stream_generation(req.prompt, req.max_tokens, req.temperature, req.top_p),
+        media_type="text/event-stream"
+    )
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_hud():
+    with open("index.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+if __name__ == "__main__":
+    import uvicorn
+    print(f"[+] Launching server on http://127.0.0.1:8080")
+    print(f"[i] Developer Reference: {APP_META['developer_profile']}")
+    uvicorn.run(app, host="127.0.0.1", port=8080, log_level="error")
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Google AI Master - HUD Local Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; font-family: monospace; }
+        .hud-border { border: 1px solid #30363d; background: #161b22; }
+        .glow-text { text-shadow: 0 0 8px rgba(56, 189, 248, 0.6); }
+    </style>
+</head>
+<body class="p-6">
+    <div class="max-w-6xl mx-auto space-y-4">
+        <!-- Header -->
+        <div class="hud-border p-4 rounded flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-sky-400 glow-text">GOOGLE AI MASTER // OFFLINE MODE</h1>
+                <p class="text-xs text-gray-400">DEV PROFILE: <a href="https://g.dev/gilbert_algordo" target="_blank" class="text-sky-500 underline">https://g.dev/gilbert_algordo</a></p>
+            </div>
+            <div id="telemetry" class="text-xs text-right text-emerald-400">
+                CPU: --% | RAM: -- / -- GB
+            </div>
+        </div>
+
+        <!-- Main Output -->
+        <div class="hud-border p-4 rounded h-96 overflow-y-auto space-y-2" id="outputConsole">
+            <div class="text-gray-500">[SYSTEM] Local engine ready. Offline pipeline active.</div>
+        </div>
+
+        <!-- Telemetry Metrics Bar -->
+        <div class="hud-border p-2 rounded text-xs flex justify-between text-sky-300">
+            <span>TOKENS: <b id="tokCount">0</b></span>
+            <span>SPEED: <b id="tokSpeed">0.00</b> tok/s</span>
+            <span>LATENCY: <b id="elapsedTime">0.00</b>s</span>
+        </div>
+
+        <!-- Control Inputs -->
+        <div class="flex gap-2">
+            <input type="text" id="promptInput" placeholder="Enter prompt for local AI engine..." class="flex-1 bg-gray-900 border border-gray-700 p-3 rounded text-sm focus:outline-none focus:border-sky-500">
+            <button onclick="runInference()" class="bg-sky-600 hover:bg-sky-500 text-white px-6 py-3 rounded text-sm font-bold">EXECUTE</button>
+        </div>
+    </div>
+
+    <script>
+        async function updateTelemetry() {
+            try {
+                const res = await fetch('/telemetry');
+                const data = await res.json();
+                document.getElementById('telemetry').innerText = `CPU: ${data.cpu_usage_percent}% | RAM: ${data.ram_used_gb}/${data.ram_total_gb} GB (${data.ram_percent}%)`;
+            } catch (e) {}
+        }
+        setInterval(updateTelemetry, 2000);
+
+        async function runInference() {
+            const input = document.getElementById('promptInput');
+            const consoleDiv = document.getElementById('outputConsole');
+            const prompt = input.value.trim();
+            if(!prompt) return;
+
+            consoleDiv.innerHTML += `<div class="text-sky-300 font-bold">> ${prompt}</div>`;
+            const responseContainer = document.createElement('div');
+            responseContainer.className = "text-gray-200 pb-2 border-b border-gray-800";
+            consoleDiv.appendChild(responseContainer);
+            input.value = '';
+
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: prompt, max_tokens: 1024 })
+            });
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+                for (const line of lines) {
+                    if (line.startsWith('data: ') && !line.includes('[DONE]')) {
+                        const parsed = JSON.parse(line.replace('data: ', ''));
+                        responseContainer.innerText += parsed.token;
+                        document.getElementById('tokCount').innerText = parsed.metrics.tokens_generated;
+                        document.getElementById('tokSpeed').innerText = parsed.metrics.tokens_per_sec;
+                        document.getElementById('elapsedTime').innerText = parsed.metrics.elapsed_sec;
+                        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+
+import os
+import zipfile
+
+# Manifest & configuration files
+FILES = {
+    "requirements.txt": "fastapi>=0.110.0\nuvicorn>=0.28.0\nllama-cpp-python>=0.2.50\npsutil>=5.9.0\npydantic>=2.0.0\n",
+    "manifest.json": """{
+    "project": "Google AI Master Offline",
+    "version": "2.4.0",
+    "developer_url": "https://g.dev/gilbert_algordo",
+    "execution_mode": "100% Offline Local Engine",
+    "recommended_models": ["gemma-2-2b-it.Q4_K_M.gguf", "gemma-2-9b-it.Q4_K_M.gguf"]
+}""",
+    "run.sh": """#!/bin/bash
+pip install -r requirements.txt
+python server.py
+""",
+    "run.bat": """@echo off
+pip install -r requirements.txt
+python server.py
+pause
+"""
+}
+
+def build_zip():
+    zip_name = "google-ai-master-offline.zip"
+    print(f"[*] Building ZIP distribution package: {zip_name}")
+
+    with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        # Write auto-generated config/requirements files
+        for fname, content in FILES.items():
+            zipf.writestr(fname, content)
+            print(f"  + Added {fname}")
+
+        # Write core application files
+        for app_file in ["server.py", "index.html"]:
+            if os.path.exists(app_file):
+                zipf.write(app_file)
+                print(f"  + Added {app_file}")
+
+    print(f"\n[+] Bundle successfully created: {zip_name}")
+
+if __name__ == "__main__":
+    build_zip()
+
+
+
+import os
+import zipfile
+from PIL import Image, ImageDraw, ImageFont
+
+# Metadata Configuration
+DEV_URL = "https://g.dev/gilbert_algordo"
+APP_TITLE = "Google AI Master Offline Mode"
+OUTPUT_DIR = "./generated_icons"
+
+# SVG Vector Graphic Template (HUD AI Core + Offline Shield)
+SVG_ICON = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Metadata -->
+  <metadata>
+    <developer>{DEV_URL}</developer>
+    <application>{APP_TITLE}</application>
+  </metadata>
+
+  <defs>
+    <!-- Dark Metallic Background Gradient -->
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#161b22"/>
+      <stop offset="100%" stop-color="#090d12"/>
+    </radialGradient>
+
+    <!-- Neon Cyan Core Glow -->
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Linear Metallic Border -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Canvas Background -->
+  <rect width="512" height="512" rx="100" fill="url(#bgGrad)" stroke="url(#borderGrad)" stroke-width="8"/>
+
+  <!-- Outer HUD Circular Grid -->
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#30363d" stroke-width="3" stroke-dasharray="12, 8"/>
+  <circle cx="256" cy="256" r="160" fill="none" stroke="#38bdf8" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- Outer Tech Crosshairs -->
+  <line x1="256" y1="36" x2="256" y2="66" stroke="#38bdf8" stroke-width="4"/>
+  <line x1="256" y1="446" x2="256" y2="476" stroke="#38bdf8" stroke-width="4"/>
+  <line x1="36" y1="256" x2="66" y2="256" stroke="#38bdf8" stroke-width="4"/>
+  <line x1="446" y1="256" x2="476" y2="256" stroke="#38bdf8" stroke-width="4"/>
+
+  <!-- AI Diamond Node Geometry (Center Core) -->
+  <g filter="url(#neonGlow)">
+    <polygon points="256,120 356,220 256,320 156,220" fill="none" stroke="#38bdf8" stroke-width="6"/>
+    <polygon points="256,150 326,220 256,290 186,220" fill="none" stroke="#10b981" stroke-width="4" stroke-dasharray="6, 4"/>
+    <circle cx="256" cy="220" r="24" fill="#38bdf8"/>
+  </g>
+
+  <!-- Offline Status Shield Badge -->
+  <g transform="translate(0, 40)">
+    <path d="M256,310 L316,340 V390 C316,425 256,450 256,450 C256,450 196,425 196,390 V340 Z" 
+          fill="#0d1117" stroke="#10b981" stroke-width="5" filter="url(#neonGlow)"/>
+    <!-- Bolt / Offline Lightning Signal -->
+    <polygon points="258,350 242,380 256,380 252,410 270,375 256,375" fill="#10b981"/>
+  </g>
+
+  <!-- HUD Text Elements -->
+  <text x="256" y="482" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="14" letter-spacing="2">GOOGLE AI MASTER // OFFLINE</text>
+</svg>
+"""
+
+def draw_raster_icon(size: int) -> Image.Image:
+    """Renders high-resolution fallback raster icons for non-SVG systems."""
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    
+    scale = size / 512.0
+    pad = int(10 * scale)
+    
+    # Outer dark body
+    draw.rounded_rectangle([pad, pad, size - pad, size - pad], radius=int(80 * scale), fill=(15, 23, 42, 255), outline=(56, 189, 248, 255), width=max(1, int(6 * scale)))
+    
+    # HUD Circles
+    center = size // 2
+    r1 = int(160 * scale)
+    draw.ellipse([center - r1, center - r1, center + r1, center + r1], outline=(48, 54, 61, 255), width=max(1, int(3 * scale)))
+    
+    # Core Diamond
+    r2 = int(90 * scale)
+    pts = [
+        (center, center - r2),
+        (center + r2, center),
+        (center, center + r2),
+        (center - r2, center)
+    ]
+    draw.polygon(pts, outline=(16, 185, 129, 255), width=max(1, int(4 * scale)))
+    
+    # Inner Core
+    r3 = int(20 * scale)
+    draw.ellipse([center - r3, center - r3, center + r3, center + r3], fill=(56, 189, 248, 255))
+    
+    return img
+
+def main():
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    
+    # 1. Save Master SVG
+    svg_path = os.path.join(OUTPUT_DIR, "icon-master.svg")
+    with open(svg_path, "w", encoding="utf-8") as f:
+        f.write(SVG_ICON)
+    print(f"[+] Exported Master Vector: {svg_path}")
+
+    # 2. Render PNG Formats
+    sizes = [16, 32, 48, 64, 128, 256, 512]
+    png_images = []
+    
+    for s in sizes:
+        img = draw_raster_icon(s)
+        out_png = os.path.join(OUTPUT_DIR, f"icon-{s}x{s}.png")
+        img.save(out_png, "PNG")
+        png_images.append(img)
+        print(f"[+] Rendered PNG Asset: {out_png}")
+
+    # 3. Export Windows ICO File (Multi-Resolution Bundle)
+    ico_path = os.path.join(OUTPUT_DIR, "favicon.ico")
+    png_images[0].save(
+        ico_path,
+        format="ICO",
+        sizes=[(s, s) for s in [16, 32, 48, 64, 128, 256]]
+    )
+    print(f"[+] Generated Multi-Resolution ICO: {ico_path}")
+
+if __name__ == "__main__":
+    main()
+
+
+
+import os
+import zipfile
+import json
+
+ZIP_FILENAME = "google-ai-master-icons.zip"
+SRC_DIR = "./generated_icons"
+
+MANIFEST_DATA = {
+    "name": "Google AI Master Offline Mode - Icon Pack",
+    "developer": "https://g.dev/gilbert_algordo",
+    "theme": "HUD Dark Cyber / Emerald Neon",
+    "formats": ["SVG", "PNG", "ICO"],
+    "resolutions": ["16x16", "32x32", "48x48", "64x64", "128x128", "256x256", "512x512"]
+}
+
+def package_bundle():
+    # Execute generator first if assets do not exist
+    if not os.path.exists(SRC_DIR):
+        import generate_icons
+        generate_icons.main()
+
+    print(f"[*] Packaging assets into archive: {ZIP_FILENAME}")
+    
+    with zipfile.ZipFile(ZIP_FILENAME, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        # Include Manifest metadata
+        zipf.writestr("manifest.json", json.dumps(MANIFEST_DATA, indent=2))
+        print("  + Added manifest.json")
+
+        # Include generated icons
+        for root, _, files in os.walk(SRC_DIR):
+            for file in files:
+                filepath = os.path.join(root, file)
+                arcname = os.path.relpath(filepath, SRC_DIR)
+                zipf.write(filepath, arcname)
+                print(f"  + Compressed: {arcname}")
+
+    print(f"\n[+] Archive successfully generated: {ZIP_FILENAME}")
+
+if __name__ == "__main__":
+    package_bundle()
