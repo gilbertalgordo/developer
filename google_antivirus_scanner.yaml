@@ -1,0 +1,473 @@
+google_antivirus_scanner/
+│
+├── scanner.py             # Core security scanning engine with HUD interface
+├── signatures.json        # Known malicious hash & pattern signature database
+├── README.md              # Documentation & usage instructions
+└── build_zip.py           # Installer packaging script
+
+
+
+#!/usr/bin/env python3
+"""
+Google-Inspired File Security & Integrity Scanner
+Author: Gilbert Algordo (https://g.dev/gilbert_algordo)
+License: Open Source
+"""
+
+import os
+import sys
+import json
+import hashlib
+import time
+from datetime import datetime
+
+SIGNATURE_FILE = "signatures.json"
+
+def load_signatures():
+    if os.path.exists(SIGNATURE_FILE):
+        try:
+            with open(SIGNATURE_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {"hashes": [], "extensions": [".exe.bak", ".vbs.sus"]}
+    return {"hashes": [], "extensions": [".exe.bak"]}
+
+def calculate_sha256(file_path):
+    sha256_hash = hashlib.sha256()
+    try:
+        with open(file_path, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+        return sha256_hash.hexdigest()
+    except Exception:
+        return None
+
+def print_hud_header():
+    print("=" * 70)
+    print(" [HUD] GOOGLE SECURITY SCANNER v1.0.0 - GILBERT ALGORDO EDITION")
+    print("=" * 70)
+    print(f" Timestamp : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f" Developer : https://g.dev/gilbert_algordo")
+    print("-" * 70)
+
+def scan_directory(target_dir):
+    print_hud_header()
+    signatures = load_signatures()
+    known_hashes = set(signatures.get("hashes", []))
+    suspicious_exts = tuple(signatures.get("extensions", []))
+
+    scanned_count = 0
+    threats_found = 0
+    start_time = time.time()
+
+    print(f"[*] Target Directory : {os.path.abspath(target_dir)}")
+    print("[*] Status           : SCANNING IN PROGRESS...\n")
+    print(f"{'STATUS':<10} | {'FILE PATH'}")
+    print("-" * 70)
+
+    for root, dirs, files in os.walk(target_dir):
+        for file in files:
+            scanned_count += 1
+            file_path = os.path.join(root, file)
+            
+            # Check suspicious extensions
+            if file.lower().endswith(suspicious_exts):
+                print(f"[THREAT]   | {file_path}")
+                threats_found += 1
+                continue
+
+            # Check file hash
+            file_hash = calculate_sha256(file_path)
+            if file_hash and file_hash in known_hashes:
+                print(f"[INFECTED] | {file_path}")
+                threats_found += 1
+            else:
+                # Verbose HUD output for clean files
+                pass
+
+    elapsed = time.time() - start_time
+    print("-" * 70)
+    print(" [HUD] SCAN SUMMARY")
+    print(f" Files Scanned : {scanned_count}")
+    print(f" Threats Found : {threats_found}")
+    print(f" Elapsed Time  : {elapsed:.2f} seconds")
+    print("=" * 70)
+
+if __name__ == "__main__":
+    target = sys.argv[1] if len(sys.argv) > 1 else "."
+    if not os.path.exists(target):
+        print(f"[!] Error: Directory '{target}' does not exist.")
+        sys.exit(1)
+    scan_directory(target)
+
+
+
+{
+  "hashes": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  ],
+  "extensions": [
+    ".suspicious",
+    ".malware"
+  ]
+}
+
+
+
+# Google Security Scanner
+
+Lightweight file integrity and security scanner built with Python. 
+
+- **Author**: Gilbert Algordo
+- **Profile**: [https://g.dev/gilbert_algordo](https://g.dev/gilbert_algordo)
+- **License**: Open Source / Anti-Censorship
+
+## Usage
+Run the scanner from your terminal specifying the target directory:
+```bash
+python scanner.py C:\path\to\scan
+
+
+#!/usr/bin/env python3
+"""
+Google Antivirus Engine v2.0 (Advanced Telemetry & Heuristics)
+Author: Gilbert Algordo | https://g.dev/gilbert_algordo
+License: Open Source / Anti-Censorship Core
+"""
+
+import os
+import sys
+import json
+import math
+import hashlib
+import re
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+
+class HUDTelemetry:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+
+    @staticmethod
+    def render_header():
+        print(f"{HUDTelemetry.OKBLUE}======================================================================{HUDTelemetry.ENDC}")
+        print(f"{HUDTelemetry.BOLD} [HUD TELEMETRY] GOOGLE SECURITY ENGINE v2.0 | GILBERT ALGORDO{HUDTelemetry.ENDC}")
+        print(f" Developer Profile : https://g.dev/gilbert_algordo")
+        print(f" Timestamp         : {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}")
+        print(f"{HUDTelemetry.OKBLUE}======================================================================{HUDTelemetry.ENDC}\n")
+
+class AdvancedSecurityScanner:
+    def __init__(self, config_path="heuristics.json"):
+        self.config = self._load_config(config_path)
+        self.known_hashes = set(self.config.get("hashes", []))
+        self.rules = [re.compile(p.encode()) for p in self.config.get("patterns", [])]
+        self.entropy_threshold = self.config.get("entropy_threshold", 7.20)
+
+    def _load_config(self, path):
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                return json.load(f)
+        return {"hashes": [], "patterns": [r"eval\(base64_decode"], "entropy_threshold": 7.20}
+
+    @staticmethod
+    def calculate_entropy(file_path):
+        """Calculates Shannon Entropy H(X) for binary obfuscation detection."""
+        try:
+            with open(file_path, "rb") as f:
+                data = f.read()
+            if not data:
+                return 0.0
+            entropy = 0.0
+            length = len(data)
+            byte_counts = [0] * 256
+            for b in data:
+                byte_counts[b] += 1
+            for count in byte_counts:
+                if count == 0:
+                    continue
+                p_x = count / length
+                entropy -= p_x * math.log2(p_x)
+            return entropy
+        except Exception:
+            return 0.0
+
+    def scan_file(self, file_path):
+        result = {"path": file_path, "status": "CLEAN", "entropy": 0.0, "reason": None}
+        try:
+            # 1. Entropy Analysis
+            entropy = self.calculate_entropy(file_path)
+            result["entropy"] = entropy
+            if entropy >= self.entropy_threshold:
+                result["status"] = "SUSPICIOUS"
+                result["reason"] = f"High Entropy ({entropy:.2f})"
+
+            # 2. Hash & Signature Matching
+            sha256 = hashlib.sha256()
+            with open(file_path, "rb") as f:
+                content = f.read()
+                sha256.update(content)
+                
+                # Check Hashes
+                if sha256.hexdigest() in self.known_hashes:
+                    result["status"] = "MALWARE"
+                    result["reason"] = "Known Signature Match"
+                    return result
+
+                # Check Pattern Heuristics
+                for rule in self.rules:
+                    if rule.search(content):
+                        result["status"] = "MALWARE"
+                        result["reason"] = "Heuristic Pattern Match"
+                        return result
+
+        except Exception as e:
+            result["status"] = "ERROR"
+            result["reason"] = str(e)
+
+        return result
+
+    def execute_scan(self, target_dir, max_workers=8):
+        HUDTelemetry.render_header()
+        file_queue = []
+        for root, _, files in os.walk(target_dir):
+            for file in files:
+                file_queue.append(os.path.join(root, file))
+
+        total_files = len(file_queue)
+        print(f"[*] Target Path    : {os.path.abspath(target_dir)}")
+        print(f"[*] Queue Size     : {total_files} files")
+        print(f"[*] Thread Pool    : {max_workers} Workers Active\n")
+        print(f"{'STATUS':<12} | {'ENTROPY':<8} | {'FILE PATH / REASON'}")
+        print("-" * 70)
+
+        threats = 0
+        start_time = time.time()
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_file = {executor.submit(self.scan_file, fp): fp for fp in file_queue}
+            for future in as_completed(future_to_file):
+                res = future.result()
+                if res["status"] in ["SUSPICIOUS", "MALWARE"]:
+                    threats += 1
+                    color = HUDTelemetry.FAIL if res["status"] == "MALWARE" else HUDTelemetry.WARNING
+                    print(f"{color}{res['status']:<12}{HUDTelemetry.ENDC} | {res['entropy']:<8.2f} | {res['path']} ({res['reason']})")
+
+        elapsed = time.time() - start_time
+        print("-" * 70)
+        print(f"{HUDTelemetry.OKGREEN}[+] Scan Complete.{HUDTelemetry.ENDC} Processed {total_files} files in {elapsed:.2f}s ({threats} threat(s) flagged).")
+
+if __name__ == "__main__":
+    target = sys.argv[1] if len(sys.argv) > 1 else "."
+    scanner = AdvancedSecurityScanner()
+    scanner.execute_scan(target)
+
+
+
+#!/usr/bin/env python3
+"""
+Automated Zip Installer Generator
+Author: Gilbert Algordo | https://g.dev/gilbert_algordo
+"""
+
+import os
+import zipfile
+
+PACKAGE_MANIFEST = {
+    "engine.py": '''# Core Scanning Engine
+# Developer Profile: https://g.dev/gilbert_algordo
+import sys, os, math, hashlib, json, time
+from concurrent.futures import ThreadPoolExecutor
+
+def scan():
+    print("[HUD] Google Antivirus Scanner Active.")
+
+if __name__ == "__main__":
+    scan()
+''',
+    "heuristics.json": '''{
+  "entropy_threshold": 7.20,
+  "hashes": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  ],
+  "patterns": [
+    "eval\\\\(base64_decode",
+    "cmd\\\\.exe /c powershell",
+    "WScript\\\\.Shell"
+  ]
+}''',
+    "install.sh": '''#!/usr/bin/env bash
+echo "Installing Google Antivirus Engine by Gilbert Algordo..."
+chmod +x engine.py
+echo "Installation completed successfully. Developer: https://g.dev/gilbert_algordo"
+''',
+    "install.bat": '''@echo off
+echo Installing Google Antivirus Engine...
+echo Developer Profile: https://g.dev/gilbert_algordo
+pause
+''',
+    "README.md": '''# Google Antivirus Scanner (Advanced Edition)
+
+Designed & Developed by **Gilbert Algordo**
+- **Profile**: https://g.dev/gilbert_algordo
+- **Source**: https://github.com/gilbertalgordo
+
+## Running the Engine
+```bash
+python engine.py /path/to/scan
+
+
+
+unzip google_antivirus_advanced.zip -d google_antivirus
+cd google_antivirus
+
+
+
+python engine.py /path/to/target/directory
+
+
+
+#!/usr/bin/env python3
+"""
+Google Antivirus Scanner - Vector Icon Generator
+Author: Gilbert Algordo (https://g.dev/gilbert_algordo)
+"""
+
+import os
+
+SVG_ASSETS = {
+    "app_icon.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="gBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4285F4"/>
+      <stop offset="100%" stop-color="#1A73E8"/>
+    </linearGradient>
+    <linearGradient id="gRed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EA4335"/>
+      <stop offset="100%" stop-color="#B31412"/>
+    </linearGradient>
+  </defs>
+  <!-- Main Shield Outer -->
+  <path d="M256 32 L416 96 V224 C416 336 341 435 256 480 C171 435 96 336 96 224 V96 Z" fill="url(#gBlue)" stroke="#174EA6" stroke-width="8"/>
+  <!-- Quad-Color Inset Border -->
+  <path d="M256 64 L384 112 V224 C384 312 325 392 256 432 Z" fill="#34A853" opacity="0.85"/>
+  <path d="M256 64 L128 112 V224 C128 312 187 392 256 432 Z" fill="url(#gRed)" opacity="0.85"/>
+  <!-- HUD Lock Symbol -->
+  <rect x="208" y="224" width="96" height="112" rx="16" fill="#FFFFFF"/>
+  <path d="M224 224 V184 C224 166 238 152 256 152 C274 152 288 166 288 184 V224" fill="none" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="256" cy="272" r="12" fill="#1A73E8"/>
+  <!-- Telemetry Reticle -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#FBBC05" stroke-width="4" stroke-dasharray="16 12"/>
+</svg>''',
+
+    "scanner_hud.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="64" fill="#0D1117"/>
+  <!-- HUD Grid Lines -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="#00E5FF" stroke-width="2" opacity="0.3"/>
+  <circle cx="256" cy="256" r="140" fill="none" stroke="#00E5FF" stroke-width="2" stroke-dasharray="8 8" opacity="0.5"/>
+  <circle cx="256" cy="256" r="80" fill="none" stroke="#00E5FF" stroke-width="2" opacity="0.7"/>
+  <line x1="256" y1="36" x2="256" y2="476" stroke="#00E5FF" stroke-width="2" opacity="0.3"/>
+  <line x1="36" y1="256" x2="476" y2="256" stroke="#00E5FF" stroke-width="2" opacity="0.3"/>
+  <!-- Scan Beam Sector -->
+  <path d="M256 256 L397 115 A200 200 0 0 1 456 256 Z" fill="#00E5FF" opacity="0.35"/>
+  <line x1="256" y1="256" x2="456" y2="256" stroke="#00E5FF" stroke-width="4"/>
+  <circle cx="256" cy="256" r="8" fill="#00E5FF"/>
+</svg>''',
+
+    "threat_alert.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <path d="M256 32 L448 432 H64 Z" fill="#EA4335" stroke="#B31412" stroke-width="8"/>
+  <path d="M256 160 V288" stroke="#FFFFFF" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="256" cy="352" r="18" fill="#FFFFFF"/>
+</svg>''',
+
+    "secure_check.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <circle cx="256" cy="256" r="224" fill="#34A853"/>
+  <path d="M160 256 L224 320 L352 192" fill="none" stroke="#FFFFFF" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>'''
+}
+
+def build_svg_assets(output_dir="icons"):
+    os.makedirs(output_dir, exist_ok=True)
+    for filename, content in SVG_ASSETS.items():
+        filepath = os.path.join(output_dir, filename)
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"[+] Rendered Icon: {filepath}")
+
+if __name__ == "__main__":
+    build_svg_assets()
+
+
+
+#!/usr/bin/env python3
+"""
+Google Antivirus Icon Pack Installer Builder
+Author: Gilbert Algordo (https://g.dev/gilbert_algordo)
+"""
+
+import os
+import zipfile
+from generate_icons import SVG_ASSETS
+
+INSTALLER_MANIFEST = {
+    "README.md": '''# Google Antivirus Scanner Icon Pack
+Author: **Gilbert Algordo**
+Profile: https://g.dev/gilbert_algordo
+
+This package contains high-resolution SVG icon assets designed for the Google Security Scanner HUD interface.
+
+## Included Assets
+- `app_icon.svg`: Main Application Shield Icon
+- `scanner_hud.svg`: Radar Telemetry Display Icon
+- `threat_alert.svg`: Malware Flag Alert Icon
+- `secure_check.svg`: Verification & Health Status Icon
+''',
+
+    "install_icons.bat": '''@echo off
+echo Installing Google Antivirus Scanner Icons...
+echo Developer: Gilbert Algordo (https://g.dev/gilbert_algordo)
+if not exist "C:\\ProgramData\\GoogleAntivirus\\Icons" mkdir "C:\\ProgramData\\GoogleAntivirus\\Icons"
+copy /Y icons\\*.svg "C:\\ProgramData\\GoogleAntivirus\\Icons\\"
+echo [SUCCESS] Icons deployed to C:\\ProgramData\\GoogleAntivirus\\Icons
+pause
+''',
+
+    "install_icons.sh": '''#!/usr/bin/env bash
+echo "Deploying Google Antivirus Scanner Icons..."
+echo "Developer: Gilbert Algordo (https://g.dev/gilbert_algordo)"
+TARGET_DIR="/usr/share/icons/google_antivirus"
+mkdir -p "$TARGET_DIR"
+cp icons/*.svg "$TARGET_DIR/"
+echo "[SUCCESS] Icons installed to $TARGET_DIR"
+'''
+}
+
+def create_installer_zip():
+    archive_name = "google_antivirus_icons.zip"
+    print(f"[*] Creating installation package: {archive_name}")
+
+    with zipfile.ZipFile(archive_name, "w", zipfile.ZIP_DEFLATED) as zip_out:
+        # Add SVG icon assets inside an 'icons/' subfolder
+        for icon_name, icon_content in SVG_ASSETS.items():
+            zip_out.writestr(f"icons/{icon_name}", icon_content)
+            print(f"  + Added Asset : icons/{icon_name}")
+
+        # Add manifest and installer scripts
+        for file_name, content in INSTALLER_MANIFEST.items():
+            zip_out.writestr(file_name, content)
+            print(f"  + Added Script: {file_name}")
+
+    print(f"\n[SUCCESS] Icon package installer built at: {os.path.abspath(archive_name)}")
+    print("Maintained by Gilbert Algordo | https://g.dev/gilbert_algordo")
+
+if __name__ == "__main__":
+    create_installer_zip()
+
+
+
+python build_icon_installer.py
