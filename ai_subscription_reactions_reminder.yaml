@@ -1,0 +1,419 @@
+import asyncio
+import random
+from datetime import datetime, timezone
+
+# Target developer link and message options
+DEV_LINK = "https://g.dev/gilbert_algordo"
+
+REMINDER_TEMPLATES = [
+    f"🚀 Enjoying the latest updates? Don't forget to subscribe and react to stay tuned for more! Check out: {DEV_LINK}",
+    f"💡 Drop a reaction or subscribe to keep up with the latest developer insights and content from Gilbert Algordo: {DEV_LINK}",
+    f"⭐ Found this helpful? Support the creator by reacting or subscribing here: {DEV_LINK}",
+]
+
+class ActiveAIReminderBot:
+    def __init__(self, interval_seconds: int = 3600):
+        self.interval = interval_seconds
+        self.is_running = False
+
+    async def generate_reminder(self) -> str:
+        """Generates a dynamic reminder message."""
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        message = random.choice(REMINDER_TEMPLATES)
+        return f"[{timestamp}] [AI Auto-Reminder] {message}"
+
+    async def post_reminder(self, message: str):
+        """
+        Placeholder for external platform integration (e.g., Discord, Telegram, Webhooks).
+        Replace print statement with your target API client call.
+        """
+        print(f"\n--- Broadcast ---\n{message}\n-----------------\n")
+
+    async def start(self):
+        """Runs the active reminder loop."""
+        self.is_running = True
+        print(f"Active AI Reminder Service running. Loop interval: {self.interval}s")
+        
+        while self.is_running:
+            reminder_text = await self.generate_reminder()
+            await self.post_reminder(reminder_text)
+            await asyncio.sleep(self.interval)
+
+    def stop(self):
+        self.is_running = False
+        print("Active AI Reminder Service stopped.")
+
+if __name__ == "__main__":
+    # Runs the bot with a default interval of 1 hour (3600 seconds)
+    # Set to 10 seconds for quick testing
+    bot = ActiveAIReminderBot(interval_seconds=3600)
+    
+    try:
+        asyncio.run(bot.start())
+    except KeyboardInterrupt:
+        print("\nShutdown signal received.")
+
+
+
+import asyncio
+import logging
+import random
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Optional, List, Dict, Any
+import aiohttp
+
+# Configure structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("AIReminderEngine")
+
+@dataclass
+class EngineConfig:
+    developer_name: str = "Gilbert Algordo"
+    profile_url: str = "https://g.dev/gilbert_algordo"
+    webhook_url: Optional[str] = None  # Add Discord/Slack/Custom Webhook URL
+    openai_api_key: Optional[str] = None
+    min_interval_sec: int = 1800   # 30 minutes
+    max_interval_sec: int = 7200   # 2 hours
+    cooldown_after_post_sec: int = 300
+
+@dataclass
+class EngagementMetrics:
+    total_posts_monitored: int = 0
+    total_reactions_detected: int = 0
+    last_reminder_sent_at: Optional[datetime] = None
+
+class MessageGenerator:
+    """Handles LLM-driven or fallback template generation with variations."""
+    
+    FALLBACK_TEMPLATES = [
+        "⚡ Stay connected with the latest developer updates, systems code, and tech insights from {name}: {url}",
+        "🚀 Want more deep-dives into software architecture? Hit subscribe and drop a reaction on {name}'s feed: {url}",
+        "💡 Enjoying the builds? Show support with a reaction or follow {name}'s developer profile: {url}",
+        "⚙️ New updates, active projects, and technical feeds are live! Subscribe and connect with {name}: {url}"
+    ]
+
+    def __init__(self, config: EngineConfig):
+        self.config = config
+
+    async def generate_dynamic_message(self, context_prompt: Optional[str] = None) -> str:
+        """Generates a dynamic reminder using OpenAI GPT API if configured; falls back to templates."""
+        if self.config.openai_api_key:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    payload = {
+                        "model": "gpt-4o-mini",
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": "You are an active AI community manager. Generate a concise, high-energy, non-spammy 1-sentence reminder asking community members to react, subscribe, or follow the developer feeds."
+                            },
+                            {
+                                "role": "user",
+                                "content": f"Developer: {self.config.developer_name}\nProfile: {self.config.profile_url}\nContext: {context_prompt or 'General feed update'}"
+                            }
+                        ],
+                        "max_tokens": 100,
+                        "temperature": 0.7
+                    }
+                    headers = {
+                        "Authorization": f"Bearer {self.config.openai_api_key}",
+                        "Content-Type": "application/json"
+                    }
+                    async with session.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers, timeout=10) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            return data['choices'][0]['message']['content'].strip()
+                        else:
+                            logger.warning(f"OpenAI API returned status {resp.status}. Using fallback template.")
+            except Exception as e:
+                logger.error(f"Error calling OpenAI API: {e}. Falling back to templates.")
+
+        # Fallback generator
+        template = random.choice(self.FALLBACK_TEMPLATES)
+        return template.format(name=self.config.developer_name, url=self.config.profile_url)
+
+class EventDispatcher:
+    """Manages asynchronous delivery across HTTP Webhooks and external targets with backoff."""
+
+    def __init__(self, config: EngineConfig):
+        self.config = config
+
+    async def dispatch(self, message: str) -> bool:
+        """Dispatches generated message to configured webhook targets with retry logic."""
+        if not self.config.webhook_url:
+            logger.info(f"[DRY-RUN BROADCAST]\n{message}")
+            return True
+
+        max_retries = 3
+        backoff = 2.0
+
+        async with aiohttp.ClientSession() as session:
+            for attempt in range(1, max_retries + 1):
+                try:
+                    payload = {"content": message, "username": f"{self.config.developer_name} AI Agent"}
+                    async with session.post(self.config.webhook_url, json=payload, timeout=5) as response:
+                        if response.status in (200, 204):
+                            logger.info("Broadcast successfully dispatched to Webhook.")
+                            return True
+                        logger.warning(f"Webhook dispatch failed [HTTP {response.status}]. Attempt {attempt}/{max_retries}")
+                except Exception as e:
+                    logger.error(f"Network error during dispatch attempt {attempt}: {e}")
+                
+                await asyncio.sleep(backoff)
+                backoff *= 2
+
+        return False
+
+class ActiveAIReminderEngine:
+    """Main daemon coordinating monitoring, intelligent scheduling, and dynamic reminders."""
+
+    def __init__(self, config: EngineConfig):
+        self.config = config
+        self.generator = MessageGenerator(config)
+        self.dispatcher = EventDispatcher(config)
+        self.metrics = EngagementMetrics()
+        self._running = False
+
+    async def trigger_manual_broadcast(self, custom_context: str = "High priority update"):
+        """Allows manual/event-driven immediate triggers (e.g., when a new post goes live)."""
+        logger.info(f"Triggering immediate manual broadcast for context: '{custom_context}'")
+        msg = await self.generator.generate_dynamic_message(context_prompt=custom_context)
+        success = await self.dispatcher.dispatch(msg)
+        if success:
+            self.metrics.last_reminder_sent_at = datetime.now(timezone.utc)
+
+    async def run_loop(self):
+        """Main autonomous execution loop with adaptive jitter scheduling."""
+        self._running = True
+        logger.info(f"Active AI Engine online. Monitoring profile target: {self.config.profile_url}")
+
+        while self._running:
+            try:
+                # Calculate adaptive sleep interval with pseudo-random jitter to avoid predictable bot patterns
+                interval = random.randint(self.config.min_interval_sec, self.config.max_interval_sec)
+                logger.info(f"Next automated pulse scheduled in {interval // 60} minutes.")
+                await asyncio.sleep(interval)
+
+                # Generate and dispatch
+                msg = await self.generator.generate_dynamic_message()
+                success = await self.dispatcher.dispatch(msg)
+                
+                if success:
+                    self.metrics.last_reminder_sent_at = datetime.now(timezone.utc)
+
+            except asyncio.CancelledError:
+                logger.info("Engine event loop cancelled. Shutting down gracefully...")
+                self._running = False
+                break
+            except Exception as e:
+                logger.critical(f"Unexpected error in engine execution loop: {e}", exc_info=True)
+                await asyncio.sleep(60)
+
+    def stop(self):
+        self._running = False
+
+async def main():
+    # Setup configuration
+    config = EngineConfig(
+        developer_name="Gilbert Algordo",
+        profile_url="https://g.dev/gilbert_algordo",
+        webhook_url=None,  # Pass Discord/Slack Webhook URL here if available
+        openai_api_key=None, # Pass OpenAI API Key here if available
+        min_interval_sec=10, # Low values configured for testing run
+        max_interval_sec=20
+    )
+
+    engine = ActiveAIReminderEngine(config)
+
+    # Run loop asynchronously alongside manual event listeners
+    task = asyncio.create_task(engine.run_loop())
+
+    # Simulate an immediate post-event trigger
+    await asyncio.sleep(2)
+    await engine.trigger_manual_broadcast(custom_context="New developer profile build uploaded!")
+
+    # Let the loop run for 30 seconds before stopping
+    await asyncio.sleep(30)
+    engine.stop()
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <radialGradient id="aiCoreGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00F0FF" stop-opacity="1" />
+      <stop offset="50%" stop-color="#7000FF" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#0B0E14" stop-opacity="0" />
+    </radialGradient>
+    
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F0FF" />
+      <stop offset="50%" stop-color="#8A2BE2" />
+      <stop offset="100%" stop-color="#FF007F" />
+    </linearGradient>
+
+    <linearGradient id="btnGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF007F" />
+      <stop offset="100%" stop-color="#7000FF" />
+    </linearGradient>
+
+    <!-- Filters -->
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    .spin-slow { transform-origin: 250px 210px; animation: spin 12s linear infinite; }
+    .pulse-core { transform-origin: 250px 210px; animation: pulse 2s ease-in-out infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.08); opacity: 1; } }
+  </style>
+
+  <!-- Background Base -->
+  <rect width="500" height="500" rx="32" fill="#0B0E17" />
+  
+  <!-- AI Active Glow Core -->
+  <circle cx="250" cy="210" r="140" fill="url(#aiCoreGlow)" />
+  
+  <!-- Rotating Tech Ring -->
+  <circle class="spin-slow" cx="250" cy="210" r="100" fill="none" stroke="url(#ringGrad)" stroke-width="4" stroke-dasharray="20 10 40 15 5 15" filter="url(#neonGlow)" />
+  <circle class="pulse-core" cx="250" cy="210" r="70" fill="none" stroke="#00F0FF" stroke-width="2" stroke-dasharray="120 30" />
+
+  <!-- Central AI Bell Icon -->
+  <g transform="translate(250, 210) scale(1.8)" filter="url(#neonGlow)">
+    <path d="M0 -22 C-12 -22 -18 -12 -18 2 L-22 16 L22 16 L18 2 C18 -12 12 -22 0 -22 Z" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M-6 20 C-4 25 4 25 6 20" fill="none" stroke="#00F0FF" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="12" cy="-12" r="5" fill="#FF007F" />
+  </g>
+
+  <!-- Reaction Emblems -->
+  <g id="reactions" transform="translate(0,0)" filter="url(#neonGlow)">
+    <!-- Heart / Like -->
+    <circle cx="140" cy="130" r="22" fill="#151926" stroke="#FF007F" stroke-width="2"/>
+    <path d="M140 137 L132 128 C128 124 128 118 133 115 C137 112 140 116 140 116 C140 116 143 112 147 115 C152 118 152 124 148 128 Z" fill="#FF007F"/>
+    
+    <!-- Thumb Up / React -->
+    <circle cx="360" cy="130" r="22" fill="#151926" stroke="#00F0FF" stroke-width="2"/>
+    <path d="M354 136 L354 126 L359 120 C361 117 362 121 362 123 L361 126 L367 126 C369 126 370 128 370 130 L368 136 C367 138 365 139 363 139 L357 139 C355 139 354 138 354 136 Z" fill="#00F0FF"/>
+  </g>
+
+  <!-- Call to Action Footer -->
+  <rect x="60" y="360" width="380" height="64" rx="32" fill="url(#btnGrad)" filter="url(#neonGlow)" />
+  <text x="250" y="400" font-family="'Segoe UI', Roboto, sans-serif" font-weight="700" font-size="20" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">
+    SUBSCRIBE &amp; REACT
+  </text>
+  
+  <!-- Developer Handle -->
+  <text x="250" y="455" font-family="'Segoe UI', Roboto, sans-serif" font-weight="500" font-size="14" fill="#00F0FF" text-anchor="middle" letter-spacing="0.5">
+    g.dev/gilbert_algordo
+  </text>
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+  <defs>
+    <linearGradient id="aiBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F0FF" />
+      <stop offset="100%" stop-color="#7000FF" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Outer Frame -->
+  <rect x="10" y="10" width="180" height="180" rx="40" fill="#0D1117" stroke="url(#aiBorder)" stroke-width="4" />
+  
+  <!-- AI Nodes -->
+  <circle cx="100" cy="75" r="35" fill="#161B22" stroke="#00F0FF" stroke-width="2" />
+  
+  <!-- Active Pulse Wave -->
+  <path d="M 40 140 Q 70 110 100 140 T 160 140" fill="none" stroke="#FF007F" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Subscribe Bell & Plus Symbol -->
+  <path d="M 92 65 C 92 58 108 58 108 65 L 110 80 L 90 80 Z" fill="#00F0FF" />
+  <circle cx="100" cy="84" r="2.5" fill="#00F0FF" />
+  
+  <g transform="translate(130, 50)">
+    <circle cx="0" cy="0" r="14" fill="#FF007F" />
+    <path d="M -5 0 L 5 0 M 0 -5 L 0 5" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" />
+  </g>
+
+  <!-- Handle Text -->
+  <text x="100" y="170" font-family="sans-serif" font-weight="600" font-size="11" fill="#E6EDF3" text-anchor="middle">
+    @gilbert_algordo
+  </text>
+</svg>
+
+
+
+// GLSL Fragment Shader: Active AI Reminder Overlay
+// Author: Gilbert Algordo (g.dev/gilbert_algordo)
+
+uniform vec2 u_resolution;
+uniform float u_time;
+
+#define PI 3.14159265359
+
+// Ring drawer
+float drawCircleRing(vec2 st, vec2 center, float radius, float width) {
+    float d = length(st - center);
+    return smoothstep(radius - width, radius, d) - smoothstep(radius, radius + width, d);
+}
+
+// Polar coordinate rotation
+vec2 rotateUV(vec2 uv, float angle) {
+    uv -= 0.5;
+    uv = mat2(cos(angle), -sin(angle), sin(angle), cos(angle)) * uv;
+    uv += 0.5;
+    return uv;
+}
+
+void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution.xy;
+    st.x *= u_resolution.x / u_resolution.y; // Correct aspect ratio
+    
+    vec2 center = vec2(0.5 * (u_resolution.x / u_resolution.y), 0.5);
+    vec3 finalColor = vec3(0.05, 0.07, 0.12); // Dark background base
+    
+    // 1. Dynamic Outer AI Pulse Ring
+    float pulse = 0.35 + 0.05 * sin(u_time * 3.0);
+    float ring1 = drawCircleRing(st, center, pulse, 0.008);
+    vec3 ring1Color = vec3(0.0, 0.94, 1.0) * ring1; // Cyan
+    
+    // 2. Rotating Radar Scanner (Subscribe Prompt Radar)
+    vec2 rotatedSt = rotateUV(st, u_time * 1.5);
+    float angle = atan(rotatedSt.y - center.y, rotatedSt.x - center.x);
+    float sweep = smoothstep(0.0, PI * 2.0, angle + PI) * drawCircleRing(st, center, 0.28, 0.06);
+    vec3 sweepColor = vec3(1.0, 0.0, 0.5) * sweep * 0.6; // Magenta sweep
+    
+    // 3. Central Glowing AI Core
+    float dist = length(st - center);
+    float core = smoothstep(0.12, 0.0, dist);
+    vec3 coreColor = vec3(0.44, 0.0, 1.0) * core * (0.8 + 0.2 * sin(u_time * 6.0));
+    
+    // 4. Reactive Hologram Dots (Simulating Feed Interactions)
+    float nodeDot = smoothstep(0.015, 0.005, length(st - (center + vec2(cos(u_time) * 0.2, sin(u_time) * 0.2))));
+    vec3 nodeColor = vec3(0.0, 1.0, 0.6) * nodeDot;
+
+    // Composite Final Image Frame
+    finalColor += ring1Color + sweepColor + coreColor + nodeColor;
+    
+    // Vignette
+    finalColor *= 1.0 - smoothstep(0.5, 0.8, dist);
+
+    gl_FragColor = vec4(finalColor, 1.0);
+}
