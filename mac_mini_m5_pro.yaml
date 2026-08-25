@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mac Mini M5 - Carbon Black Edition</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #050505;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+    }
+    #ui-overlay {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: #e0e0e0;
+      pointer-events: none;
+      background: rgba(10, 10, 10, 0.75);
+      padding: 15px 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+    }
+    h1 {
+      margin: 0 0 5px 0;
+      font-size: 1.2rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #fff;
+    }
+    p {
+      margin: 3px 0;
+      font-size: 0.8rem;
+      color: #888;
+    }
+    .spec-tag {
+      display: inline-block;
+      background: rgba(255, 0, 50, 0.2);
+      border: 1px solid rgba(255, 0, 50, 0.4);
+      color: #ff4d4d;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      margin-top: 5px;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div id="ui-overlay">
+    <h1>Mac Mini M5 Pro</h1>
+    <p>Forged Carbon Fiber Chassis | Hydro-Sealed IP68</p>
+    <p>6x Thunderbolt 5 | 2x HDMI 2.1 | BLE Mesh Microchip</p>
+    <div class="spec-tag">Apple M5 Neural Silicon + Holographic Array</div>
+  </div>
+
+  <script>
+    // --- Scene Setup ---
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050505, 0.15);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(3, 2, 4.5);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 + 0.1;
+
+    // --- Procedural Carbon Fiber Texture Generation ---
+    function createCarbonTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      
+      ctx.fillStyle = '#121212';
+      ctx.fillRect(0, 0, 128, 128);
+      
+      ctx.fillStyle = '#1c1c1c';
+      for (let i = 0; i < 128; i += 16) {
+        for (let j = 0; j < 128; j += 16) {
+          if ((i / 16 + j / 16) % 2 === 0) {
+            ctx.fillRect(i, j, 8, 8);
+            ctx.fillRect(i + 8, j + 8, 8, 8);
+          }
+        }
+      }
+      return new THREE.CanvasTexture(canvas);
+    }
+
+    const carbonTexture = createCarbonTexture();
+    carbonTexture.wrapS = THREE.RepeatWrapping;
+    carbonTexture.wrapT = THREE.RepeatWrapping;
+    carbonTexture.repeat.set(6, 6);
+
+    // --- Custom Shader Material for Rainbow LED Logo & Border ---
+    const rainbowLedMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vPosition;
+        void main() {
+          vUv = uv;
+          vPosition = position;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        varying vec2 vUv;
+        varying vec3 vPosition;
+
+        vec3 rainbow(float t) {
+          return 0.5 + 0.5 * cos(6.28318 * (t + vec3(0.0, 0.33, 0.67)));
+        }
+
+        void main() {
+          float grad = vPosition.x + vPosition.z + uTime * 0.5;
+          vec3 color = rainbow(grad);
+          gl_FragColor = vec4(color * 2.0, 1.0); // Amplified for bloom effect
+        }
+      `
+    });
+
+    // --- Materials ---
+    const carbonMaterial = new THREE.MeshStandardMaterial({
+      color: 0x111111,
+      map: carbonTexture,
+      roughness: 0.35,
+      metalness: 0.8,
+      bumpMap: carbonTexture,
+      bumpScale: 0.01
+    });
+
+    const redPcbMaterial = new THREE.MeshStandardMaterial({
+      color: 0x8b0000,
+      roughness: 0.2,
+      metalness: 0.5
+    });
+
+    const siliconChipMaterial = new THREE.MeshStandardMaterial({
+      color: 0x050505,
+      roughness: 0.1,
+      metalness: 0.9
+    });
+
+    const goldMaterial = new THREE.MeshStandardMaterial({
+      color: 0xd4af37,
+      metalness: 0.9,
+      roughness: 0.1
+    });
+
+    const glassMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.3,
+      roughness: 0.1,
+      transmission: 0.9,
+      thickness: 0.5
+    });
+
+    const portInternalMaterial = new THREE.MeshBasicMaterial({ color: 0x050505 });
+
+    // --- Model Assembly Group ---
+    const macMini = new THREE.Group();
+    scene.add(macMini);
+
+    // 1. Slim Main Body Shell
+    const bodyGeometry = new THREE.BoxGeometry(2.0, 0.35, 2.0);
+    const bodyMesh = new THREE.Mesh(bodyGeometry, carbonMaterial);
+    bodyMesh.castShadow = true;
+    bodyMesh.receiveShadow = true;
+    macMini.add(bodyMesh);
+
+    // 2. Glowing Top Border Strip
+    const borderGeom = new THREE.BoxGeometry(2.02, 0.015, 2.02);
+    const borderMesh = new THREE.Mesh(borderGeom, rainbowLedMaterial);
+    borderMesh.position.y = 0.17;
+    macMini.add(borderMesh);
+
+    // 3. Apple Logo (Top Face)
+    const logoShape = new THREE.Shape();
+    // Simplified Apple silhouette
+    logoShape.absarc(0, 0, 0.2, 0, Math.PI * 2);
+    const logoGeometry = new THREE.ShapeGeometry(logoShape);
+    const logoMesh = new THREE.Mesh(logoGeometry, rainbowLedMaterial);
+    logoMesh.rotation.x = -Math.PI / 2;
+    logoMesh.position.set(0, 0.176, 0);
+    macMini.add(logoMesh);
+
+    // 4. Red Motherboard & Silicon Architecture (Visible on Bottom Plate)
+    const boardGroup = new THREE.Group();
+    boardGroup.position.y = -0.12;
+
+    const pcbGeom = new THREE.BoxGeometry(1.8, 0.02, 1.8);
+    const pcbMesh = new THREE.Mesh(pcbGeom, redPcbMaterial);
+    boardGroup.add(pcbMesh);
+
+    // Apple M5 Processor Chip
+    const m5ChipGeom = new THREE.BoxGeometry(0.5, 0.03, 0.5);
+    const m5ChipMesh = new THREE.Mesh(m5ChipGeom, siliconChipMaterial);
+    m5ChipMesh.position.set(0, 0.02, 0);
+    boardGroup.add(m5ChipMesh);
+
+    // M5 Text Marker (Laser etched look)
+    const m5CoreGeom = new THREE.BoxGeometry(0.2, 0.031, 0.2);
+    const m5CoreMesh = new THREE.Mesh(m5CoreGeom, goldMaterial);
+    m5CoreMesh.position.set(0, 0.02, 0);
+    boardGroup.add(m5CoreMesh);
+
+    // BLE Microchip & Peripheral SMD Components
+    for (let i = 0; i < 12; i++) {
+      const smdGeom = new THREE.BoxGeometry(0.08, 0.025, 0.05);
+      const smdMesh = new THREE.Mesh(smdGeom, goldMaterial);
+      smdMesh.position.set(
+        (Math.random() - 0.5) * 1.4,
+        0.015,
+        (Math.random() - 0.5) * 1.4
+      );
+      boardGroup.add(smdMesh);
+    }
+    
+    macMini.add(boardGroup);
+
+    // Bottom Transparent Waterproof Seal Glass
+    const bottomCoverGeom = new THREE.BoxGeometry(1.85, 0.01, 1.85);
+    const bottomCoverMesh = new THREE.Mesh(bottomCoverGeom, glassMaterial);
+    bottomCoverMesh.position.y = -0.17;
+    macMini.add(bottomCoverMesh);
+
+    // 5. Rear Ports Array (6x USB-C / Thunderbolt, 2x HDMI, Power)
+    const portsGroup = new THREE.Group();
+    portsGroup.position.set(0, 0, 0.99); // Back edge
+
+    // USB-C / Thunderbolt Ports
+    for (let i = -0.6; i <= 0.6; i += 0.24) {
+      const usbGeom = new THREE.BoxGeometry(0.1, 0.035, 0.03);
+      const usbMesh = new THREE.Mesh(usbGeom, portInternalMaterial);
+      usbMesh.position.set(i, -0.02, 0);
+      portsGroup.add(usbMesh);
+    }
+
+    // HDMI 2.1 Ports
+    [-0.8, 0.8].forEach(x => {
+      const hdmiGeom = new THREE.BoxGeometry(0.16, 0.05, 0.03);
+      const hdmiMesh = new THREE.Mesh(hdmiGeom, portInternalMaterial);
+      hdmiMesh.position.set(x, -0.02, 0);
+      portsGroup.add(hdmiMesh);
+    });
+
+    macMini.add(portsGroup);
+
+    // 6. Holographic Emitter Cone
+    const holoGeom = new THREE.ConeGeometry(0.8, 1.5, 32, 1, true);
+    const holoMaterial = new THREE.ShaderMaterial({
+      uniforms: { uTime: { value: 0 } },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        varying vec2 vUv;
+        void main() {
+          float alpha = (1.0 - vUv.y) * 0.3 * (0.8 + 0.2 * sin(uTime * 8.0 + vUv.y * 20.0));
+          vec3 cyanHolo = vec3(0.0, 0.8, 1.0);
+          gl_FragColor = vec4(cyanHolo, alpha);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+
+    const holoMesh = new THREE.Mesh(holoGeom, holoMaterial);
+    holoMesh.position.set(0, 0.92, 0);
+    macMini.add(holoMesh);
+
+    // Floating Holographic Interface Ring
+    const ringGeom = new THREE.RingGeometry(0.2, 0.35, 32);
+    const ringMesh = new THREE.Mesh(ringGeom, holoMaterial);
+    ringMesh.rotation.x = -Math.PI / 2;
+    ringMesh.position.set(0, 1.5, 0);
+    macMini.add(ringMesh);
+
+    // --- Lighting Setup ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    dirLight.position.set(5, 8, 5);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    scene.add(dirLight);
+
+    const pointLightRed = new THREE.PointLight(0xff0022, 2, 3);
+    pointLightRed.position.set(0, -0.5, 0);
+    scene.add(pointLightRed);
+
+    // --- Animation Loop ---
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const elapsedTime = clock.getElapsedTime();
+
+      // Update Shader Uniforms
+      rainbowLedMaterial.uniforms.uTime.value = elapsedTime;
+      holoMaterial.uniforms.uTime.value = elapsedTime;
+
+      // Subtle floating rotation for the whole assembly
+      macMini.rotation.y = Math.sin(elapsedTime * 0.3) * 0.25;
+      ringMesh.rotation.z = elapsedTime * 0.5;
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // --- Window Resize Handling ---
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mac Mini M5 - Advanced Architectural Visualization</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #020204;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      color: #f5f5f7;
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+    #hud-overlay {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      pointer-events: none;
+      background: rgba(12, 12, 16, 0.65);
+      padding: 20px 24px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      max-width: 360px;
+    }
+    .brand-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #fff 0%, #a1a1a6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+    .sub-title {
+      font-size: 0.75rem;
+      color: #ff3b30;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    .spec-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .spec-node {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.7rem;
+      color: #86868b;
+    }
+    .spec-node strong {
+      display: block;
+      color: #d2d2d7;
+      font-size: 0.75rem;
+    }
+    #controls-guide {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      pointer-events: none;
+      background: rgba(12, 12, 16, 0.65);
+      padding: 12px 18px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(16px);
+      font-size: 0.75rem;
+      color: #86868b;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div id="hud-overlay">
+    <div class="brand-title">Mac Mini M5 Pro</div>
+    <div class="sub-title">Holographic Engineering Prototype</div>
+    <div class="spec-grid">
+      <div class="spec-node"><strong>Chassis</strong>Sleek Carbon Black</div>
+      <div class="spec-node"><strong>Silicon</strong>Apple M5 Ultra</div>
+      <div class="spec-node"><strong>Motherboard</strong>Custom Red PCB</div>
+      <div class="spec-node"><strong>Wireless</strong>BLE Mesh Microchip</div>
+      <div class="spec-node"><strong>Seal</strong>IP68 Nano-Hydrosield</div>
+      <div class="spec-node"><strong>I/O Suite</strong>8x USB-C / 2x HDMI</div>
+    </div>
+  </div>
+
+  <div id="controls-guide">
+    🖱️ Drag to rotate | 📜 Scroll to zoom | 🖱️ Right-click to pan
+  </div>
+
+  <script>
+    // --- 1. Scene & Renderer Initialization ---
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x020204, 0.12);
+
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(3.2, 2.2, 4.0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.25;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.04;
+    controls.maxPolarAngle = Math.PI / 2 + 0.05;
+    controls.minDistance = 1.5;
+    controls.maxDistance = 10.0;
+
+    // --- 2. Procedural Carbon Fiber Texture ---
+    function generateCarbonFiberTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#080808';
+      ctx.fillRect(0, 0, 256, 256);
+
+      const tileSize = 16;
+      for (let x = 0; x < 256; x += tileSize) {
+        for (let y = 0; y < 256; y += tileSize) {
+          if ((x / tileSize + y / tileSize) % 2 === 0) {
+            ctx.fillStyle = '#181818';
+            ctx.fillRect(x, y, tileSize, tileSize);
+            
+            ctx.fillStyle = '#222222';
+            ctx.fillRect(x, y, tileSize, tileSize / 2);
+          } else {
+            ctx.fillStyle = '#101010';
+            ctx.fillRect(x, y, tileSize, tileSize);
+
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(x + tileSize / 2, y, tileSize / 2, tileSize);
+          }
+        }
+      }
+      return new THREE.CanvasTexture(canvas);
+    }
+
+    const carbonTexture = generateCarbonFiberTexture();
+    carbonTexture.wrapS = THREE.RepeatWrapping;
+    carbonTexture.wrapT = THREE.RepeatWrapping;
+    carbonTexture.repeat.set(8, 8);
+
+    // --- 3. Custom GLSL Shaders ---
+
+    // A. Dynamic Rainbow LED Shader
+    const rainbowShaderMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uIntensity: { value: 2.5 }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vWorldPosition;
+        void main() {
+          vUv = uv;
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPosition.xyz;
+          gl_Position = projectionMatrix * viewMatrix * worldPosition;
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        uniform float uIntensity;
+        varying vec2 vUv;
+        varying vec3 vWorldPosition;
+
+        vec3 spectrum(float t) {
+          return 0.5 + 0.5 * cos(6.28318 * (t + vec3(0.0, 0.33, 0.67)));
+        }
+
+        void main() {
+          float flow = vWorldPosition.x * 0.8 + vWorldPosition.z * 0.8 + uTime * 0.6;
+          vec3 rgb = spectrum(flow);
+          gl_FragColor = vec4(rgb * uIntensity, 1.0);
+        }
+      `
+    });
+
+    // B. Holographic Field Shader
+    const holoShaderMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        void main() {
+          vUv = uv;
+          vNormal = normalize(normalMatrix * normal);
+          vPosition = position;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+
+        void main() {
+          float scanline = sin(vPosition.y * 80.0 - uTime * 10.0) * 0.5 + 0.5;
+          float fresnel = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 2.0);
+          float alpha = (1.0 - vUv.y) * (scanline * 0.4 + 0.3) * fresnel;
+          
+          vec3 holoColor = mix(vec3(0.0, 0.8, 1.0), vec3(0.5, 0.0, 1.0), vUv.y);
+          gl_FragColor = vec4(holoColor * 1.8, alpha * 0.85);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+
+    // C. Hydrophobic / Waterproof Shield Shader (Subtle Iridescent Sheen)
+    const hydroSheenMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.15,
+      roughness: 0.05,
+      transmission: 0.9,
+      thickness: 0.2,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.1,
+      ior: 1.333 // Water refractive index
+    });
+
+    // --- 4. Materials Library ---
+    const carbonMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0c0c0e,
+      map: carbonTexture,
+      bumpMap: carbonTexture,
+      bumpScale: 0.008,
+      roughness: 0.25,
+      metalness: 0.85
+    });
+
+    const redPcbMaterial = new THREE.MeshStandardMaterial({
+      color: 0x8a0303,
+      roughness: 0.3,
+      metalness: 0.4
+    });
+
+    const siliconMaterial = new THREE.MeshStandardMaterial({
+      color: 0x050505,
+      roughness: 0.1,
+      metalness: 0.95
+    });
+
+    const goldContactsMaterial = new THREE.MeshStandardMaterial({
+      color: 0xebc034,
+      metalness: 0.95,
+      roughness: 0.15
+    });
+
+    const portDarkMaterial = new THREE.MeshBasicMaterial({ color: 0x020202 });
+
+    // --- 5. Constructing the Mac Mini M5 Assembly ---
+    const macMiniSystem = new THREE.Group();
+    scene.add(macMiniSystem);
+
+    // A. Slim Body Shell
+    const mainBodyGeom = new THREE.BoxGeometry(2.2, 0.28, 2.2);
+    const mainBodyMesh = new THREE.Mesh(mainBodyGeom, carbonMaterial);
+    mainBodyMesh.castShadow = true;
+    mainBodyMesh.receiveShadow = true;
+    macMiniSystem.add(mainBodyMesh);
+
+    // B. Glowing Top Border LED
+    const borderGeom = new THREE.BoxGeometry(2.22, 0.012, 2.22);
+    const borderMesh = new THREE.Mesh(borderGeom, rainbowShaderMaterial);
+    borderMesh.position.y = 0.136;
+    macMiniSystem.add(borderMesh);
+
+    // C. Apple Logo Geometry (Custom Contour)
+    function createAppleLogoShape() {
+      const shape = new THREE.Shape();
+      // Outer profile approx
+      shape.absarc(0, 0, 0.18, 0, Math.PI * 2, false);
+      return shape;
+    }
+    const logoGeom = new THREE.ShapeGeometry(createAppleLogoShape());
+    const logoMesh = new THREE.Mesh(logoGeom, rainbowShaderMaterial);
+    logoMesh.rotation.x = -Math.PI / 2;
+    logoMesh.position.set(0, 0.142, 0);
+    macMiniSystem.add(logoMesh);
+
+    // D. Red Motherboard & Silicon Architecture (Internal / Base View)
+    const boardGroup = new THREE.Group();
+    boardGroup.position.y = -0.08;
+
+    // PCB Base
+    const pcbGeom = new THREE.BoxGeometry(2.0, 0.02, 2.0);
+    const pcbMesh = new THREE.Mesh(pcbGeom, redPcbMaterial);
+    boardGroup.add(pcbMesh);
+
+    // Apple M5 Processor Die
+    const m5ChipGeom = new THREE.BoxGeometry(0.55, 0.035, 0.55);
+    const m5Chip = new THREE.Mesh(m5ChipGeom, siliconMaterial);
+    m5Chip.position.set(-0.2, 0.02, -0.2);
+    boardGroup.add(m5Chip);
+
+    // M5 Engraved Core Emblem
+    const m5CoreGeom = new THREE.BoxGeometry(0.25, 0.038, 0.25);
+    const m5Core = new THREE.Mesh(m5CoreGeom, goldContactsMaterial);
+    m5Core.position.set(-0.2, 0.02, -0.2);
+    boardGroup.add(m5Core);
+
+    // BLE Mesh Microchip
+    const bleChipGeom = new THREE.BoxGeometry(0.2, 0.025, 0.15);
+    const bleChip = new THREE.Mesh(bleChipGeom, siliconMaterial);
+    bleChip.position.set(0.5, 0.02, -0.4);
+    boardGroup.add(bleChip);
+
+    // SMD Component Matrix (Capacitors, Resistors)
+    for (let i = 0; i < 24; i++) {
+      const smdGeom = new THREE.BoxGeometry(0.05, 0.02, 0.03);
+      const smd = new THREE.Mesh(smdGeom, goldContactsMaterial);
+      smd.position.set(
+        (Math.random() - 0.5) * 1.6,
+        0.015,
+        (Math.random() - 0.5) * 1.6
+      );
+      boardGroup.add(smd);
+    }
+    macMiniSystem.add(boardGroup);
+
+    // E. Hydrophobic Invisible Barrier Layer (Seals Base & Ports)
+    const hydroSealGeom = new THREE.BoxGeometry(2.21, 0.29, 2.21);
+    const hydroSealMesh = new THREE.Mesh(hydroSealGeom, hydroSheenMaterial);
+    macMiniSystem.add(hydroSealMesh);
+
+    // F. Extra I/O Connectivity Array (Rear Panel)
+    const rearPortGroup = new THREE.Group();
+    rearPortGroup.position.set(0, -0.01, 1.101);
+
+    // 8x USB-C / Thunderbolt Ports
+    for (let x = -0.7; x <= 0.7; x += 0.2) {
+      const portGeom = new THREE.BoxGeometry(0.09, 0.035, 0.02);
+      const portMesh = new THREE.Mesh(portGeom, portDarkMaterial);
+      portMesh.position.set(x, 0, 0);
+      rearPortGroup.add(portMesh);
+    }
+
+    // 2x HDMI Ports
+    [-0.9, 0.9].forEach(x => {
+      const hdmiGeom = new THREE.BoxGeometry(0.14, 0.05, 0.02);
+      const hdmiMesh = new THREE.Mesh(hdmiGeom, portDarkMaterial);
+      hdmiMesh.position.set(x, 0, 0);
+      rearPortGroup.add(hdmiMesh);
+    });
+
+    macMiniSystem.add(rearPortGroup);
+
+    // G. Holographic Emitter Array
+    const holoConeGeom = new THREE.ConeGeometry(1.2, 1.8, 64, 1, true);
+    const holoConeMesh = new THREE.Mesh(holoConeGeom, holoShaderMaterial);
+    holoConeMesh.position.set(0, 1.05, 0);
+    macMiniSystem.add(holoConeMesh);
+
+    // Floating Interactive Hologram Rings
+    const holoRingGroup = new THREE.Group();
+    for (let r = 1; r <= 3; r++) {
+      const ringGeom = new THREE.RingGeometry(r * 0.25, r * 0.25 + 0.02, 64);
+      const ringMesh = new THREE.Mesh(ringGeom, holoShaderMaterial);
+      ringMesh.rotation.x = -Math.PI / 2;
+      ringMesh.position.y = 0.5 + r * 0.35;
+      holoRingGroup.add(ringMesh);
+    }
+    macMiniSystem.add(holoRingGroup);
+
+    // --- 6. Lighting Engine Setup ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
+    keyLight.position.set(4, 6, 4);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 2048;
+    keyLight.shadow.mapSize.height = 2048;
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0x0088ff, 0.8);
+    fillLight.position.set(-4, 2, -4);
+    scene.add(fillLight);
+
+    const redUnderglow = new THREE.PointLight(0xff0033, 2.5, 3.5);
+    redUnderglow.position.set(0, -0.4, 0);
+    scene.add(redUnderglow);
+
+    // --- 7. Animation & Render Loop ---
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = clock.getDelta();
+      const time = clock.getElapsedTime();
+
+      // Shader Uniform Updates
+      rainbowShaderMaterial.uniforms.uTime.value = time;
+      holoShaderMaterial.uniforms.uTime.value = time;
+
+      // Dynamic System Movements
+      macMiniSystem.rotation.y = Math.sin(time * 0.2) * 0.15;
+      holoRingGroup.rotation.z = time * 0.4;
+      holoRingGroup.children.forEach((ring, idx) => {
+        ring.position.y = 0.5 + (idx + 1) * 0.35 + Math.sin(time * 2.0 + idx) * 0.03;
+      });
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // --- 8. Responsive Window Handling ---
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mac Mini M5 Pro - Vector Icon Suite | g.dev/gilbert_algordo</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #050508;
+      color: #f5f5f7;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #ffffff 0%, #86868b 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    .author-tag {
+      font-size: 0.85rem;
+      color: #ff3b30;
+      letter-spacing: 0.5px;
+    }
+    .author-tag a {
+      color: #00f0ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .author-tag a:hover {
+      text-decoration: underline;
+    }
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      width: 100%;
+      max-width: 1200px;
+    }
+    .icon-card {
+      background: rgba(18, 18, 24, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      backdrop-filter: blur(20px);
+      transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .icon-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(0, 240, 255, 0.4);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 240, 255, 0.15);
+    }
+    .svg-container {
+      width: 160px;
+      height: 160px;
+      margin-bottom: 16px;
+    }
+    .icon-card h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #e5e5e7;
+    }
+    .icon-card p {
+      font-size: 0.8rem;
+      color: #86868b;
+      text-align: center;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Mac Mini M5 System Icons</h1>
+    <div class="author-tag">
+      Designed by <a href="https://g.dev/gilbert_algordo" target="_blank" rel="noopener">gilbert_algordo</a>
+    </div>
+  </header>
+
+  <div class="icon-grid">
+
+    <!-- Icon 1: Carbon Chassis & Rainbow LED Logo -->
+    <div class="icon-card">
+      <div class="svg-container">
+        <svg viewBox="0 0 200 200" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="rainbowGlow1" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#ff0055"/>
+              <stop offset="25%" stop-color="#7a00ff"/>
+              <stop offset="50%" stop-color="#00f0ff"/>
+              <stop offset="75%" stop-color="#00ff66"/>
+              <stop offset="100%" stop-color="#ffcc00"/>
+            </linearGradient>
+            <pattern id="carbonPattern1" width="6" height="6" patternUnits="userSpaceOnUse">
+              <rect width="6" height="6" fill="#121214"/>
+              <rect width="3" height="3" fill="#1c1c22"/>
+              <rect x="3" y="3" width="3" height="3" fill="#1c1c22"/>
+            </pattern>
+            <filter id="neonGlow1" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="4" result="blur"/>
+              <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          <!-- Carbon Body -->
+          <rect x="25" y="65" width="150" height="70" rx="12" fill="url(#carbonPattern1)" stroke="#2a2a32" stroke-width="2"/>
+          <!-- Top Border LED Strip -->
+          <path d="M 27 67 Q 100 63 173 67" stroke="url(#rainbowGlow1)" stroke-width="4" fill="none" filter="url(#neonGlow1)"/>
+          <!-- Glowing Rainbow Apple Logo -->
+          <g filter="url(#neonGlow1)" transform="translate(100, 95) scale(0.8)">
+            <path d="M -10 -8 C -6 -14 0 -10 3 -12 C 7 -14 13 -10 11 -2 C 9 6 3 14 -3 14 C -8 14 -11 8 -11 2 C -11 -4 -14 -2 -10 -8 Z" fill="url(#rainbowGlow1)"/>
+            <path d="M 1 -15 C 3 -19 8 -18 8 -14 C 8 -10 3 -11 1 -15 Z" fill="url(#rainbowGlow1)"/>
+          </g>
+        </svg>
+      </div>
+      <h3>System Hero Icon</h3>
+      <p>Carbon black chassis with top-border rainbow LED band and glowing emblem.</p>
+    </div>
+
+    <!-- Icon 2: Red Motherboard & M5 Silicon -->
+    <div class="icon-card">
+      <div class="svg-container">
+        <svg viewBox="0 0 200 200" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="goldTrace" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#ffe600"/>
+              <stop offset="100%" stop-color="#d4af37"/>
+            </linearGradient>
+            <filter id="chipRedGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          <!-- Red PCB Base -->
+          <rect x="30" y="30" width="140" height="140" rx="10" fill="#8a0303" stroke="#ff3b30" stroke-width="1.5"/>
+          <!-- Gold Circuit Traces -->
+          <path d="M 40 50 L 80 50 L 80 80 M 160 50 L 120 50 L 120 80 M 40 150 L 80 150 L 80 120 M 160 150 L 120 150 L 120 120" stroke="url(#goldTrace)" stroke-width="2" fill="none" opacity="0.7"/>
+          <!-- M5 Processor Chip -->
+          <rect x="70" y="70" width="60" height="60" rx="4" fill="#0a0a0c" stroke="url(#goldTrace)" stroke-width="2" filter="url(#chipRedGlow)"/>
+          <text x="100" y="106" font-family="-apple-system, sans-serif" font-weight="900" font-size="18" fill="#ffffff" text-anchor="middle">M5</text>
+          <!-- BLE Microchip -->
+          <rect x="138" y="128" width="22" height="16" rx="2" fill="#121216" stroke="#00f0ff" stroke-width="1"/>
+          <text x="149" y="139" font-family="-apple-system, sans-serif" font-weight="700" font-size="6" fill="#00f0ff" text-anchor="middle">BLE</text>
+        </svg>
+      </div>
+      <h3>Red PCB & M5 Silicon</h3>
+      <p>Custom red motherboard architecture featuring Apple M5 and BLE mesh microchip.</p>
+    </div>
+
+    <!-- Icon 3: Extended Rear I/O Panel -->
+    <div class="icon-card">
+      <div class="svg-container">
+        <svg viewBox="0 0 200 200" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+          <!-- Rear Carbon Plate -->
+          <rect x="20" y="75" width="160" height="50" rx="8" fill="#121215" stroke="#2c2c35" stroke-width="2"/>
+          <!-- HDMI Ports -->
+          <rect x="32" y="90" width="18" height="20" rx="3" fill="#050505" stroke="#00f0ff" stroke-width="1"/>
+          <rect x="55" y="90" width="18" height="20" rx="3" fill="#050505" stroke="#00f0ff" stroke-width="1"/>
+          <!-- USB-C / Thunderbolt Ports -->
+          <rect x="82" y="94" width="10" height="12" rx="4" fill="#050505" stroke="#ffffff" stroke-width="1"/>
+          <rect x="97" y="94" width="10" height="12" rx="4" fill="#050505" stroke="#ffffff" stroke-width="1"/>
+          <rect x="112" y="94" width="10" height="12" rx="4" fill="#050505" stroke="#ffffff" stroke-width="1"/>
+          <rect x="127" y="94" width="10" height="12" rx="4" fill="#050505" stroke="#ffffff" stroke-width="1"/>
+          <rect x="142" y="94" width="10" height="12" rx="4" fill="#050505" stroke="#ffffff" stroke-width="1"/>
+          <rect x="157" y="94" width="10" height="12" rx="4" fill="#050505" stroke="#ffffff" stroke-width="1"/>
+        </svg>
+      </div>
+      <h3>Pro I/O Suite Icon</h3>
+      <p>Extended Connectivity array with dual HDMI 2.1 and 6x Thunderbolt ports.</p>
+    </div>
+
+    <!-- Icon 4: Holographic Beam & Waterproof Shield -->
+    <div class="icon-card">
+      <div class="svg-container">
+        <svg viewBox="0 0 200 200" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="holoBeam" x1="0%" y1="100%" x2="0%" y2="0%">
+              <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.8"/>
+              <stop offset="100%" stop-color="#a000ff" stop-opacity="0.0"/>
+            </linearGradient>
+            <filter id="hydroShield" x="-10%" y="-10%" width="120%" height="120%">
+              <feGaussianBlur stdDeviation="2" result="blur"/>
+            </filter>
+          </defs>
+          <!-- Holographic Projection Cone -->
+          <polygon points="50,140 150,140 180,30 20,30" fill="url(#holoBeam)"/>
+          <!-- Scanning Holographic Rings -->
+          <ellipse cx="100" cy="50" rx="60" ry="8" fill="none" stroke="#00f0ff" stroke-width="1.5" stroke-dasharray="4 2"/>
+          <ellipse cx="100" cy="90" rx="45" ry="6" fill="none" stroke="#a000ff" stroke-width="1.5"/>
+          <!-- Hydrophobic Shield Ring -->
+          <rect x="40" y="135" width="120" height="20" rx="10" fill="none" stroke="#00f0ff" stroke-width="2" filter="url(#hydroShield)" opacity="0.6"/>
+          <!-- Slim Mac Mini Base -->
+          <rect x="45" y="140" width="110" height="15" rx="4" fill="#121215" stroke="#ffffff" stroke-width="1"/>
+        </svg>
+      </div>
+      <h3>Holo & Hydrosield</h3>
+      <p>Active holographic projection field paired with nano-sealed invisible waterproofing.</p>
+    </div>
+
+  </div>
+
+</body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mac Mini M5 Concept Rendering</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #050508;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: #fff;
+      font-family: system-ui, sans-serif;
+    }
+    canvas {
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 30px rgba(0,240,255,0.2);
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="renderCanvas" width="800" height="600"></canvas>
+
+<script>
+  const canvas = document.getElementById('renderCanvas');
+  const ctx = canvas.getContext('2d');
+
+  function drawScene(t) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Background Gradient
+    const bgGrad = ctx.createRadialGradient(400, 300, 50, 400, 300, 450);
+    bgGrad.addColorStop(0, '#101018');
+    bgGrad.addColorStop(1, '#020204');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, 800, 600);
+
+    // 1. Holographic Beam Projection (Top)
+    ctx.save();
+    const holoGrad = ctx.createLinearGradient(400, 260, 400, 50);
+    holoGrad.addColorStop(0, 'rgba(0, 240, 255, 0.4)');
+    holoGrad.addColorStop(1, 'rgba(160, 0, 255, 0.0)');
+    
+    ctx.beginPath();
+    ctx.moveTo(310, 260);
+    ctx.lineTo(490, 260);
+    ctx.lineTo(580, 60);
+    ctx.lineTo(220, 60);
+    ctx.closePath();
+    ctx.fillStyle = holoGrad;
+    ctx.fill();
+
+    // Scanlines on Hologram
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.6)';
+    ctx.lineWidth = 1.5;
+    for (let y = 80; y < 250; y += 20) {
+      const offset = Math.sin(t * 0.005 + y) * 5;
+      ctx.beginPath();
+      ctx.ellipse(400 + offset, y, 80 + (260 - y) * 0.8, 12, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 2. Carbon Fiber Chassis Body
+    ctx.save();
+    ctx.fillStyle = '#121215';
+    ctx.strokeStyle = '#2a2a35';
+    ctx.lineWidth = 2;
+    
+    // Main Block
+    ctx.beginPath();
+    ctx.roundRect(250, 260, 300, 140, 24);
+    ctx.fill();
+    ctx.stroke();
+
+    // Carbon Pattern Overlay
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+    for (let i = 250; i < 550; i += 8) {
+      for (let j = 260; j < 400; j += 8) {
+        if ((i + j) % 16 === 0) ctx.fillRect(i, j, 4, 4);
+      }
+    }
+
+    // 3. Glowing LED Top Border Band (Rainbow Cycling)
+    const rainbow = ctx.createLinearGradient(250, 0, 550, 0);
+    const hueShift = (t * 0.05) % 360;
+    rainbow.addColorStop(0, `hsl(${hueShift}, 100%, 50%)`);
+    rainbow.addColorStop(0.33, `hsl(${(hueShift + 120) % 360}, 100%, 50%)`);
+    rainbow.addColorStop(0.66, `hsl(${(hueShift + 240) % 360}, 100%, 50%)`);
+    rainbow.addColorStop(1, `hsl(${hueShift}, 100%, 50%)`);
+
+    ctx.shadowColor = `hsl(${hueShift}, 100%, 50%)`;
+    ctx.shadowBlur = 15;
+    ctx.strokeStyle = rainbow;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.roundRect(252, 262, 296, 6, 3);
+    ctx.stroke();
+    ctx.restore();
+
+    // 4. Red Motherboard Window (Visible Lower Section)
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(270, 310, 260, 75, 12);
+    ctx.fillStyle = '#8a0303'; // Red PCB
+    ctx.fill();
+    ctx.strokeStyle = '#ff3b30';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // M5 Apple Silicon Die
+    ctx.fillStyle = '#0a0a0c';
+    ctx.fillRect(360, 330, 45, 45);
+    ctx.strokeStyle = '#ffe600'; // Gold Contacts
+    ctx.strokeRect(360, 330, 45, 45);
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText('M5', 374, 357);
+
+    // BLE Chip
+    ctx.fillStyle = '#121216';
+    ctx.fillRect(425, 340, 20, 14);
+    ctx.strokeStyle = '#00f0ff';
+    ctx.strokeRect(425, 340, 20, 14);
+
+    // Invisible Waterproofing Sheen (Transparent Blue Coating)
+    ctx.fillStyle = 'rgba(0, 240, 255, 0.12)';
+    ctx.fill();
+    ctx.restore();
+
+    // 5. Glowing Rainbow Apple Logo (Top Center)
+    ctx.save();
+    ctx.shadowColor = `hsl(${hueShift}, 100%, 60%)`;
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = rainbow;
+    
+    ctx.beginPath();
+    ctx.arc(400, 285, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    requestAnimationFrame(drawScene);
+  }
+
+  requestAnimationFrame(drawScene);
+</script>
+</body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mac Mini M5 - Carbon Black Concept Visualization</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #030305;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: #e5e5e7;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    }
+    .hud-title {
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .hud-title h1 {
+      font-size: 1.4rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin: 0 0 4px 0;
+      background: linear-gradient(135deg, #fff 0%, #888 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hud-title p {
+      font-size: 0.8rem;
+      color: #ff3b30;
+      margin: 0;
+      letter-spacing: 1px;
+    }
+    canvas {
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(0, 240, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body>
+
+<div class="hud-title">
+  <h1>Mac Mini M5 Pro Concept</h1>
+  <p>Carbon Black Chassis | Red PCB | Holographic Emitter | IP68 Hydro-Shield</p>
+</div>
+
+<canvas id="renderCanvas" width="800" height="600"></canvas>
+
+<script>
+  const canvas = document.getElementById('renderCanvas');
+  const ctx = canvas.getContext('2d');
+
+  function drawRender(t) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Studio Background
+    const bgGrad = ctx.createRadialGradient(400, 300, 20, 400, 300, 500);
+    bgGrad.addColorStop(0, '#0d0d14');
+    bgGrad.addColorStop(1, '#020204');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, 800, 600);
+
+    // 1. Holographic Projection Field (Top Cone)
+    ctx.save();
+    const holoGrad = ctx.createLinearGradient(400, 250, 400, 40);
+    holoGrad.addColorStop(0, 'rgba(0, 240, 255, 0.35)');
+    holoGrad.addColorStop(0.7, 'rgba(160, 0, 255, 0.15)');
+    holoGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+    ctx.beginPath();
+    ctx.moveTo(320, 250);
+    ctx.lineTo(480, 250);
+    ctx.lineTo(590, 50);
+    ctx.lineTo(210, 50);
+    ctx.closePath();
+    ctx.fillStyle = holoGrad;
+    ctx.fill();
+
+    // Animated Hologram Rings & Scanlines
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.5)';
+    ctx.lineWidth = 1.5;
+    for (let y = 70; y < 240; y += 18) {
+      const pulse = Math.sin(t * 0.004 + y) * 4;
+      const radiusX = 65 + (250 - y) * 0.7;
+      ctx.beginPath();
+      ctx.ellipse(400 + pulse, y, radiusX, 10, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 2. Carbon Fiber Main Body Frame
+    ctx.save();
+    ctx.fillStyle = '#111114';
+    ctx.strokeStyle = '#252530';
+    ctx.lineWidth = 2;
+    
+    ctx.beginPath();
+    ctx.roundRect(240, 250, 320, 130, 20);
+    ctx.fill();
+    ctx.stroke();
+
+    // Weave Pattern Simulation
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.025)';
+    for (let x = 240; x < 560; x += 8) {
+      for (let y = 250; y < 380; y += 8) {
+        if ((x + y) % 16 === 0) ctx.fillRect(x, y, 4, 4);
+      }
+    }
+    ctx.restore();
+
+    // 3. Glowing LED Top Border Band (Rainbow Cycle)
+    ctx.save();
+    const hue = (t * 0.06) % 360;
+    const rainbowGlow = ctx.createLinearGradient(240, 0, 560, 0);
+    rainbowGlow.addColorStop(0, `hsl(${hue}, 100%, 55%)`);
+    rainbowGlow.addColorStop(0.33, `hsl(${(hue + 120) % 360}, 100%, 55%)`);
+    rainbowGlow.addColorStop(0.66, `hsl(${(hue + 240) % 360}, 100%, 55%)`);
+    rainbowGlow.addColorStop(1, `hsl(${hue}, 100%, 55%)`);
+
+    ctx.shadowColor = `hsl(${hue}, 100%, 50%)`;
+    ctx.shadowBlur = 16;
+    ctx.strokeStyle = rainbowGlow;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.roundRect(242, 252, 316, 5, 2.5);
+    ctx.stroke();
+    ctx.restore();
+
+    // 4. Lower Red PCB Motherboard Layer
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(260, 305, 280, 65, 10);
+    ctx.fillStyle = '#8a0303';
+    ctx.fill();
+    ctx.strokeStyle = '#ff3b30';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Apple M5 Silicon Die
+    ctx.fillStyle = '#08080a';
+    ctx.fillRect(360, 318, 48, 42);
+    ctx.strokeStyle = '#ffd700'; // Gold contact boundary
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(360, 318, 48, 42);
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText('M5', 376, 343);
+
+    // BLE Mesh Microchip
+    ctx.fillStyle = '#121218';
+    ctx.fillRect(428, 328, 22, 14);
+    ctx.strokeStyle = '#00f0ff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(428, 328, 22, 14);
+
+    // Hydrophobic Protective Coating (Transparent sheen overlay)
+    ctx.fillStyle = 'rgba(0, 240, 255, 0.08)';
+    ctx.fill();
+    ctx.restore();
+
+    // 5. Multicolor Glowing Apple Emblem (Top Plate)
+    ctx.save();
+    ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+    ctx.shadowBlur = 14;
+    ctx.fillStyle = rainbowGlow;
+
+    ctx.beginPath();
+    ctx.arc(400, 276, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 6. Rear Panel Extra I/O Indicators (HDMI & USB-C array)
+    ctx.save();
+    ctx.fillStyle = '#050505';
+    for (let x = 270; x <= 330; x += 12) {
+      ctx.fillRect(x, 372, 6, 4); // USB-C / Thunderbolt
+    }
+    ctx.fillRect(500, 370, 14, 6); // HDMI 1
+    ctx.fillRect(520, 370, 14, 6); // HDMI 2
+    ctx.restore();
+
+    requestAnimationFrame(drawRender);
+  }
+
+  requestAnimationFrame(drawRender);
+</script>
+</body>
+</html>
