@@ -1,0 +1,1375 @@
+ai-master-search/
+├── manifest.json
+├── background.js
+├── popup.html
+├── popup.js
+└── build.py
+
+
+
+{
+  "manifest_version": 3,
+  "name": "AI Master & Google AI Search",
+  "version": "2.5.0",
+  "description": "Unified AI Search & Intelligence Engine for Standard Chrome, Incognito, ChromeOS, and Mobile.",
+  "incognito": "spanning",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "search"
+  ],
+  "host_permissions": [
+    "https://generativelanguage.googleapis.com/*",
+    "https://g.dev/gilbert_algordo*",
+    "https://www.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AI Master Search Bar"
+  },
+  "chrome_settings_overrides": {
+    "search_provider": {
+      "name": "AI Master Search",
+      "keyword": "@aimaster",
+      "search_url": "https://www.google.com/search?q={searchTerms}",
+      "is_default": false
+    }
+  }
+}
+
+
+
+/**
+ * AI Master - Background Service Worker
+ * Developer: Gilbert Algordo (https://g.dev/gilbert_algordo)
+ */
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.set({
+    devProfile: "https://g.dev/gilbert_algordo",
+    searchEngine: "google-ai",
+    geminiApiKey: ""
+  });
+  console.log("AI Master Search Engine initialized.");
+});
+
+// Omnibox Keyword Search Handling (@aimaster <query>)
+chrome.omnibox.onInputEntered.addListener(async (text) => {
+  const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(text)}`;
+  chrome.tabs.create({ url: searchUrl });
+});
+
+// Listener for cross-context messaging
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "EXECUTE_GEMINI_API") {
+    fetchGeminiResponse(request.prompt, request.apiKey)
+      .then((data) => sendResponse({ success: true, data }))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true; // Keep channel open for async response
+  }
+});
+
+async function fetchGeminiResponse(prompt, apiKey) {
+  if (!apiKey) throw new Error("Google AI API Key missing. Configure in settings.");
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }]
+      })
+    }
+  );
+
+  const json = await response.json();
+  if (!response.ok) throw new Error(json.error?.message || "API Request Failed");
+  return json.candidates[0].content.parts[0].text;
+}
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Master Search</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card: #151d30;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --border: #1e293b;
+    }
+    body {
+      width: 360px;
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      box-sizing: border-box;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--card);
+      border: 1px solid var(--border);
+    }
+    .badge.incognito {
+      border-color: #a855f7;
+      color: #c084fc;
+    }
+    .search-box {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: #fff;
+      font-size: 13px;
+    }
+    input:focus { outline: 1px solid var(--accent); }
+    button {
+      background: var(--accent);
+      color: #0b0f19;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .mode-select {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .btn-secondary {
+      flex: 1;
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px;
+      font-size: 11px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .results {
+      height: 160px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      overflow-y: auto;
+      font-size: 12px;
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: #64748b;
+    }
+    .footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="title">AI MASTER SEARCH</span>
+    <span id="env-badge" class="badge">Standard</span>
+  </div>
+
+  <div class="search-box">
+    <input type="text" id="query-input" placeholder="Search Google or Ask AI Master..." />
+    <button id="search-btn">Run</button>
+  </div>
+
+  <div class="mode-select">
+    <button class="btn-secondary" id="btn-web-search">Google Web</button>
+    <button class="btn-secondary" id="btn-ai-prompt">Google AI / Gemini</button>
+  </div>
+
+  <div id="results-box" class="results">
+    Ready for search or AI prompting...
+  </div>
+
+  <div class="footer">
+    Developer Profile: <a href="https://g.dev/gilbert_algordo" target="_blank" id="profile-link">g.dev/gilbert_algordo</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+
+
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  const queryInput = document.getElementById("query-input");
+  const searchBtn = document.getElementById("search-btn");
+  const btnWebSearch = document.getElementById("btn-web-search");
+  const btnAiPrompt = document.getElementById("btn-ai-prompt");
+  const resultsBox = document.getElementById("results-box");
+  const envBadge = document.getElementById("env-badge");
+  const profileLink = document.getElementById("profile-link");
+
+  // Check Incognito Status
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0] && tabs[0].incognito) {
+      envBadge.textContent = "Incognito";
+      envBadge.classList.add("incognito");
+    }
+  });
+
+  profileLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: "https://g.dev/gilbert_algordo" });
+  });
+
+  // Execute Google Web Search
+  btnWebSearch.addEventListener("click", () => {
+    const q = queryInput.value.trim();
+    if (!q) return;
+    chrome.tabs.create({ url: `https://www.google.com/search?q=${encodeURIComponent(q)}` });
+  });
+
+  // Execute AI Engine Query
+  async function runAiQuery() {
+    const query = queryInput.value.trim();
+    if (!query) return;
+
+    resultsBox.textContent = "AI Master thinking...";
+
+    // 1. Check Chrome Built-in AI (Gemini Nano)
+    if (typeof window.ai !== "undefined" && window.ai.languageModel) {
+      try {
+        const capabilities = await window.ai.languageModel.capabilities();
+        if (capabilities.available !== "no") {
+          const session = await window.ai.languageModel.create();
+          const result = await session.prompt(query);
+          resultsBox.textContent = result;
+          return;
+        }
+      } catch (err) {
+        console.warn("Local AI fallback triggered:", err);
+      }
+    }
+
+    // 2. Cloud Fallback Trigger
+    chrome.storage.local.get(["geminiApiKey"], (data) => {
+      chrome.runtime.sendMessage(
+        { action: "EXECUTE_GEMINI_API", prompt: query, apiKey: data.geminiApiKey },
+        (response) => {
+          if (response && response.success) {
+            resultsBox.textContent = response.data;
+          } else {
+            resultsBox.textContent = `[AI Search Output]: "${query}"\n\n(Configure Google AI API key in storage for direct API calls or enable Chrome Built-in AI flags).`;
+          }
+        }
+      );
+    });
+  }
+
+  searchBtn.addEventListener("click", runAiQuery);
+  btnAiPrompt.addEventListener("click", runAiQuery);
+  queryInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") runAiQuery();
+  });
+});
+
+
+
+import os
+import zipfile
+
+def create_extension_zip(output_filename="ai-master-chrome-extension.zip"):
+    # Files required for the extension installer package
+    files_to_pack = [
+        "manifest.json",
+        "background.js",
+        "popup.html",
+        "popup.js"
+    ]
+    
+    print(f"Building deployment package: {output_filename}...")
+    
+    with zipfile.ZipFile(output_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for file in files_to_pack:
+            if os.path.exists(file):
+                zipf.write(file)
+                print(f" -> Added: {file}")
+            else:
+                print(f" -> Warning: {file} not found!")
+                
+    print(f"\nBuild Complete! Upload '{output_filename}' to Chrome, ChromeOS, or Mobile Browsers.")
+
+if __name__ == "__main__":
+    create_extension_zip()
+
+
+
+
+python build.py
+
+
+
+ai-master-suite/
+├── manifest.json
+├── background.js
+├── content.js
+├── popup.html
+├── popup.js
+└── package_installer.py
+
+
+
+
+{
+  "manifest_version": 3,
+  "name": "AI Master & Google AI Suite",
+  "version": "3.0.0",
+  "description": "Unified Search Bar and AI Engine for Standard Chrome, Incognito, ChromeOS, and Mobile Browsers.",
+  "incognito": "spanning",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "omnibox"
+  ],
+  "host_permissions": [
+    "https://generativelanguage.googleapis.com/*",
+    "https://g.dev/gilbert_algordo*",
+    "https://www.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AI Master Search & AI"
+  },
+  "omnibox": {
+    "keyword": "@aimaster"
+  }
+}
+
+
+
+
+/**
+ * AI Master Background Engine
+ * Profile Link: https://g.dev/gilbert_algordo
+ */
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.set({
+    developerProfile: "https://g.dev/gilbert_algordo",
+    geminiApiKey: ""
+  });
+  console.log("AI Master Extension installed.");
+});
+
+// Omnibox Event Listener: Typing '@aimaster <query>' in URL bar
+chrome.omnibox.onInputEntered.addListener((text) => {
+  const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(text)}`;
+  chrome.tabs.create({ url: searchUrl });
+});
+
+// Async Messaging Relay for Cloud Google AI Calls
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "EXECUTE_GOOGLE_AI") {
+    callGeminiApi(request.prompt, request.apiKey)
+      .then((res) => sendResponse({ success: true, text: res }))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true; // Keep channel open for async response
+  }
+});
+
+async function callGeminiApi(prompt, apiKey) {
+  if (!apiKey) throw new Error("Google AI API Key missing. Please set it in settings.");
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || "Google AI API Error");
+  return data.candidates[0].content.parts[0].text;
+}
+
+
+
+(function () {
+  if (window.hasAIMasterHUD) return;
+  window.hasAIMasterHUD = true;
+
+  const host = document.createElement("div");
+  host.id = "ai-master-root";
+  document.body.appendChild(host);
+  const shadow = host.attachShadow({ mode: "closed" });
+
+  const style = document.createElement("style");
+  style.textContent = `
+    .hud-bar {
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      z-index: 999999;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid #38bdf8;
+      backdrop-filter: blur(8px);
+      border-radius: 20px;
+      padding: 6px 12px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      color: #fff;
+      font-family: system-ui, sans-serif;
+    }
+    .hud-input {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 12px;
+      outline: none;
+      width: 180px;
+    }
+    .hud-btn {
+      background: #38bdf8;
+      border: none;
+      color: #0f172a;
+      border-radius: 12px;
+      padding: 4px 8px;
+      font-size: 10px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  `;
+
+  const container = document.createElement("div");
+  container.className = "hud-bar";
+  container.innerHTML = `
+    <input type="text" class="hud-input" id="hud-in" placeholder="AI Master Search..." />
+    <button class="hud-btn" id="hud-go">Search</button>
+  `;
+
+  shadow.appendChild(style);
+  shadow.appendChild(container);
+
+  shadow.getElementById("hud-go").addEventListener("click", () => {
+    const val = shadow.getElementById("hud-in").value.trim();
+    if (val) window.location.href = `https://www.google.com/search?q=${encodeURIComponent(val)}`;
+  });
+})();
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Master Control Center</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card: #131c2e;
+      --accent: #38bdf8;
+      --text: #f1f5f9;
+      --border: #1e293b;
+    }
+    body {
+      width: 360px;
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      box-sizing: border-box;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .title { font-size: 15px; font-weight: 700; color: var(--accent); }
+    .badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--card);
+      border: 1px solid var(--border);
+    }
+    .badge.incognito { border-color: #a855f7; color: #c084fc; }
+    .search-group { display: flex; gap: 6px; margin-bottom: 10px; }
+    input[type="text"] {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: #fff;
+      font-size: 12px;
+    }
+    button {
+      background: var(--accent);
+      color: #090d16;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .console {
+      height: 150px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      overflow-y: auto;
+      font-size: 12px;
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+    .footer { text-align: center; font-size: 11px; color: #64748b; }
+    .footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="title">AI MASTER SUITE</span>
+    <span id="env-badge" class="badge">Standard</span>
+  </div>
+
+  <div class="search-group">
+    <input type="text" id="main-search" placeholder="Search Google or Ask AI..." />
+    <button id="run-btn">Run</button>
+  </div>
+
+  <div id="output" class="console">
+    Ready for search or Google AI prompt...
+  </div>
+
+  <div class="footer">
+    Developer Profile: <a href="https://g.dev/gilbert_algordo" target="_blank" id="profile-link">g.dev/gilbert_algordo</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  const searchInput = document.getElementById("main-search");
+  const runBtn = document.getElementById("run-btn");
+  const outputBox = document.getElementById("output");
+  const badge = document.getElementById("env-badge");
+  const profileLink = document.getElementById("profile-link");
+
+  // Context Detection
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0] && tabs[0].incognito) {
+      badge.textContent = "Incognito Context";
+      badge.classList.add("incognito");
+    }
+  });
+
+  profileLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: "https://g.dev/gilbert_algordo" });
+  });
+
+  async function executeAction() {
+    const query = searchInput.value.trim();
+    if (!query) return;
+
+    outputBox.textContent = "Processing query...";
+
+    // 1. Native Built-in AI (Gemini Nano) Execution Check
+    if (typeof window.ai !== "undefined" && window.ai.languageModel) {
+      try {
+        const capabilities = await window.ai.languageModel.capabilities();
+        if (capabilities.available !== "no") {
+          const session = await window.ai.languageModel.create();
+          const result = await session.prompt(query);
+          outputBox.textContent = result;
+          return;
+        }
+      } catch (err) {
+        console.warn("Local AI fallback:", err);
+      }
+    }
+
+    // 2. Cloud Fallback or Web Search
+    chrome.storage.local.get(["geminiApiKey"], (data) => {
+      if (data.geminiApiKey) {
+        chrome.runtime.sendMessage(
+          { action: "EXECUTE_GOOGLE_AI", prompt: query, apiKey: data.geminiApiKey },
+          (response) => {
+            if (response && response.success) {
+              outputBox.textContent = response.text;
+            } else {
+              outputBox.textContent = `Error: ${response.error}`;
+            }
+          }
+        );
+      } else {
+        // Fallback to direct web search if no API key is provided
+        chrome.tabs.create({ url: `https://www.google.com/search?q=${encodeURIComponent(query)}` });
+        outputBox.textContent = `Redirected query to Google Search: "${query}"`;
+      }
+    });
+  }
+
+  runBtn.addEventListener("click", executeAction);
+  searchInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") executeAction();
+  });
+});
+
+
+
+import os
+import zipfile
+
+def create_installer_zip(output_zip="ai-master-suite.zip"):
+    required_files = [
+        "manifest.json",
+        "background.js",
+        "content.js",
+        "popup.html",
+        "popup.js"
+    ]
+
+    print(f"[*] Packaging AI Master Extension into {output_zip}...")
+    
+    with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for file in required_files:
+            if os.path.exists(file):
+                zipf.write(file)
+                print(f" [+] Added {file}")
+            else:
+                print(f" [-] Warning: File {file} missing!")
+
+    print(f"\n[✓] Successfully created '{output_zip}'. Ready for distribution.")
+
+if __name__ == "__main__":
+    create_installer_zip()
+
+
+
+
+python package_installer.py
+
+
+
+ai-master-suite/
+├── manifest.json
+├── background.js
+├── content.js
+├── popup.html
+├── popup.js
+├── icons/
+│   ├── icon16.svg
+│   ├── icon48.svg
+│   └── icon128.svg
+└── package_builder.py
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="aiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Shell -->
+  <rect width="128" height="128" rx="28" fill="#0f172a"/>
+  
+  <!-- Chrome Outer Ring -->
+  <circle cx="64" cy="64" r="44" fill="none" stroke="#334155" stroke-width="6"/>
+  
+  <!-- AI Core Gradient Center -->
+  <circle cx="64" cy="64" r="24" fill="url(#aiGrad)"/>
+  
+  <!-- Incognito Glasses Silhouette Overlay -->
+  <path d="M48 54 h32 M52 54 a8 8 0 0 0 8 8 a8 8 0 0 0 8 -8 M72 54 a8 8 0 0 0 8 8 a8 8 0 0 0 8 -8" 
+        stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round"/>
+  
+  <!-- Search Node Accent -->
+  <circle cx="92" cy="92" r="10" fill="#38bdf8"/>
+  <path d="M99 99 L106 106" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+</svg>
+
+
+
+{
+  "manifest_version": 3,
+  "name": "AI Master & Google AI Search",
+  "version": "3.5.0",
+  "description": "Unified Search Bar and AI Engine for Standard Chrome, Incognito, ChromeOS, and Mobile Browsers.",
+  "incognito": "spanning",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "omnibox"
+  ],
+  "host_permissions": [
+    "https://generativelanguage.googleapis.com/*",
+    "https://g.dev/gilbert_algordo*",
+    "https://www.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.svg",
+      "48": "icons/icon48.svg",
+      "128": "icons/icon128.svg"
+    }
+  },
+  "omnibox": {
+    "keyword": "@aimaster"
+  }
+}
+
+
+
+
+
+/**
+ * AI Master Extension Service Worker
+ * Profile Context: https://g.dev/gilbert_algordo
+ */
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.set({
+    developerProfile: "https://g.dev/gilbert_algordo",
+    geminiApiKey: ""
+  });
+});
+
+// Omnibox Query Trigger (@aimaster <query>)
+chrome.omnibox.onInputEntered.addListener((text) => {
+  const targetUrl = `https://www.google.com/search?q=${encodeURIComponent(text)}`;
+  chrome.tabs.create({ url: targetUrl });
+});
+
+// Async API Dispatcher
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "EXECUTE_GOOGLE_AI") {
+    callGoogleAiApi(request.prompt, request.apiKey)
+      .then((data) => sendResponse({ success: true, text: data }))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true; 
+  }
+});
+
+async function callGoogleAiApi(prompt, apiKey) {
+  if (!apiKey) throw new Error("API Key missing. Please set your Google AI API key in options.");
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/interactions?key=${apiKey}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "gemini-1.5-flash",
+      input: prompt
+    })
+  });
+
+  const json = await response.json();
+  if (!response.ok) throw new Error(json.error?.message || "Google AI API Error");
+  return json.output_text || json.candidates[0].content.parts[0].text;
+}
+
+
+
+(function () {
+  if (window.hasAIMasterOverlay) return;
+  window.hasAIMasterOverlay = true;
+
+  const host = document.createElement("div");
+  host.id = "ai-master-hud-host";
+  document.body.appendChild(host);
+  const shadow = host.attachShadow({ mode: "closed" });
+
+  const style = document.createElement("style");
+  style.textContent = `
+    .hud-bar {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 2147483647;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid #38bdf8;
+      backdrop-filter: blur(8px);
+      border-radius: 24px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .hud-input {
+      background: transparent;
+      border: none;
+      color: #f8fafc;
+      font-size: 12px;
+      outline: none;
+      width: 170px;
+    }
+    .hud-btn {
+      background: #38bdf8;
+      color: #0f172a;
+      border: none;
+      border-radius: 12px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+  `;
+
+  const container = document.createElement("div");
+  container.className = "hud-bar";
+  container.innerHTML = `
+    <input type="text" class="hud-input" id="hud-in" placeholder="AI Master Search..." />
+    <button class="hud-btn" id="hud-go">Search</button>
+  `;
+
+  shadow.appendChild(style);
+  shadow.appendChild(container);
+
+  shadow.getElementById("hud-go").addEventListener("click", () => {
+    const val = shadow.getElementById("hud-in").value.trim();
+    if (val) window.location.href = `https://www.google.com/search?q=${encodeURIComponent(val)}`;
+  });
+})();
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Master Suite</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card: #131c2e;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --border: #1e293b;
+    }
+    body {
+      width: 350px;
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      box-sizing: border-box;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .title { font-size: 14px; font-weight: 700; color: var(--accent); }
+    .badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--card);
+      border: 1px solid var(--border);
+    }
+    .badge.incognito { border-color: #a855f7; color: #c084fc; }
+    .search-box { display: flex; gap: 6px; margin-bottom: 10px; }
+    input[type="text"] {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: #fff;
+      font-size: 12px;
+    }
+    button {
+      background: var(--accent);
+      color: #090d16;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .console {
+      height: 140px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      overflow-y: auto;
+      font-size: 12px;
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+    .footer { text-align: center; font-size: 11px; color: #64748b; }
+    .footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="title">AI MASTER SEARCH</span>
+    <span id="env-badge" class="badge">Standard Context</span>
+  </div>
+
+  <div class="search-box">
+    <input type="text" id="query-input" placeholder="Search Google or Ask AI..." />
+    <button id="run-btn">Run</button>
+  </div>
+
+  <div id="output" class="console">
+    Enter a search query or prompt...
+  </div>
+
+  <div class="footer">
+    Developer Profile: <a href="https://g.dev/gilbert_algordo" target="_blank" id="profile-link">g.dev/gilbert_algordo</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  const queryInput = document.getElementById("query-input");
+  const runBtn = document.getElementById("run-btn");
+  const output = document.getElementById("output");
+  const envBadge = document.getElementById("env-badge");
+  const profileLink = document.getElementById("profile-link");
+
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0] && tabs[0].incognito) {
+      envBadge.textContent = "Incognito Context";
+      envBadge.classList.add("incognito");
+    }
+  });
+
+  profileLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: "https://g.dev/gilbert_algordo" });
+  });
+
+  async function executeSearchOrAI() {
+    const query = queryInput.value.trim();
+    if (!query) return;
+
+    output.textContent = "Processing query...";
+
+    // 1. Chrome Built-in AI (Gemini Nano Prompt API)
+    if (typeof window.LanguageModel !== "undefined") {
+      try {
+        const availability = await window.LanguageModel.availability();
+        if (availability === "available") {
+          const session = await window.LanguageModel.create();
+          const result = await session.prompt(query);
+          output.textContent = result;
+          session.destroy();
+          return;
+        }
+      } catch (e) {
+        console.warn("Local Built-in AI fallback:", e);
+      }
+    }
+
+    // 2. Fallback to Cloud API / Web Search
+    chrome.storage.local.get(["geminiApiKey"], (data) => {
+      if (data.geminiApiKey) {
+        chrome.runtime.sendMessage(
+          { action: "EXECUTE_GOOGLE_AI", prompt: query, apiKey: data.geminiApiKey },
+          (response) => {
+            if (response && response.success) {
+              output.textContent = response.text;
+            } else {
+              output.textContent = `Error: ${response.error}`;
+            }
+          }
+        );
+      } else {
+        chrome.tabs.create({ url: `https://www.google.com/search?q=${encodeURIComponent(query)}` });
+        output.textContent = `Redirected query to Google Search: "${query}"`;
+      }
+    });
+  }
+
+  runBtn.addEventListener("click", executeSearchOrAI);
+  queryInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") executeSearchOrAI();
+  });
+});
+
+
+
+import os
+import zipfile
+
+def build_extension_package(output_zip="ai-master-suite.zip"):
+    # List of files and folders to package
+    package_manifest = [
+        "manifest.json",
+        "background.js",
+        "content.js",
+        "popup.html",
+        "popup.js",
+        "icons/icon16.svg",
+        "icons/icon48.svg",
+        "icons/icon128.svg"
+    ]
+
+    print(f"[*] Building AI Master installer zip: {output_zip}...")
+    
+    with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for item in package_manifest:
+            if os.path.exists(item):
+                zipf.write(item)
+                print(f"  [+] Included: {item}")
+            else:
+                print(f"  [-] Warning: File missing: {item}")
+
+    print(f"\n[✓] Package created successfully: '{output_zip}'")
+
+if __name__ == "__main__":
+    build_extension_package()
+
+
+
+
+python package_builder.py
+
+
+
+ai-master-suite/
+├── icons/
+│   ├── chrome.svg
+│   ├── incognito.svg
+│   ├── chromeos.svg
+│   ├── aimaster.svg
+│   ├── google_ai.svg
+│   └── searchbar.svg
+└── generate_icons_zip.py
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <circle cx="64" cy="64" r="56" fill="#4285f4"/>
+  <path d="M64 28 A36 36 0 0 1 95.18 46 L64 64 Z" fill="#ea4335"/>
+  <path d="M95.18 46 A36 36 0 0 1 64 100 L64 64 Z" fill="#fbbc05"/>
+  <path d="M64 100 A36 36 0 0 1 32.82 46 L64 64 Z" fill="#34a853"/>
+  <circle cx="64" cy="64" r="24" fill="#ffffff"/>
+  <circle cx="64" cy="64" r="20" fill="#1a73e8"/>
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" rx="28" fill="#202124"/>
+  <path d="M30 46 L98 46 L90 32 L38 32 Z" fill="#e8eaed"/>
+  <rect x="24" y="48" width="80" height="6" rx="3" fill="#e8eaed"/>
+  <circle cx="46" cy="74" r="16" fill="none" stroke="#e8eaed" stroke-width="6"/>
+  <circle cx="82" cy="74" r="16" fill="none" stroke="#e8eaed" stroke-width="6"/>
+  <path d="M62 74 Q 64 70 66 74" fill="none" stroke="#e8eaed" stroke-width="4" stroke-linecap="round"/>
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <circle cx="64" cy="64" r="56" fill="#202124"/>
+  <circle cx="64" cy="64" r="40" fill="none" stroke="#8ab4f8" stroke-width="8"/>
+  <circle cx="64" cy="64" r="16" fill="#8ab4f8"/>
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="aiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#0f172a"/>
+  <path d="M64 24 L74 54 L104 64 L74 74 L64 104 L54 74 L24 64 L54 54 Z" fill="url(#aiGrad)"/>
+</svg>
+
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="gAiGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4285f4"/>
+      <stop offset="33%" stop-color="#ea4335"/>
+      <stop offset="66%" stop-color="#fbbc05"/>
+      <stop offset="100%" stop-color="#34a853"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#ffffff"/>
+  <path d="M64 16 Q 64 64 112 64 Q 64 64 64 112 Q 64 64 16 64 Q 64 64 64 16 Z" fill="url(#gAiGrad)"/>
+</svg>
+
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 96" width="512" height="96">
+  <rect width="512" height="96" rx="48" fill="#1e293b" stroke="#38bdf8" stroke-width="4"/>
+  <circle cx="48" cy="48" r="20" fill="none" stroke="#94a3b8" stroke-width="5"/>
+  <path d="M62 62 L78 78" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+  <text x="96" y="56" fill="#f8fafc" font-family="sans-serif" font-size="24" font-weight="500">Ask AI Master or Search Web...</text>
+</svg>
+
+
+
+import os
+import zipfile
+
+# Dictionary mapping filenames to their SVG source string
+icons_data = {
+    "icons/chrome.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><circle cx="64" cy="64" r="56" fill="#4285f4"/><path d="M64 28 A36 36 0 0 1 95.18 46 L64 64 Z" fill="#ea4335"/><path d="M95.18 46 A36 36 0 0 1 64 100 L64 64 Z" fill="#fbbc05"/><path d="M64 100 A36 36 0 0 1 32.82 46 L64 64 Z" fill="#34a853"/><circle cx="64" cy="64" r="24" fill="#ffffff"/><circle cx="64" cy="64" r="20" fill="#1a73e8"/></svg>''',
+    "icons/incognito.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><rect width="128" height="128" rx="28" fill="#202124"/><path d="M30 46 L98 46 L90 32 L38 32 Z" fill="#e8eaed"/><rect x="24" y="48" width="80" height="6" rx="3" fill="#e8eaed"/><circle cx="46" cy="74" r="16" fill="none" stroke="#e8eaed" stroke-width="6"/><circle cx="82" cy="74" r="16" fill="none" stroke="#e8eaed" stroke-width="6"/><path d="M62 74 Q 64 70 66 74" fill="none" stroke="#e8eaed" stroke-width="4" stroke-linecap="round"/></svg>''',
+    "icons/chromeos.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><circle cx="64" cy="64" r="56" fill="#202124"/><circle cx="64" cy="64" r="40" fill="none" stroke="#8ab4f8" stroke-width="8"/><circle cx="64" cy="64" r="16" fill="#8ab4f8"/></svg>''',
+    "icons/aimaster.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><defs><linearGradient id="aiGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#818cf8"/></linearGradient></defs><rect width="128" height="128" rx="28" fill="#0f172a"/><path d="M64 24 L74 54 L104 64 L74 74 L64 104 L54 74 L24 64 L54 54 Z" fill="url(#aiGrad)"/></svg>''',
+    "icons/google_ai.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><defs><linearGradient id="gAiGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#4285f4"/><stop offset="33%" stop-color="#ea4335"/><stop offset="66%" stop-color="#fbbc05"/><stop offset="100%" stop-color="#34a853"/></linearGradient></defs><rect width="128" height="128" rx="28" fill="#ffffff"/><path d="M64 16 Q 64 64 112 64 Q 64 64 64 112 Q 64 64 16 64 Q 64 64 64 16 Z" fill="url(#gAiGrad)"/></svg>''',
+    "icons/searchbar.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 96" width="512" height="96"><rect width="512" height="96" rx="48" fill="#1e293b" stroke="#38bdf8" stroke-width="4"/><circle cx="48" cy="48" r="20" fill="none" stroke="#94a3b8" stroke-width="5"/><path d="M62 62 L78 78" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/><text x="96" y="56" fill="#f8fafc" font-family="sans-serif" font-size="24" font-weight="500">Ask AI Master or Search Web...</text></svg>'''
+}
+
+def create_icons_and_zip(output_zip="ai-master-icons.zip"):
+    os.makedirs("icons", exist_ok=True)
+    
+    # Write files locally
+    for path, content in icons_data.items():
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"[+] Generated: {path}")
+
+    # Build ZIP archive
+    with zipfile.ZipFile(output_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for path in icons_data.keys():
+            zipf.write(path)
+            print(f"  [->] Bundled into ZIP: {path}")
+
+    print(f"\n[✓] Complete! Zip archive created at '{output_zip}'")
+
+if __name__ == "__main__":
+    create_icons_and_zip()
+
+
+
+ai-master-suite/
+├── icons/
+│   ├── chrome.svg
+│   ├── incognito.svg
+│   ├── chromeos.svg
+│   ├── aimaster.svg
+│   ├── google_ai.svg
+│   └── searchbar.svg
+├── banner.html
+└── build_full_suite.py
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Master Suite Banner</title>
+  <style>
+    body { margin: 0; padding: 20px; background: #020617; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .banner-container { width: 100%; max-width: 1200px; aspect-ratio: 1200 / 630; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
+  </style>
+</head>
+<body>
+  <div class="banner-container">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="100%" height="100%">
+      <defs>
+        <!-- Gradients -->
+        <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#0f172a"/>
+          <stop offset="50%" stop-color="#020617"/>
+          <stop offset="100%" stop-color="#1e1b4b"/>
+        </linearGradient>
+        <linearGradient id="aiGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#38bdf8"/>
+          <stop offset="50%" stop-color="#818cf8"/>
+          <stop offset="100%" stop-color="#c084fc"/>
+        </linearGradient>
+        <linearGradient id="googleAi" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#4285f4"/>
+          <stop offset="33%" stop-color="#ea4335"/>
+          <stop offset="66%" stop-color="#fbbc05"/>
+          <stop offset="100%" stop-color="#34a853"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Background -->
+      <rect width="1200" height="630" fill="url(#bgGrad)"/>
+      <circle cx="200" cy="150" r="300" fill="#38bdf8" opacity="0.05" filter="blur(60px)"/>
+      <circle cx="1000" cy="480" r="350" fill="#a855f7" opacity="0.05" filter="blur(60px)"/>
+
+      <!-- Header Title -->
+      <text x="600" y="90" text-anchor="middle" fill="url(#aiGlow)" font-family="system-ui, sans-serif" font-size="42" font-weight="800" letter-spacing="2">AI MASTER &amp; GOOGLE AI SUITE</text>
+      <text x="600" y="130" text-anchor="middle" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="18" font-weight="500">Universal Browser Intelligence • Chrome • Incognito • ChromeOS • Mobile</text>
+
+      <!-- Search Bar Mockup -->
+      <g transform="translate(200, 170)">
+        <rect width="800" height="70" rx="35" fill="#1e293b" stroke="url(#aiGlow)" stroke-width="3"/>
+        <circle cx="45" cy="35" r="14" fill="none" stroke="#38bdf8" stroke-width="3"/>
+        <path d="M55 45 L67 57" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+        <text x="85" y="43" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="20" font-weight="400">Ask AI Master or Search Web...</text>
+        <rect x="660" y="12" width="125" height="46" rx="23" fill="url(#aiGlow)"/>
+        <text x="722" y="41" text-anchor="middle" fill="#0f172a" font-family="system-ui, sans-serif" font-size="16" font-weight="700">SEARCH</text>
+      </g>
+
+      <!-- Platforms & Badges Group -->
+      <!-- 1. Google Chrome -->
+      <g transform="translate(180, 300)">
+        <rect width="180" height="180" rx="24" fill="#0f172a" stroke="#334155" stroke-width="2"/>
+        <circle cx="90" cy="70" r="40" fill="#4285f4"/>
+        <path d="M90 44 A26 26 0 0 1 112.5 57 L90 70 Z" fill="#ea4335"/>
+        <path d="M112.5 57 A26 26 0 0 1 90 96 L90 70 Z" fill="#fbbc05"/>
+        <path d="M90 96 A26 26 0 0 1 67.5 57 L90 70 Z" fill="#34a853"/>
+        <circle cx="90" cy="70" r="17" fill="#ffffff"/>
+        <circle cx="90" cy="70" r="14" fill="#1a73e8"/>
+        <text x="90" y="142" text-anchor="middle" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="16" font-weight="600">Google Chrome</text>
+      </g>
+
+      <!-- 2. Incognito Mode -->
+      <g transform="translate(390, 300)">
+        <rect width="180" height="180" rx="24" fill="#0f172a" stroke="#a855f7" stroke-width="2"/>
+        <g transform="translate(90, 65) scale(0.85)">
+          <path d="M-30 -14 L30 -14 L23 -26 L-23 -26 Z" fill="#c084fc"/>
+          <rect x="-35" y="-12" width="70" height="5" rx="2" fill="#c084fc"/>
+          <circle cx="-18" cy="10" r="12" fill="none" stroke="#c084fc" stroke-width="4"/>
+          <circle cx="18" cy="10" r="12" fill="none" stroke="#c084fc" stroke-width="4"/>
+          <path d="M-4 10 Q 0 7 4 10" fill="none" stroke="#c084fc" stroke-width="3"/>
+        </g>
+        <text x="90" y="142" text-anchor="middle" fill="#c084fc" font-family="system-ui, sans-serif" font-size="16" font-weight="600">Incognito Mode</text>
+      </g>
+
+      <!-- 3. ChromeOS -->
+      <g transform="translate(600, 300)">
+        <rect width="180" height="180" rx="24" fill="#0f172a" stroke="#334155" stroke-width="2"/>
+        <circle cx="90" cy="70" r="36" fill="none" stroke="#38bdf8" stroke-width="8"/>
+        <circle cx="90" cy="70" r="14" fill="#38bdf8"/>
+        <text x="90" y="142" text-anchor="middle" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="16" font-weight="600">ChromeOS</text>
+      </g>
+
+      <!-- 4. Google AI / AI Master Core -->
+      <g transform="translate(810, 300)">
+        <rect width="180" height="180" rx="24" fill="#0f172a" stroke="#38bdf8" stroke-width="2"/>
+        <path d="M90 32 Q 90 70 128 70 Q 90 70 90 108 Q 90 70 52 70 Q 90 70 90 32 Z" fill="url(#googleAi)"/>
+        <text x="90" y="142" text-anchor="middle" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="16" font-weight="600">Google AI Core</text>
+      </g>
+
+      <!-- Footer Developer Profile -->
+      <text x="600" y="555" text-anchor="middle" fill="#64748b" font-family="system-ui, sans-serif" font-size="15" font-weight="500">
+        Developer Hub: <tspan fill="#38bdf8">https://g.dev/gilbert_algordo</tspan>
+      </text>
+    </svg>
+  </div>
+</body>
+</html>
+
+
+
+import os
+import zipfile
+
+# Dictionary containing SVG assets and banner HTML
+bundle_files = {
+    "icons/chrome.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><circle cx="64" cy="64" r="56" fill="#4285f4"/><path d="M64 28 A36 36 0 0 1 95.18 46 L64 64 Z" fill="#ea4335"/><path d="M95.18 46 A36 36 0 0 1 64 100 L64 64 Z" fill="#fbbc05"/><path d="M64 100 A36 36 0 0 1 32.82 46 L64 64 Z" fill="#34a853"/><circle cx="64" cy="64" r="24" fill="#ffffff"/><circle cx="64" cy="64" r="20" fill="#1a73e8"/></svg>''',
+    "icons/incognito.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><rect width="128" height="128" rx="28" fill="#202124"/><path d="M30 46 L98 46 L90 32 L38 32 Z" fill="#e8eaed"/><rect x="24" y="48" width="80" height="6" rx="3" fill="#e8eaed"/><circle cx="46" cy="74" r="16" fill="none" stroke="#e8eaed" stroke-width="6"/><circle cx="82" cy="74" r="16" fill="none" stroke="#e8eaed" stroke-width="6"/><path d="M62 74 Q 64 70 66 74" fill="none" stroke="#e8eaed" stroke-width="4" stroke-linecap="round"/></svg>''',
+    "icons/chromeos.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><circle cx="64" cy="64" r="56" fill="#202124"/><circle cx="64" cy="64" r="40" fill="none" stroke="#8ab4f8" stroke-width="8"/><circle cx="64" cy="64" r="16" fill="#8ab4f8"/></svg>''',
+    "icons/aimaster.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><defs><linearGradient id="aiGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#818cf8"/></linearGradient></defs><rect width="128" height="128" rx="28" fill="#0f172a"/><path d="M64 24 L74 54 L104 64 L74 74 L64 104 L54 74 L24 64 L54 54 Z" fill="url(#aiGrad)"/></svg>''',
+    "icons/google_ai.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><defs><linearGradient id="gAiGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#4285f4"/><stop offset="33%" stop-color="#ea4335"/><stop offset="66%" stop-color="#fbbc05"/><stop offset="100%" stop-color="#34a853"/></linearGradient></defs><rect width="128" height="128" rx="28" fill="#ffffff"/><path d="M64 16 Q 64 64 112 64 Q 64 64 64 112 Q 64 64 16 64 Q 64 64 64 16 Z" fill="url(#gAiGrad)"/></svg>''',
+    "icons/searchbar.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 96" width="512" height="96"><rect width="512" height="96" rx="48" fill="#1e293b" stroke="#38bdf8" stroke-width="4"/><circle cx="48" cy="48" r="20" fill="none" stroke="#94a3b8" stroke-width="5"/><path d="M62 62 L78 78" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/><text x="96" y="56" fill="#f8fafc" font-family="sans-serif" font-size="24" font-weight="500">Ask AI Master or Search Web...</text></svg>'''
+}
+
+def generate_banner_and_pack(output_zip="ai-master-suite-full.zip"):
+    os.makedirs("icons", exist_ok=True)
+    
+    # 1. Generate Icon SVGs
+    for path, content in bundle_files.items():
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"[+] Generated: {path}")
+
+    # 2. Package into Zip Archive
+    with zipfile.ZipFile(output_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for path in bundle_files.keys():
+            zipf.write(path)
+            print(f"  [->] Bundled: {path}")
+            
+        if os.path.exists("banner.html"):
+            zipf.write("banner.html")
+            print(f"  [->] Bundled: banner.html")
+
+    print(f"\n[✓] Complete! Installer suite zip created at '{output_zip}'")
+
+if __name__ == "__main__":
+    generate_banner_and_pack()
