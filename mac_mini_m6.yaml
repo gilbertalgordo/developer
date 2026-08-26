@@ -1,0 +1,474 @@
+import zipfile
+import io
+import json
+
+# Define the complete hardware specifications for the Mac Mini M6 concept
+mac_mini_m6_specifications = {
+    "device": {
+        "name": "Apple Mac Mini M6 (Custom Modular Spec)",
+        "developer_profile": "https://g.dev/gilbert_algordo",
+        "chassis": {
+            "finish": "Carbon Black Anodized Aluminum",
+            "form_factor": "Ultra-Slim Form Factor",
+            "waterproofing": "Invisible Nano-Coating (IPX8 Submersible Rating)",
+            "top_border": {
+                "branding": "Glowing RGB LED Apple Logo",
+                "lighting_modes": ["Dynamic Rainbow", "Static Accent", "System Load Reactive"]
+            }
+        },
+        "motherboard": {
+            "substrate_color": "Custom Reinforced Red PCB",
+            "processor": "Next-Gen Apple M6 Unified Architecture",
+            "memory": {
+                "type": "High-Density LPDDR6 Unified Memory",
+                "capacity": "Extra Capacity Expansion Slot Supported (Up to 128GB)"
+            },
+            "connectivity": {
+                "ble_chipset": "Ultra-Low Power Bluetooth Low Energy (BLE) 5.3 Microchip",
+                "holographic_support": "Holographic Ready Spatial Data Bus (40Gbps Low-Latency Output)"
+            }
+        },
+        "cooling_system": {
+            "type": "Advanced Active Vapor Chamber",
+            "components": ["Dual Ultra-Slim Fans", "Direct-Contact Copper Heat Pipes", "Airflow Vents"]
+        },
+        "io_ports": [
+            "4x Thunderbolt 5 / USB-C Ports",
+            "3x Extra USB-A 3.2 High-Speed Ports",
+            "2x HDMI 2.1 HD Ports (4K@120Hz Output)",
+            "1x Dedicated Holographic Display Interface",
+            "1x Gigabit Ethernet (RJ-45)",
+            "1x 3.5mm Headphone Jack"
+        ]
+    }
+}
+
+# HTML System HUD Interface
+hud_interface_html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mac Mini M6 HUD - System Control</title>
+    <style>
+        body {
+            background-color: #0d0d0d;
+            color: #00ffcc;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .hud-container {
+            border: 2px solid #00ffcc;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.4);
+            border-radius: 10px;
+            padding: 30px;
+            width: 450px;
+            background: rgba(15, 15, 15, 0.9);
+        }
+        h1 {
+            font-size: 1.2rem;
+            text-align: center;
+            letter-spacing: 2px;
+            border-bottom: 1px solid #00ffcc;
+            padding-bottom: 10px;
+        }
+        .status-item {
+            margin: 15px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        .val { color: #ff0055; font-weight: bold; }
+        .glowing-logo {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.5rem;
+            animation: glow 2s infinite alternate;
+        }
+        @keyframes glow {
+            0% { text-shadow: 0 0 5px #ff0000, 0 0 10px #00ff00; }
+            100% { text-shadow: 0 0 10px #0000ff, 0 0 20px #ff00ff; }
+        }
+    </style>
+</head>
+<body>
+    <div class="hud-container">
+        <h1>MAC MINI M6 HUD</h1>
+        <div class="status-item"><span>Chassis:</span><span class="val">Carbon Black</span></div>
+        <div class="status-item"><span>Processor:</span><span class="val">Apple M6</span></div>
+        <div class="status-item"><span>Motherboard:</span><span class="val">Red PCB</span></div>
+        <div class="status-item"><span>BLE Microchip:</span><span class="val">Active</span></div>
+        <div class="status-item"><span>Waterproofing:</span><span class="val">Nano-Coated</span></div>
+        <div class="status-item"><span>Holographic Bus:</span><span class="val">Ready</span></div>
+        <div class="glowing-logo"> LED SYSTEM ONLINE</div>
+    </div>
+</body>
+</html>
+"""
+
+def create_mac_mini_m6_zip():
+    # Create an in-memory zip file
+    zip_buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        # 1. Add Hardware Specs JSON
+        zip_file.writestr(
+            "mac_mini_m6_specs.json", 
+            json.dumps(mac_mini_m6_specifications, indent=4)
+        )
+        
+        # 2. Add System HUD Dashboard Interface
+        zip_file.writestr(
+            "hud_dashboard.html", 
+            hud_interface_html
+        )
+        
+        # 3. Add Developer Profile Reference
+        zip_file.writestr(
+            "developer_info.txt", 
+            "Developer Profile: https://g.dev/gilbert_algordo\nProject: Apple Mac Mini M6 Concept Blueprint Architecture."
+        )
+
+    # Save to disk
+    with open("Mac_Mini_M6_Blueprint.zip", "wb") as f:
+        f.write(zip_buffer.getvalue())
+
+    print("Zip file 'Mac_Mini_M6_Blueprint.zip' created successfully!")
+
+if __name__ == "__main__":
+    create_mac_mini_m6_zip()
+
+
+
+import base64
+import io
+import json
+import zipfile
+
+# 1. HARDWARE SPECIFICATIONS DATA
+specifications = {
+    "device": {
+        "model": "Apple Mac Mini M6 (Custom Concept Spec)",
+        "developer": "https://g.dev/gilbert_algordo",
+        "chassis": {
+            "finish": "Carbon Black Anodized Aluminum with Glassmorphic Top Border",
+            "dimensions": "185mm x 185mm x 32mm",
+            "waterproofing": "Invisible Hydrophobic Nano-Coating (IPX8 Submersible Rating)",
+            "branding": "Dynamic Glowing RGB Spectrum LED Apple Logo (Top Surface)"
+        },
+        "motherboard": {
+            "substrate": "Reinforced Crimson Red PCB Substrate",
+            "processor": "Apple M6 Ultra-Modular Architecture (16-Core CPU / 32-Core GPU / Neural Engine)",
+            "microchip": "Ultra-Low Power Bluetooth Low Energy (BLE 5.3) Module",
+            "memory": "128GB LPDDR6 Unified Memory + Hot-Swappable M.2 NVMe SSD Expansion",
+            "holographic_bus": "Ultra-Wideband Optical Data Interface (40Gbps Holographic Engine Ready)"
+        },
+        "cooling_system": {
+            "type": "Dual-Blade Active Vapor Chamber Thermal Assembly",
+            "features": ["Direct-Contact Copper Heat Pipes", "Ultra-Quiet Centrifugal Fan", "Liquid Crystal Polymer Vents"]
+        },
+        "io_connectivity": [
+            "4x Thunderbolt 5 / USB-C Ports",
+            "3x Extra USB-A 3.2 High-Speed Expansion Ports",
+            "2x HDMI 2.1 HD Display Output Ports (4K@120Hz)",
+            "1x Dedicated Holographic Optical Display Bus",
+            "1x 10-Gigabit Ethernet (RJ-45)",
+            "1x Magnetic Magsafe DC Power Input"
+        ]
+    }
+}
+
+# 2. THREE.JS 3D HUD INTERFACE (HTML/CSS/JS)
+interactive_html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mac Mini M6 Blueprint & 3D Visualizer</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: #08080a; color: #00f0ff; font-family: 'Segoe UI', Tahoma, monospace; overflow: hidden; height: 100vh; }
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        .hud-overlay {
+            position: absolute; top: 20px; left: 20px; z-index: 10;
+            background: rgba(10, 10, 15, 0.85); border: 1px solid #00f0ff;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2); border-radius: 8px;
+            padding: 20px; width: 360px; backdrop-filter: blur(10px);
+        }
+        h1 { font-size: 1.1rem; letter-spacing: 2px; color: #fff; margin-bottom: 12px; border-bottom: 1px solid #00f0ff; padding-bottom: 8px; }
+        .stat-row { display: flex; justify-content: space-between; margin: 8px 0; font-size: 0.85rem; }
+        .label { color: #8a9ba8; }
+        .val { color: #ff3366; font-weight: bold; }
+        .val-cyan { color: #00f0ff; font-weight: bold; }
+        .footer-tag { position: absolute; bottom: 20px; right: 20px; z-index: 10; font-size: 0.8rem; background: rgba(0,0,0,0.7); padding: 8px 12px; border-radius: 4px; border: 1px solid #333; }
+        .footer-tag a { color: #00f0ff; text-decoration: none; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div class="hud-overlay">
+        <h1>MAC MINI M6 HUD</h1>
+        <div class="stat-row"><span class="label">Chassis:</span><span class="val-cyan">Carbon Black Aluminum</span></div>
+        <div class="stat-row"><span class="label">Motherboard:</span><span class="val">Red Substrate PCB</span></div>
+        <div class="stat-row"><span class="label">Processor:</span><span class="val-cyan">Apple M6 Silicon</span></div>
+        <div class="stat-row"><span class="label">BLE Microchip:</span><span class="val">Active (BLE 5.3)</span></div>
+        <div class="stat-row"><span class="label">Waterproofing:</span><span class="val">Invisible Nano-Coat</span></div>
+        <div class="stat-row"><span class="label">Holographic Bus:</span><span class="val-cyan">40 Gbps Ready</span></div>
+        <div class="stat-row"><span class="label">Cooling System:</span><span class="val-cyan">Active Vapor Chamber</span></div>
+    </div>
+    <div class="footer-tag">Developer Profile: <a href="https://g.dev/gilbert_algordo" target="_blank">https://g.dev/gilbert_algordo</a></div>
+
+    <script>
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x08080a, 0.08);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(5, 4, 6);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        // Lighting Setup
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0x00f0ff, 1.5);
+        dirLight.position.set(5, 10, 7);
+        scene.add(dirLight);
+
+        // Group Container
+        const macMiniGroup = new THREE.Group();
+
+        // 1. Carbon Black Chassis
+        const chassisGeo = new THREE.BoxGeometry(3, 0.5, 3);
+        const chassisMat = new THREE.MeshStandardMaterial({ color: 0x111113, roughness: 0.3, metalness: 0.8 });
+        const chassis = new THREE.Mesh(chassisGeo, chassisMat);
+        macMiniGroup.add(chassis);
+
+        // 2. Red Motherboard (Exposed Internals View)
+        const pcbGeo = new THREE.BoxGeometry(2.8, 0.05, 2.8);
+        const pcbMat = new THREE.MeshStandardMaterial({ color: 0xcc0022, roughness: 0.4 });
+        const pcb = new THREE.Mesh(pcbGeo, pcbMat);
+        pcb.position.y = 0.28;
+        macMiniGroup.add(pcb);
+
+        // 3. Apple M6 Processor Chip
+        const m6Geo = new THREE.BoxGeometry(0.8, 0.04, 0.8);
+        const m6Mat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9, roughness: 0.2 });
+        const m6Chip = new THREE.Mesh(m6Geo, m6Mat);
+        m6Chip.position.set(0, 0.32, 0);
+        macMiniGroup.add(m6Chip);
+
+        // 4. Glowing RGB Top Apple Logo (Dynamic Shader Light simulation)
+        const logoGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.02, 32);
+        const logoMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+        const logo = new THREE.Mesh(logoGeo, logoMat);
+        logo.position.set(0, 0.26, 0);
+        macMiniGroup.add(logo);
+
+        scene.add(macMiniGroup);
+
+        // Animation Loop
+        let clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+            
+            // Rotate RGB LED color spectrum
+            const r = (Math.sin(time * 2) + 1) / 2;
+            const g = (Math.sin(time * 2 + 2) + 1) / 2;
+            const b = (Math.sin(time * 2 + 4) + 1) / 2;
+            logoMat.color.setRGB(r, g, b);
+
+            macMiniGroup.rotation.y = time * 0.2;
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
+"""
+
+# 3. BUILD ZIP IN-MEMORY & SAVE
+def build_bundle():
+    zip_buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        # Write JSON Specs
+        zip_file.writestr("mac_mini_m6_spec.json", json.dumps(specifications, indent=4))
+        # Write 3D HUD HTML
+        zip_file.writestr("index.html", interactive_html)
+        # Write Developer Info
+        zip_file.writestr("README.txt", "Apple Mac Mini M6 Architecture Blueprint\nDeveloper Profile: https://g.dev/gilbert_algordo")
+
+    filename = "Mac_Mini_M6_Blueprint_Package.zip"
+    with open(filename, "wb") as f:
+        f.write(zip_buffer.getvalue())
+        
+    print(f"Package successfully generated: {filename}")
+
+if __name__ == "__main__":
+    build_bundle()
+
+
+
+python generate_zip.py
+
+
+
+
+import base64
+import io
+import json
+import zipfile
+
+# 1. ICON SPECIFICATIONS DATA
+icon_specs = {
+    "project": "Apple Mac Mini M6 Concept Icons",
+    "developer": "https://g.dev/gilbert_algordo",
+    "components": [
+        {"id": "processor", "title": "Apple M6 Processor", "desc": "Next-Gen Silicon Architecture"},
+        {"id": "motherboard", "title": "Red PCB Substrate", "desc": "Reinforced Red Circuitry"},
+        {"id": "chassis", "title": "Carbon Black Shell", "desc": "Sleek Anodized Finish & Glowing LED"},
+        {"id": "ports", "title": "Expanded I/O Array", "desc": "Extra USB-A, HDMI 2.1 & Holographic Bus"},
+        {"id": "ble", "title": "BLE Microchip", "desc": "Bluetooth Low Energy 5.3 Interface"},
+        {"id": "waterproof", "title": "Invisible Waterproofing", "desc": "Nano-Coated IPX8 Submersible Shield"},
+        {"id": "memory", "title": "Extra Memory Capacity", "desc": "128GB LPDDR6 Unified Expansion"},
+        {"id": "cooling", "title": "Active Cooling System", "desc": "Dual-Blade Fans & Vapor Chamber"}
+    ]
+}
+
+# 2. INDIVIDUAL SVG ICON GENERATOR
+def generate_svg_icon(icon_id):
+    svg_templates = {
+        "processor": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="128" height="128">
+            <rect width="100" height="100" rx="20" fill="#111115" stroke="#00f0ff" stroke-width="2"/>
+            <rect x="25" y="25" width="50" height="50" rx="8" fill="#22222a" stroke="#333" stroke-width="2"/>
+            <text x="50" y="55" font-family="Arial, sans-serif" font-weight="bold" font-size="18" fill="#fff" text-anchor="middle"> M6</text>
+            <circle cx="50" cy="50" r="32" stroke="#00f0ff" stroke-width="1" stroke-dasharray="4 2" fill="none"/>
+        </svg>""",
+        "motherboard": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="128" height="128">
+            <rect width="100" height="100" rx="20" fill="#111115" stroke="#ff3366" stroke-width="2"/>
+            <rect x="20" y="20" width="60" height="60" rx="4" fill="#cc0022"/>
+            <path d="M30 30 H70 V70 H30 Z" fill="none" stroke="#ff6688" stroke-width="2"/>
+            <circle cx="50" cy="50" r="10" fill="#111"/>
+        </svg>""",
+        "chassis": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="128" height="128">
+            <rect width="100" height="100" rx="20" fill="#111115" stroke="#00f0ff" stroke-width="2"/>
+            <rect x="20" y="35" width="60" height="30" rx="6" fill="#1a1a1f" stroke="#444"/>
+            <path d="M50 42 Q53 42 53 45 Q53 48 50 48 Q47 48 47 45 Z" fill="#00ffff"/>
+        </svg>""",
+        "ports": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="128" height="128">
+            <rect width="100" height="100" rx="20" fill="#111115" stroke="#00f0ff" stroke-width="2"/>
+            <rect x="20" y="45" width="15" height="10" rx="2" fill="#00f0ff"/>
+            <rect x="42" y="45" width="15" height="10" rx="2" fill="#00f0ff"/>
+            <rect x="65" y="45" width="15" height="10" rx="2" fill="#ff3366"/>
+        </svg>""",
+        "ble": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="128" height="128">
+            <rect width="100" height="100" rx="20" fill="#111115" stroke="#00f0ff" stroke-width="2"/>
+            <path d="M50 25 L50 75 L62 62 L50 50 L62 38 Z" fill="none" stroke="#00ffcc" stroke-width="4" stroke-linejoin="round"/>
+        </svg>""",
+        "waterproof": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="128" height="128">
+            <rect width="100" height="100" rx="20" fill="#111115" stroke="#00f0ff" stroke-width="2"/>
+            <path d="M50 25 Q65 45 65 60 A15 15 0 0 1 35 60 Q35 45 50 25 Z" fill="none" stroke="#00f0ff" stroke-width="3"/>
+        </svg>""",
+        "memory": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="128" height="128">
+            <rect width="100" height="100" rx="20" fill="#111115" stroke="#00f0ff" stroke-width="2"/>
+            <rect x="25" y="30" width="50" height="40" rx="4" fill="#222" stroke="#00ffcc" stroke-width="2"/>
+            <line x1="35" y1="70" x2="35" y2="75" stroke="#00ffcc" stroke-width="2"/>
+            <line x1="45" y1="70" x2="45" y2="75" stroke="#00ffcc" stroke-width="2"/>
+            <line x1="55" y1="70" x2="55" y2="75" stroke="#00ffcc" stroke-width="2"/>
+            <line x1="65" y1="70" x2="65" y2="75" stroke="#00ffcc" stroke-width="2"/>
+        </svg>""",
+        "cooling": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="128" height="128">
+            <rect width="100" height="100" rx="20" fill="#111115" stroke="#ff3366" stroke-width="2"/>
+            <circle cx="50" cy="50" r="22" stroke="#ff3366" stroke-width="2" fill="none"/>
+            <path d="M50 28 L50 72 M28 50 L72 50" stroke="#ff3366" stroke-width="2"/>
+        </svg>"""
+    }
+    return svg_templates.get(icon_id, "")
+
+# 3. DASHBOARD HTML SHOWCASING THE BLUEPRINT ICON MATRIX
+dashboard_html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mac Mini M6 - Blueprint Icon Suite</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #08080a; color: #00f0ff; font-family: 'Segoe UI', monospace; padding: 40px; display: flex; flex-direction: column; align-items: center; }
+        h1 { font-size: 1.8rem; letter-spacing: 2px; color: #fff; margin-bottom: 8px; text-shadow: 0 0 10px rgba(0,240,255,0.5); }
+        p.subtitle { color: #8a9ba8; margin-bottom: 30px; font-size: 0.95rem; }
+        .icon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; width: 100%; max-width: 1000px; }
+        .icon-card { background: rgba(18, 18, 24, 0.85); border: 1px solid #00f0ff; border-radius: 12px; padding: 20px; text-align: center; backdrop-filter: blur(8px); box-shadow: 0 0 15px rgba(0, 240, 255, 0.1); }
+        .icon-card:hover { border-color: #ff3366; box-shadow: 0 0 20px rgba(255, 51, 102, 0.3); }
+        .icon-card svg { margin-bottom: 15px; }
+        .icon-title { font-size: 1rem; color: #fff; margin-bottom: 6px; font-weight: bold; }
+        .icon-desc { font-size: 0.8rem; color: #8a9ba8; }
+        .footer { margin-top: 40px; font-size: 0.85rem; color: #666; }
+        .footer a { color: #00f0ff; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <h1>MAC MINI M6 BLUEPRINT ICONS</h1>
+    <p class="subtitle">System Component Vector Spec Sheet</p>
+    
+    <div class="icon-grid">
+        <div class="icon-card">""" + generate_svg_icon("processor") + """<div class="icon-title">Apple M6 Silicon</div><div class="icon-desc">2nm Architecture</div></div>
+        <div class="icon-card">""" + generate_svg_icon("motherboard") + """<div class="icon-title">Red PCB Board</div><div class="icon-desc">Reinforced Substrate</div></div>
+        <div class="icon-card">""" + generate_svg_icon("chassis") + """<div class="icon-title">Carbon Chassis</div><div class="icon-desc">Glowing RGB Logo</div></div>
+        <div class="icon-card">""" + generate_svg_icon("ports") + """<div class="icon-title">Expanded I/O</div><div class="icon-desc">USB-A / HDMI / Holographic</div></div>
+        <div class="icon-card">""" + generate_svg_icon("ble") + """<div class="icon-title">BLE Microchip</div><div class="icon-desc">Bluetooth 5.3 Low Energy</div></div>
+        <div class="icon-card">""" + generate_svg_icon("waterproof") + """<div class="icon-title">Waterproof Shield</div><div class="icon-desc">Invisible Nano-Coating</div></div>
+        <div class="icon-card">""" + generate_svg_icon("memory") + """<div class="icon-title">128GB LPDDR6</div><div class="icon-desc">Expanded Memory Capacity</div></div>
+        <div class="icon-card">""" + generate_svg_icon("cooling") + """<div class="icon-title">Active Vapor Cooling</div><div class="icon-desc">Dual Centrifugal Fans</div></div>
+    </div>
+
+    <div class="footer">Developer Profile: <a href="https://g.dev/gilbert_algordo" target="_blank">https://g.dev/gilbert_algordo</a></div>
+</body>
+</html>
+"""
+
+# 4. PACKAGE INTO ZIP BUNDLE
+def generate_icon_package():
+    zip_buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        # Save JSON metadata
+        zip_file.writestr("icon_manifest.json", json.dumps(icon_specs, indent=4))
+        
+        # Save Dashboard Viewer HTML
+        zip_file.writestr("index.html", dashboard_html)
+        
+        # Save individual SVG icons into an 'icons/' folder inside the ZIP
+        for comp in icon_specs["components"]:
+            icon_id = comp["id"]
+            svg_content = generate_svg_icon(icon_id)
+            zip_file.writestr(f"icons/{icon_id}.svg", svg_content)
+
+    filename = "Mac_Mini_M6_Icons_Package.zip"
+    with open(filename, "wb") as f:
+        f.write(zip_buffer.getvalue())
+        
+    print(f"Icon package created: {filename}")
+
+if __name__ == "__main__":
+    generate_icon_package()
