@@ -1,0 +1,547 @@
+import base64
+import json
+import os
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.serialization import load_pem_private_key
+
+class BankWalletProvisioningEngine:
+    """
+    Standalone core engine for banking partners to provision payment tokens 
+    directly into Google Wallet, bypassing consumer payment wrappers.
+    """
+    def __init__(self, issuer_id: str, private_key_path: str):
+        self.issuer_id = issuer_id
+        self.private_key_path = private_key_path
+        self._load_credentials()
+
+    def _load_credentials(self):
+        if os.path.exists(self.private_key_path):
+            with open(self.private_key_path, "rb") as key_file:
+                self.private_key = load_pem_private_key(
+                    key_file.read(),
+                    password=None
+                )
+        else:
+            raise FileNotFoundError(f"Issuer cryptographic key not found at: {self.private_key_path}")
+
+    def generate_provisioning_payload(self, cardholder_name: str, opaque_card_ref: str, client_device_id: str) -> dict:
+        """
+        Constructs the secure provisioning payload payload object for token request.
+        """
+        payload = {
+            "issuerId": self.issuer_id,
+            "deviceIdentifier": client_device_id,
+            "cardHolderName": cardholder_name,
+            "cardReferenceId": opaque_card_ref,
+            "tokenizationSource": "BANK_CORE_DIRECT",
+            "timestamp": os.getenv("EPOCH_TIME", "1750000000")
+        }
+        
+        serialized_payload = json.dumps(payload).encode('utf-8')
+        encrypted_blob = self._encrypt_payload(serialized_payload)
+
+        return {
+            "status": "SUCCESS",
+            "issuerContext": self.issuer_id,
+            "encryptedTokenPayload": encrypted_blob
+        }
+
+    def _encrypt_payload(self, data: bytes) -> str:
+        """
+        Encrypts payload using institutional PGP/RSA keys established 
+        during the Issuer Console onboarding phase.
+        """
+        # Example using structural PKCS1v15 padding standard for token exchange security
+        encrypted = self.private_key.sign( # Alternatively utilize public key encryption depending on target spec
+            data,
+            padding.PKCS1v15(),
+            hashes.SHA256()
+        )
+        return base64.b64encode(encrypted).decode('utf-8')
+
+# Execution Example for Authorized Banking Node
+if __name__ == "__main__":
+    ISSUER_CONFIG_ID = "BANK-ISSUER-GLOBAL-9988"
+    PRIVATE_KEY_FILE = "config/issuer_private_key.pem"
+    
+    # Mock runtime initialization for bank backend node
+    try:
+        engine = BankWalletProvisioningEngine(
+            issuer_id=ISSUER_CONFIG_ID,
+            private_key_path=PRIVATE_KEY_FILE
+        )
+        
+        sample_request = engine.generate_provisioning_payload(
+            cardholder_name="A. Designated Account Holder",
+            opaque_card_ref="CRN-8849-XYZ-001",
+            client_device_id="DEV-ANDROID-NFC-9911"
+        )
+        
+        print("Secure Issuer Token Payload Generated:")
+        print(json.dumps(sample_request, indent=2))
+        
+    except Exception as e:
+        print(f"Provisioning halted due to security profile layout check: {e}")
+
+
+
+package com.bank.wallet.provisioning
+
+import android.app.Activity
+import android.content.Context
+import com.google.android.gms.tapandpay.TapAndPay
+import com.google.android.gms.tapandpay.TapAndPayClient
+import com.google.android.gms.tapandpay.issuer.IsTokenizedRequest
+import com.google.android.gms.tapandpay.issuer.PushTokenizeRequest
+import com.google.android.gms.tasks.Task
+
+class BankPushProvisioningService(private val activity: Activity) {
+
+    private val tapAndPayClient: TapAndPayClient = TapAndPay.getClient(activity)
+    
+    companion object {
+        const val REQUEST_CODE_PUSH_TOKENIZE = 9001
+        const val CARD_NETWORK_VISA = TapAndPay.CARD_NETWORK_VISA
+        const val CARD_NETWORK_MASTERCARD = TapAndPay.CARD_NETWORK_MASTERCARD
+    }
+
+    /**
+     * Checks if the target card has already been tokenized on this device.
+     */
+    fun checkCardTokenState(lastFourDigits: String, network: Int, callback: (Boolean) -> Unit) {
+        val request = IsTokenizedRequest.Builder()
+            .setIdentifier(lastFourDigits)
+            .setNetwork(network)
+            .build()
+
+        tapAndPayClient.isTokenized(request)
+            .addOnSuccessListener { isTokenized -> callback(isTokenized) }
+            .addOnFailureListener { callback(false) }
+    }
+
+    /**
+     * Obtains the Google Wallet Active Wallet ID (Stable Hardware Identifier)
+     * required by the bank backend for payload target encryption.
+     */
+    fun fetchWalletId(onSuccess: (String) -> Unit, onFailure: (Exception) -> Unit) {
+        tapAndPayClient.activeWalletId
+            .addOnSuccessListener { walletId -> onSuccess(walletId) }
+            .addOnFailureListener { exception -> onFailure(exception) }
+    }
+
+    /**
+     * Triggers the direct OS-level Google Wallet Push Provisioning Flow.
+     */
+    fun executePushTokenize(
+        opaquePayload: ByteArray,
+        cardLastFour: String,
+        cardholderName: String,
+        network: Int
+    ) {
+        val pushTokenizeRequest = PushTokenizeRequest.Builder()
+            .setOpaquePaymentCard(opaquePayload)
+            .setNetwork(network)
+            .setTokenServiceProvider(TapAndPay.TOKEN_PROVIDER_VISA) // Or TOKEN_PROVIDER_MASTERCARD
+            .setDisplayName("Bank Direct Debit / Credit")
+            .setLastDigits(cardLastFour)
+            .setUserAddress(
+                com.google.android.gms.tapandpay.issuer.UserAddress.newBuilder()
+                    .setName(cardholderName)
+                    .setCountryCode("PH")
+                    .build()
+            )
+            .build()
+
+        tapAndPayClient.pushTokenize(activity, pushTokenizeRequest, REQUEST_CODE_PUSH_TOKENIZE)
+    }
+}
+
+
+
+import base64
+import json
+import os
+import time
+from flask import Flask, request, jsonify
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
+app = Flask(__name__)
+
+class UnifiedPushProvisioningEngine:
+    """
+    Bank-grade Core Engine implementing Unified Android Push Provisioning (UAPP) specs.
+    Constructs the encrypted opaque payment card payload for Google Wallet SDK.
+    """
+    def __init__(self, bank_private_key_pem: bytes, google_public_key_pem: bytes):
+        self.bank_private_key = serialization.load_pem_private_key(
+            bank_private_key_pem, password=None
+        )
+        self.google_public_key = serialization.load_pem_public_key(
+            google_public_key_pem
+        )
+
+    def generate_opaque_payload(
+        self, 
+        pan: str, 
+        cvv: str, 
+        exp_month: str, 
+        exp_year: str, 
+        cardholder_name: str, 
+        wallet_id: str
+    ) -> bytes:
+        """
+        Creates a dual-layer encrypted blob containing sensitive cardholder details,
+        signed by the bank and encrypted with Google's UAPP Transport Key.
+        """
+        raw_card_data = {
+            "pan": pan,
+            "cvv2": cvv,
+            "expirationMonth": exp_month,
+            "expirationYear": exp_year,
+            "cardholderName": cardholder_name,
+            "clientAppId": "com.bank.mobile.android",
+            "walletId": wallet_id,
+            "timestamp": int(time.time() * 1000)
+        }
+        
+        serialized_json = json.dumps(raw_card_data).encode('utf-8')
+
+        # 1. Sign data using Bank Private Key
+        signature = self.bank_private_key.sign(
+            serialized_json,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+
+        signed_payload = {
+            "data": base64.b64encode(serialized_json).decode('utf-8'),
+            "signature": base64.b64encode(signature).decode('utf-8')
+        }
+
+        payload_bytes = json.dumps(signed_payload).encode('utf-8')
+
+        # 2. Hybrid AES-GCM + RSA OAEP Encryption for Google Transport Key
+        aes_key = os.urandom(32)
+        iv = os.urandom(12)
+
+        cipher = Cipher(algorithms.AES(aes_key), modes.GCM(iv))
+        encryptor = cipher.encryptor()
+        ciphertext = encryptor.update(payload_bytes) + encryptor.finalize()
+
+        encrypted_aes_key = self.google_public_key.encrypt(
+            aes_key,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+
+        final_structure = {
+            "encryptedEphemeralKey": base64.b64encode(encrypted_aes_key).decode('utf-8'),
+            "iv": base64.b64encode(iv).decode('utf-8'),
+            "encryptedData": base64.b64encode(ciphertext).decode('utf-8'),
+            "tag": base64.b64encode(encryptor.tag).decode('utf-8')
+        }
+
+        return base64.b64encode(json.dumps(final_structure).encode('utf-8'))
+
+# API Route Endpoint for Mobile App Request
+@app.route('/api/v1/wallet/provision-payload', methods=['POST'])
+def provision_card():
+    body = request.get_json()
+    
+    # Validation check
+    required_fields = ["pan", "cvv", "exp_month", "exp_year", "name", "wallet_id"]
+    if not all(field in body for field in required_fields):
+        return jsonify({"error": "Missing mandatory field"}), 400
+
+    # Load institutional keypairs (In production, load from HSM or KMS)
+    with open("config/bank_private.pem", "rb") as f:
+        bank_priv = f.read()
+    with open("config/google_uapp_public.pem", "rb") as f:
+        google_pub = f.read()
+
+    engine = UnifiedPushProvisioningEngine(bank_priv, google_pub)
+    
+    opaque_blob = engine.generate_opaque_payload(
+        pan=body["pan"],
+        cvv=body["cvv"],
+        exp_month=body["exp_month"],
+        exp_year=body["exp_year"],
+        cardholder_name=body["name"],
+        wallet_id=body["wallet_id"]
+    )
+
+    return jsonify({
+        "status": "APPROVED",
+        "opaquePayload": opaque_blob.decode('utf-8')
+    })
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8443, ssl_context='adhoc')
+
+
+
+import os
+import xml.etree.ElementTree as ET
+from PIL import Image, ImageDraw
+
+class GoogleWalletBankIconGenerator:
+    """
+    Generates compliant brand assets for Google Wallet Issuer API specifications.
+    
+    Specs per Google Documentation:
+    - Standard Logo: 660x660 px (1:1 Ratio)
+    - Safe Area: 15% inner margin (561x561 px artwork zone) for circular masking
+    - File Formats: PNG (32-bit transparent) and SVG
+    """
+    
+    def __init__(self, brand_name: str, primary_hex: str = "#003399"):
+        self.brand_name = brand_name.lower().replace(" ", "_")
+        self.primary_hex = primary_hex
+        self.canvas_size = 660
+        self.margin = int(self.canvas_size * 0.15)  # 15% Safe Area Margin (99px)
+        
+    def generate_svg_logo(self, output_path: str):
+        """Builds a 660x660 SVG with 15% padding safe zone."""
+        svg = ET.Element('svg', {
+            'xmlns': 'http://www.w3.org/2000/svg',
+            'viewBox': f'0 0 {self.canvas_size} {self.canvas_size}',
+            'width': str(self.canvas_size),
+            'height': str(self.canvas_size)
+        })
+        
+        # Transparent Background
+        rect = ET.SubElement(svg, 'rect', {
+            'width': '100%',
+            'height': '100%',
+            'fill': 'none'
+        })
+        
+        # Safe Area Base Container
+        safe_zone_size = self.canvas_size - (2 * self.margin)
+        g = ET.SubElement(svg, 'g', {
+            'transform': f'translate({self.margin}, {self.margin})'
+        })
+        
+        # Emblem / Monogram Placeholder (Replace with Bank Symbol Vector)
+        ET.SubElement(g, 'circle', {
+            'cx': str(safe_zone_size // 2),
+            'cy': str(safe_zone_size // 2),
+            'r': str(safe_zone_size // 2 - 10),
+            'fill': self.primary_hex
+        })
+        
+        tree = ET.ElementTree(svg)
+        ET.indent(tree, space="  ")
+        tree.write(output_path, encoding='utf-8', xml_declaration=True)
+        print(f"[+] Generated SVG Logo: {output_path}")
+
+    def generate_png_logo(self, output_path: str):
+        """Renders high-res 660x660 32-bit RGBA PNG."""
+        img = Image.new('RGBA', (self.canvas_size, self.canvas_size), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        
+        # Calculate Safe Bounds
+        left = self.margin
+        top = self.margin
+        right = self.canvas_size - self.margin
+        bottom = self.canvas_size - self.margin
+        
+        # Draw Circular Bank Emblem inside Safe Zone
+        draw.ellipse([left + 10, top + 10, right - 10, bottom - 10], fill=self.primary_hex)
+        
+        img.save(output_path, 'PNG')
+        print(f"[+] Generated PNG Logo: {output_path}")
+
+if __name__ == "__main__":
+    os.makedirs("output_assets", exist_ok=True)
+    generator = GoogleWalletBankIconGenerator(brand_name="GlobalBank", primary_hex="#0F52BA")
+    
+    generator.generate_svg_logo("output_assets/globalbank_660x660_logo.svg")
+    generator.generate_png_logo("output_assets/globalbank_660x660_logo.png")
+
+
+
+package com.bank.wallet.ui
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.HeightIn
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+
+/**
+ * Android Jetpack Compose component rendering the compliant 
+ * "Add to Google Wallet" vector action badge for Issuer Android Banking Apps.
+ */
+@Composable
+fun AddToGoogleWalletButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    // Official specifications dictate minimum 48dp height and 8dp clear space padding
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .HeightIn(min = 48.dp)
+            .padding(8.dp)
+            .clickable(
+                enabled = enabled,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            ),
+        color = Color.Transparent
+    ) {
+        Image(
+            // Use the SVG asset downloaded from Google Wallet Brand Guidelines
+            painter = painterResource(id = R.drawable.add_to_google_wallet_button),
+            contentDescription = "Add to Google Wallet",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+
+
+
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="48dp"
+    android:viewportWidth="200"
+    android:viewportHeight="48">
+    
+    <!-- Button Background Body -->
+    <path
+        android:fillColor="#1F1F1F"
+        android:pathData="M 24,0 L 176,0 A 24,24 0 0,1 200,24 L 200,24 A 24,24 0 0,1 176,48 L 24,48 A 24,24 0 0,1 0,24 L 0,24 A 24,24 0 0,1 24,0 Z" />
+        
+    <!-- Google Wallet Icon Paths -->
+    <group android:translateX="16" android:translateY="12">
+        <path
+            android:fillColor="#4285F4"
+            android:pathData="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+    </group>
+</vector>
+
+
+
+import os
+from PIL import Image, ImageDraw
+
+def create_bank_wallet_asset(
+    output_path: str,
+    brand_color_hex: str = "#0F52BA",
+    size: int = 320,
+    padding: int = 60
+):
+    """
+    Generates a Google Wallet API compliant 320x320 PNG asset for Bank Push Provisioning.
+    Per Google Spec: 320x320px with 60px padding safe-zone (200x200px artwork area).
+    """
+    # Create 320x320 32-bit RGBA image with transparent background
+    img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    # Safe artwork area calculation
+    left = padding
+    top = padding
+    right = size - padding
+    bottom = size - padding
+
+    # Draw bank emblem within the 200x200px safe boundary
+    draw.ellipse([left, top, right, bottom], fill=brand_color_hex)
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    img.save(output_path, "PNG")
+    print(f"Asset created: {output_path}")
+
+if __name__ == "__main__":
+    create_bank_wallet_asset("assets/acmebank_320x320_color_padding.png")
+
+
+
+package com.bank.wallet.ui
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.HeightIn
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+
+@Composable
+fun AddToGoogleWalletButton(
+    onPushTokenizeClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .HeightIn(min = 48.dp) // Minimum required touch target height
+            .padding(8.dp)
+            .clickable { onPushTokenizeClick() },
+        color = Color.Transparent
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.add_to_google_wallet_badge),
+            contentDescription = "Add to Google Wallet",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="48dp"
+    android:viewportWidth="200"
+    android:viewportHeight="48">
+    
+    <!-- Outer Pill Background -->
+    <path
+        android:fillColor="#1F1F1F"
+        android:pathData="M 24,0 L 176,0 A 24,24 0 0,1 200,24 L 200,24 A 24,24 0 0,1 176,48 L 24,48 A 24,24 0 0,1 0,24 L 0,24 A 24,24 0 0,1 24,0 Z" />
+        
+    <!-- Google Wallet Icon Artwork -->
+    <path
+        android:fillColor="#4285F4"
+        android:pathData="M 32,18 L 44,18 A 3,3 0 0,1 47,21 L 47,27 A 3,3 0 0,1 44,30 L 32,30 A 3,3 0 0,1 29,27 L 29,21 A 3,3 0 0,1 32,18 Z" />
+    <path
+        android:fillColor="#34A853"
+        android:pathData="M 31,16 L 45,16 A 2,2 0 0,1 47,18 L 29,18 A 2,2 0 0,1 31,16 Z" />
+    <path
+        android:fillColor="#FBBC04"
+        android:pathData="M 33,14 L 43,14 A 2,2 0 0,1 45,16 L 31,16 A 2,2 0 0,1 33,14 Z" />
+    <path
+        android:fillColor="#EA4335"
+        android:pathData="M 35,12 L 41,12 A 2,2 0 0,1 43,14 L 33,14 A 2,2 0 0,1 35,12 Z" />
+</vector>
