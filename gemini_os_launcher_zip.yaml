@@ -1,0 +1,251 @@
+import android.content.Context
+import java.io.File
+import java.io.FileOutputStream
+import java.util.zip.ZipInputStream
+
+object ThemeZipInstaller {
+    fun extractThemeZip(context: Context, zipFile: File, targetThemeName: String): File? {
+        val themesDir = File(context.filesDir, "themes/$targetThemeName")
+        if (!themesDir.exists()) themesDir.mkdirs()
+
+        try {
+            ZipInputStream(zipFile.inputStream()).use { zis ->
+                var zipEntry = zis.nextEntry
+                while (zipEntry != null) {
+                    val newFile = File(themesDir, zipEntry.name)
+                    if (zipEntry.isDirectory) {
+                        newFile.mkdirs()
+                    } else {
+                        newFile.parentFile?.mkdirs()
+                        FileOutputStream(newFile).use { fos ->
+                            zis.copyTo(fos)
+                        }
+                    }
+                    zis.closeEntry()
+                    zipEntry = zis.nextEntry
+                }
+            }
+            return themesDir
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
+        }
+    }
+}
+
+
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.net.URL
+
+object LauncherUpdater {
+    suspend fun downloadUpdatePackage(updateUrl: String, outputFile: File): Boolean = withContext(Dispatchers.IO) {
+        try {
+            URL(updateUrl).openStream().use { input ->
+                outputFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+}
+
+
+
+
+import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.Color
+
+data class GeminiThemeConfig(
+    val name: String,
+    val primaryColor: Color,
+    val surfaceColor: Color,
+    val glowColor: Color
+)
+
+class ThemeViewModel : androidx.lifecycle.ViewModel() {
+    var currentTheme by mutableStateOf(
+        GeminiThemeConfig(
+            name = "Quantum Void",
+            primaryColor = Color(0xFF00E5FF),
+            surfaceColor = Color(0xFF0B0F19),
+            glowColor = Color(0xFF3B82F6)
+        )
+    )
+    private set
+
+    fun applyNewTheme(newConfig: GeminiThemeConfig) {
+        currentTheme = newConfig
+    }
+}
+
+
+
+import android.content.Context
+import java.io.File
+import java.io.FileOutputStream
+import java.util.zip.ZipInputStream
+
+object GeminiZipInstaller {
+    fun installThemePackage(context: Context, zipFile: File, themeFolderName: String): Boolean {
+        val destinationDir = File(context.filesDir, "themes/$themeFolderName")
+        if (!destinationDir.exists()) {
+            destinationDir.mkdirs()
+        }
+
+        try {
+            ZipInputStream(zipFile.inputStream()).use { zis ->
+                var entry = zis.nextEntry
+                while (entry != null) {
+                    val newFile = File(destinationDir, entry.name)
+                    if (entry.isDirectory) {
+                        newFile.mkdirs()
+                    } else {
+                        newFile.parentFile?.mkdirs()
+                        FileOutputStream(newFile).use { fos ->
+                            zis.copyTo(fos)
+                        }
+                    }
+                    zis.closeEntry()
+                    entry = zis.nextEntry
+                }
+            }
+            return true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return false
+        }
+    }
+}
+
+
+
+
+import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.net.URL
+
+object GeminiUpdaterEngine {
+    suspend fun fetchAndStageUpdate(updateUrl: String, targetFile: File): Boolean = withContext(Dispatchers.IO) {
+        try {
+            URL(updateUrl).openStream().use { input ->
+                targetFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+}
+
+
+
+import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.Color
+
+data class GeminiThemeSpec(
+    val themeName: String,
+    val primaryAccent: Color,
+    val backgroundSurface: Color,
+    val glassmorphismOpacity: Float
+)
+
+class GeminiThemeState : androidx.lifecycle.ViewModel() {
+    var activeTheme by mutableStateOf(
+        GeminiThemeSpec(
+            themeName = "Quantum Void",
+            primaryAccent = Color(0xFF00E5FF),
+            backgroundSurface = Color(0xFF0B0F19),
+            glassmorphismOpacity = 0.85f
+        )
+    )
+    private set
+
+    fun switchTheme(newSpec: GeminiThemeSpec) {
+        activeTheme = newSpec
+    }
+}
+
+
+
+from PIL import Image, ImageDraw, ImageFont
+import os
+
+def generate_gemini_icon(icon_name, primary_color, bg_color, output_dir="icons"):
+    os.makedirs(output_dir, exist_ok=True)
+    size = (512, 512)
+    image = Image.new("RGBA", size, bg_color)
+    draw = ImageDraw.Draw(image)
+    
+    # Draw geometric background frame
+    draw.rounded_rectangle([32, 32, 480, 480], radius=96, outline=primary_color, width=12)
+    
+    # Draw central Gemini OS emblem lines
+    draw.line([150, 350, 256, 160, 362, 350], fill=primary_color, width=16, joint="curve")
+    draw.arc([180, 240, 332, 390], start=0, end=180, fill=primary_color, width=12)
+    
+    file_path = os.path.join(output_dir, f"{icon_name}.png")
+    image.save(file_path, "PNG")
+    print(f"Generated icon asset: {file_path}")
+
+# Execute generation for launcher modules
+generate_gemini_icon("ic_launcher_quantum", (0, 229, 255, 255), (11, 15, 25, 255))
+generate_gemini_icon("ic_installer_zip", (59, 130, 246, 255), (15, 23, 42, 255))
+generate_gemini_icon("ic_updater_ota", (168, 85, 247, 255), (15, 23, 42, 255))
+
+
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <path
+      android:pathData="M32,54 L54,24 L76,54 Z"
+      android:strokeWidth="6"
+      android:strokeColor="#00E5FF"
+      android:fillColor="#00000000"/>
+  <path
+      android:pathData="M38,62 C38,72 70,72 70,62"
+      android:strokeWidth="5"
+      android:strokeColor="#3B82F6"/>
+</vector>
+
+
+
+
+const geminiShaderMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0.0 },
+    uBaseColor: { value: new THREE.Color(0x00E5FF) }
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    varying vec2 vUv;
+    uniform float uTime;
+    uniform vec3 uBaseColor;
+    void main() {
+      float wave = sin(vUv.x * 10.0 + uTime) * 0.5 + 0.5;
+      vec3 finalColor = mix(uBaseColor, vec3(0.1, 0.4, 0.9), wave);
+      gl_FragColor = vec4(finalColor, 0.95);
+    }
+  `,
+  transparent: true
+});
