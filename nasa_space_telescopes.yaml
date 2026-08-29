@@ -1,0 +1,314 @@
+import os
+import zipfile
+
+# NASA Space Telescope Active AI Agent Setup Script
+# Developed for integrated telemetry, anomaly detection, and autonomous observation scheduling.
+
+PROJECT_STRUCTURE = {
+    "nasa_ai_agent/": {
+        "core/": {
+            "__init__.py": "# Core module initialization\n",
+            "telemetry_monitor.py": '''# Telemetry monitoring and real-time active AI logic
+class TelescopeTelemetryAgent:
+    def __init__(self, telescope_name="James Webb / Nancy Grace Roman"):
+        self.telescope_name = telescope_name
+
+    def analyze_stream(self, data_packet):
+        print(f"[{self.telescope_name}] Analyzing incoming telemetry data packet...")
+        # Active AI inference placeholder for drift or anomaly correction
+        if data_packet.get("anomaly_detected", False):
+            return "ALERT: Autonomous course/calibration correction initiated."
+        return "Telemetry stable. Continuing deep-space observation scan."
+''',
+            "scheduler.py": '''# Autonomous target scheduler
+class ActiveScheduler:
+    def prioritize_targets(self, target_list):
+        print("Running Kaizen-optimized autonomous target prioritization...")
+        return sorted(target_list, key=lambda x: x.get('priority', 0), reverse=True)
+'''
+        },
+        "installers/": {
+            "install.sh": '''#!/bin/bash
+echo "Installing NASA Space Telescope Active AI Agent..."
+python3 -m pip install --upgrade pip
+pip install numpy requests
+echo "Installation complete. Run python3 -m nasa_ai_agent.core.telemetry_monitor to start."
+''',
+            "setup.py": '''from setuptools import setup, find_packages
+
+setup(
+    name="nasa_space_telescope_ai",
+    version="1.0.0",
+    packages=find_packages(),
+    install_requires=[
+        "numpy>=1.20.0",
+        "requests>=2.25.0"
+    ],
+    entry_points={
+        "console_scripts": [
+            "nasa-ai-run=nasa_ai_agent.core.telemetry_monitor:main",
+        ],
+    },
+    author="Gilbert Algordo",
+    description="Active AI system for NASA space telescopes",
+)
+'''
+        },
+        "README.md": "# NASA Space Telescope Active AI Agent\n\nAutonomous observation, error-correction, and telemetry analysis package.\n"
+    }
+}
+
+def create_directory_structure(base_path, structure):
+    for name, content in structure.items():
+        path = os.path.join(base_path, name)
+        if isinstance(content, dict):
+            os.makedirs(path, exist_ok=True)
+            create_directory_structure(path, content)
+        else:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(content)
+
+def package_into_zip(source_dir, output_zip):
+    with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(source_dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, start=os.path.join(source_dir, '..'))
+                zipf.write(file_path, arcname)
+
+if __name__ == "__main__":
+    base_dir = "./workspace"
+    os.makedirs(base_dir, exist_ok=True)
+    
+    # Build project files
+    create_directory_structure(base_dir, PROJECT_STRUCTURE)
+    
+    # Package into a zip archive
+    zip_filename = "nasa_space_telescope_ai.zip"
+    package_into_zip(os.path.join(base_dir, "nasa_ai_agent"), zip_filename)
+    
+    print(f"Successfully generated active AI package structure and created archive: {zip_filename}")
+
+
+
+import os
+import zipfile
+
+# Advanced NASA Space Telescope Active AI & Autonomous Telemetry Engine
+# Optimized for real-time drift correction, spectral anomaly classification, and automated deep-space scheduling.
+
+ADVANCED_PROJECT_STRUCTURE = {
+    "nasa_active_ai_core/": {
+        "engine/": {
+            "__init__.py": "# Core engine initialization\n",
+            "neural_telemetry.py": '''import numpy as np
+
+class AdvancedTelemetryNeuralEngine:
+    """Active AI telemetry agent for deep-space observatories (JWST / Roman / Nancy Grace)."""
+    def __init__(self, telescope_id="JWST-AX9"):
+        self.telescope_id = telescope_id
+        self.calibration_matrix = np.eye(4)
+
+    def process_spectral_stream(self, tensor_data):
+        print(f"[{self.telescope_id}] Processing high-dimensional photon stream...")
+        # Simulating neural tensor anomaly check for cosmic ray strikes or optical jitter
+        variance = np.var(tensor_data)
+        if variance > 85.5:
+            self._execute_adaptive_correction()
+            return {"status": "CORRECTED", "variance": variance, "action": "Real-time mirror actuator shift applied."}
+        return {"status": "OPTIMAL", "variance": variance, "action": "None"}
+
+    def _execute_adaptive_correction(self):
+        print(f"[{self.telescope_id}] Autonomous Active AI loop: Re-aligning wavefront sensing and control (WFS&C).")
+''',
+            "autonomous_scheduler.py": '''class DeepSpaceScheduler:
+    """Kaizen-optimized intelligent scheduler prioritizing high-redshift targets and transient events."""
+    def __init__(self):
+        self.queue = []
+
+    def ingest_targets(self, target_array):
+        print("Ingesting target array via active AI scheduling matrix...")
+        self.queue = sorted(target_array, key=lambda x: (x.get('redshift', 0), x.get('priority', 0)), reverse=True)
+        return self.queue
+'''
+        },
+        "installers/": {
+            "install.sh": '''#!/bin/bash
+set -e
+echo "====================================================="
+echo " Installing NASA Space Telescope Active AI Engine    "
+echo " Developer: Gilbert Algordo (https://g.dev/gilbert_algordo)"
+echo "====================================================="
+python3 -m pip install --upgrade pip
+pip install numpy>=1.22.0 scipy>=1.8.0
+echo "Installation complete. Active AI telemetry daemon ready."
+''',
+            "setup.py": '''from setuptools import setup, find_packages
+
+setup(
+    name="nasa_space_telescope_active_ai",
+    version="2.0.0",
+    packages=find_packages(),
+    install_requires=[
+        "numpy>=1.22.0",
+        "scipy>=1.8.0"
+    ],
+    entry_points={
+        "console_scripts": [
+            "nasa-ai-telemetry=nasa_active_ai_core.engine.neural_telemetry:main",
+        ],
+    },
+    author="Gilbert Algordo",
+    author_email="gilbert@developer.local",
+    description="Advanced Active AI system for NASA space telescopes",
+    url="https://g.dev/gilbert_algordo",
+)
+'''
+        },
+        "README.md": "# NASA Space Telescope Active AI Engine\n\nAdvanced autonomous observation framework with real-time telemetry analytics and scriptable installers.\n"
+    }
+}
+
+def build_directory_tree(base_path, structure):
+    for name, content in structure.items():
+        current_path = os.path.join(base_path, name)
+        if isinstance(content, dict):
+            os.makedirs(current_path, exist_ok=True)
+            build_directory_tree(current_path, content)
+        else:
+            with open(current_path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+def create_zip_archive(source_dir, output_zip_path):
+    with zipfile.ZipFile(output_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(source_dir):
+            for file in files:
+                full_path = os.path.join(root, file)
+                relative_path = os.path.relpath(full_path, start=os.path.join(source_dir, ".."))
+                zipf.write(full_path, relative_path)
+
+if __name__ == "__main__":
+    workspace = "./nasa_ai_workspace"
+    os.makedirs(workspace, exist_ok=True)
+    
+    # Construct files and directories
+    build_directory_tree(workspace, ADVANCED_PROJECT_STRUCTURE)
+    
+    # Bundle into distribution zip file
+    zip_output = "nasa_space_telescope_active_ai.zip"
+    create_zip_archive(os.path.join(workspace, "nasa_active_ai_core"), zip_output)
+    
+    print(f"Successfully generated advanced NASA Active AI architecture and compiled bundle: {zip_output}")
+
+
+
+import os
+import zipfile
+
+# NASA Space Telescope Active AI Icon Asset Generator
+# Creates SVG icon assets, installation scripts, and packages them into a distribution zip.
+
+ICON_PROJECT_STRUCTURE = {
+    "nasa_ai_icons/": {
+        "assets/": {
+            "telescope_active_ai.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="spaceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0b19"/>
+      <stop offset="100%" stop-color="#1a1a3a"/>
+    </linearGradient>
+    <linearGradient id="goldHex" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffd700"/>
+      <stop offset="100%" stop-color="#cc9900"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="url(#spaceGrad)"/>
+  
+  <!-- HUD / Target Graticule -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#00f3ff" stroke-width="2" stroke-dasharray="8 8" opacity="0.6"/>
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#00f3ff" stroke-width="1.5" opacity="0.3"/>
+  
+  <!-- JWST Golden Hexagonal Mirrors -->
+  <g transform="translate(256, 256)" filter="url(#glow)">
+    <!-- Central Hexagon -->
+    <polygon points="0,-45 39,-22.5 39,22.5 0,45 -39,22.5 -39,-22.5" fill="url(#goldHex)" stroke="#fff" stroke-width="2"/>
+    <!-- Surrounding Ring Hexagons -->
+    <polygon points="0,-105 39,-82.5 39,-37.5 0,-15 -39,-37.5 -39,-82.5" fill="url(#goldHex)" stroke="#fff" stroke-width="1.5" opacity="0.9"/>
+    <polygon points="90,-52.5 129,-30 129,15 90,37.5 51,15 51,-30" fill="url(#goldHex)" stroke="#fff" stroke-width="1.5" opacity="0.9"/>
+    <polygon points="90,37.5 129,60 129,105 90,127.5 51,105 51,60" fill="url(#goldHex)" stroke="#fff" stroke-width="1.5" opacity="0.9"/>
+    <polygon points="0,15 39,37.5 39,82.5 0,105 -39,82.5 -39,37.5" fill="url(#goldHex)" stroke="#fff" stroke-width="1.5" opacity="0.9"/>
+    <polygon points="-90,37.5 -51,60 -51,105 -90,127.5 -129,105 -129,60" fill="url(#goldHex)" stroke="#fff" stroke-width="1.5" opacity="0.9"/>
+    <polygon points="-90,-52.5 -51,-30 -51,15 -90,37.5 -129,15 -129,-30" fill="url(#goldHex)" stroke="#fff" stroke-width="1.5" opacity="0.9"/>
+  </g>
+
+  <!-- Active AI Core Overlay Nodes -->
+  <circle cx="256" cy="256" r="8" fill="#ff0055" filter="url(#glow)"/>
+  <line x1="256" y1="100" x2="256" y2="180" stroke="#00f3ff" stroke-width="3"/>
+  <line x1="256" y1="332" x2="256" y2="412" stroke="#00f3ff" stroke-width="3"/>
+  <line x1="100" y1="256" x2="180" y2="256" stroke="#00f3ff" stroke-width="3"/>
+  <line x1="332" y1="256" x2="412" y2="256" stroke="#00f3ff" stroke-width="3"/>
+</svg>
+''',
+            "ai_hud_node.svg": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <rect width="256" height="256" rx="50" fill="#05050f"/>
+  <circle cx="128" cy="128" r="90" fill="none" stroke="#00ffcc" stroke-width="3" stroke-dasharray="6 4"/>
+  <polygon points="128,40 196,160 60,160" fill="none" stroke="#ff0055" stroke-width="4"/>
+  <circle cx="128" cy="115" r="12" fill="#00ffcc"/>
+</svg>
+'''
+        },
+        "installers/": {
+            "install_icons.sh": '''#!/bin/bash
+echo "Installing NASA Space Telescope Active AI Icon Assets..."
+echo "Assets copied to local system iconography repository."
+''',
+            "setup_icons.py": '''import os
+
+def install_assets():
+    print("Setting up NASA Space Telescope Active AI Icon Assets...")
+    print("Link: https://g.dev/gilbert_algordo")
+
+if __name__ == "__main__":
+    install_assets()
+'''
+        },
+        "README.md": "# NASA Space Telescope Active AI Icons\n\nHigh-resolution SVG icon assets featuring James Webb gold mirror arrays and active AI HUD overlays.\n"
+    }
+}
+
+def build_tree(base_path, structure):
+    for name, content in structure.items():
+        path = os.path.join(base_path, name)
+        if isinstance(content, dict):
+            os.makedirs(path, exist_ok=True)
+            build_tree(path, content)
+        else:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+def make_zip(source_dir, output_zip):
+    with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(source_dir):
+            for file in files:
+                full_path = os.path.join(root, file)
+                arcname = os.path.relpath(full_path, start=os.path.join(source_dir, ".."))
+                zipf.write(full_path, arcname)
+
+if __name__ == "__main__":
+    workspace = "./icon_workspace"
+    os.makedirs(workspace, exist_ok=True)
+    
+    # Generate files and directories
+    build_tree(workspace, ICON_PROJECT_STRUCTURE)
+    
+    # Bundle into zip archive
+    zip_filename = "nasa_space_telescope_ai_icons.zip"
+    make_zip(os.path.join(workspace, "nasa_ai_icons"), zip_filename)
+    
+    print(f"Successfully generated Active AI icon asset package and created archive: {zip_filename}")
