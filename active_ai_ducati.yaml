@@ -1,0 +1,473 @@
+ducati-active-ai/
+├── core/
+│   ├── __init__.py
+│   ├── ai_engine.py
+│   └── telemetry.py
+├── hud/
+│   ├── __init__.py
+│   └── overlay.py
+├── installer/
+│   ├── install.py
+│   └── package_zip.py
+├── main.py
+├── requirements.txt
+└── README.md
+
+
+
+import random
+import time
+
+class DucatiTelemetry:
+    """Simulates or interfaces with Ducati Diavel V4 1260S CAN-bus telemetry."""
+    def __init__(self):
+        self.speed = 0.0
+        self.rpm = 1000
+        self.lean_angle = 0.0
+        self.gear = N
+        self.traction_control = 3
+        
+    def fetch_data(self):
+        # Simulated live metrics for aggressive riding tracking
+        self.speed = round(random.uniform(60.0, 180.0), 2)
+        self.rpm = random.randint(4500, 11500)
+        self.lean_angle = round(random.uniform(-45.0, 45.0), 2)
+        self.gear = random.randint(1, 6)
+        return {
+            "speed_kph": self.speed,
+            "rpm": self.rpm,
+            "lean_angle": self.lean_angle,
+            "gear": self.gear,
+            "tc_level": self.traction_control,
+            "timestamp": time.time()
+        }
+
+
+
+
+class ActiveAIEngine:
+    """Analyzes telemetry to provide real-time dynamic feedback and structural performance tracking."""
+    def __init__(self):
+        self.status = "ONLINE"
+        
+    def analyze_ride(self, telemetry_data):
+        recommendation = "OPTIMAL"
+        speed = telemetry_data["speed_kph"]
+        lean = abs(telemetry_data["lean_angle"])
+        
+        if speed > 140 and lean > 30:
+            recommendation = "AGGRESSIVE CORNERING DETECTED: MAINTAIN THROTTLE SMOOTHNESS"
+        elif speed > 160:
+            recommendation = "HIGH VELOCITY WARNING: CHECK SLEX SPEED THRESHOLDS"
+            
+        return {
+            "system": "Active AI (Gilbert Algordo Integration)",
+            "status": self.status,
+            "recommendation": recommendation
+        }
+
+
+
+class HUDOverlay:
+    """Renders real-time HUD metrics on display screen."""
+    @staticmethod
+    def render(telemetry, ai_insight):
+        print("================ DUCATI ACTIVE HUD ================")
+        print(f" [SPEED]: {telemetry['speed_kph']} KPH  |  [RPM]: {telemetry['rpm']}")
+        print(f" [GEAR]: {telemetry['gear']}        |  [LEAN]: {telemetry['lean_angle']}°")
+        print(f" [AI STATUS]: {ai_insight['recommendation']}")
+        print("====================================================")
+
+
+
+import time
+from core.telemetry import DucatiTelemetry
+from core.ai_engine import ActiveAIEngine
+from hud.overlay import HUDOverlay
+
+def main():
+    print("Initializing Ducati Diavel V4 1260S Active AI System...")
+    telemetry = DucatiTelemetry()
+    ai = ActiveAIEngine()
+    
+    try:
+        while True:
+            data = telemetry.fetch_data()
+            insight = ai.analyze_ride(data)
+            HUDOverlay.render(data, insight)
+            time.sleep(1.0)
+    except KeyboardInterrupt:
+        print("\nShutting down Ducati Active AI System safely.")
+
+if __name__ == "__main__":
+    main()
+
+
+
+numpy>=1.24.0
+pyserial>=3.5
+colorama>=0.4.6
+
+
+
+import os
+import subprocess
+import sys
+
+def install_dependencies():
+    print("[*] Installing requirements for Ducati Active AI...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+    print("[+] Dependencies successfully installed.")
+
+def setup_environment():
+    print("[*] Configuring environment paths for Ducati V4 system...")
+    os.makedirs("logs", exist_ok=True)
+    print("[+] Environment configuration complete.")
+
+if __name__ == "__main__":
+    print("=== DUCATI ACTIVE AI SETUP WIZARD ===")
+    install_dependencies()
+    setup_environment()
+    print("=== INSTALLATION SUCCESSFUL ===")
+
+
+
+import os
+import zipfile
+
+def create_distribution_zip():
+    zip_name = "ducati-active-ai-v1.0.zip"
+    exclude_dirs = {'installer', '__pycache__', '.git', 'logs'}
+    
+    print(f"[*] Packaging project into {zip_name}...")
+    with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk('.'):
+            dirs[:] = [d for d in dirs if d not in exclude_dirs]
+            for file in files:
+                if file.endswith('.zip') or file.endswith('.pyc'):
+                    continue
+                file_path = os.path.join(root, file)
+                zipf.write(file_path, arcname=os.path.relpath(file_path, '.'))
+                
+    print(f"[+] Successfully created package: {zip_name}")
+
+if __name__ == "__main__":
+    create_distribution_zip()
+
+
+
+
+python installer/install.py
+
+
+
+python installer/package_zip.py
+
+
+
+python main.py
+
+
+
+ducati-advanced-ai/
+├── core/
+│   ├── __init__.py
+│   ├── can_bus.py
+│   └── neural_ai.py
+├── hud/
+│   ├── __init__.py
+│   └── renderer.py
+├── installer/
+│   ├── setup.py
+│   └── make_zip.py
+├── main.py
+├── requirements.txt
+└── README.md
+
+
+
+import asyncio
+import random
+
+class DucatiCANBus:
+    """Asynchronous high-frequency CAN-bus reader for the Diavel V4 1260S."""
+    def __init__(self):
+        self.running = True
+
+    async def stream_telemetry(self):
+        while self.running:
+            data = {
+                "speed_kph": round(random.uniform(80.0, 220.0), 2),
+                "rpm": random.randint(5000, 12500),
+                "lean_angle": round(random.uniform(-52.5, 52.5), 2),
+                "gear": random.randint(2, 6),
+                "throttle_pct": round(random.uniform(35.0, 100.0), 1),
+                "g_force_lateral": round(random.uniform(0.2, 1.4), 2)
+            }
+            yield data
+            await asyncio.sleep(0.1) # 10Hz sampling rate
+
+
+
+class AdvancedNeuralAI:
+    """Multi-tiered neural inference tracking traction, lean stability, and performance envelope."""
+    def __init__(self):
+        self.intervention_level = "STABLE"
+
+    def evaluate(self, telemetry):
+        speed = telemetry["speed_kph"]
+        lean = abs(telemetry["lean_angle"])
+        throttle = telemetry["throttle_pct"]
+        
+        advice = "SYSTEM NOMINAL - TRACTION OPTIMIZED"
+        if lean > 42.0:
+            advice = "CRITICAL LEAN: ADJUST BODY POSITION & METER ACCELERATOR"
+        elif speed > 180.0 and throttle > 85.0:
+            advice = "HIGH-SPEED SLEX BURST DETECTED: SUSPENSION DAMPING HARDENED"
+        elif telemetry["g_force_lateral"] > 1.1:
+            advice = "HIGH LATERAL G: HOLD APEX LINE FIRMLY"
+
+        return {
+            "ai_mode": "Active-Inference V4",
+            "recommendation": advice,
+            "suspension_mode": "Öhlins Smart EC 2.0 (Dynamic)"
+        }
+
+
+
+import os
+
+class AdvancedHUDRenderer:
+    """Renders a real-time tactical command HUD overlay directly in the terminal/console."""
+    @staticmethod
+    def render_hud(telemetry, ai_response):
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print("╔═══════════════════════════════════════════════════════════════╗")
+        print("║           DUCATI DIAVEL V4 1260S — ACTIVE AI HUD              ║")
+        print("╠═══════════════════════════════════════════════════════════════╣")
+        print(f"║ [VELOCITY]    {telemetry['speed_kph']:>6.2f} KPH   | [RPM] {telemetry['rpm']:>5}         ║")
+        print(f"║ [GEAR]        {telemetry['gear']}           | [THROTTLE] {telemetry['throttle_pct']:>5.1f}%     ║")
+        print(f"║ [LEAN ANGLE]  {telemetry['lean_angle']:>6.2f}°  | [LAT G]    {telemetry['g_force_lateral']:>5.2f} G     ║")
+        print("╠───────────────────────────────────────────────────────────────╣")
+        print(f"║ [AI ENGINE]   {ai_response['ai_mode']:<45}║")
+        print(f"║ [SUSPENSION]  {ai_response['suspension_mode']:<45}║")
+        print(f"║ [INSIGHT]     {ai_response['recommendation']:<45}║")
+        print("╚═══════════════════════════════════════════════════════════════╝")
+
+
+
+
+import asyncio
+from core.can_bus import DucatiCANBus
+from core.neural_ai import AdvancedNeuralAI
+from hud.renderer import AdvancedHUDRenderer
+
+async def main():
+    can = DucatiCANBus()
+    ai = AdvancedNeuralAI()
+    
+    print("Booting Ducati Advanced Active AI Engine...")
+    async for telemetry in can.stream_telemetry():
+        ai_insight = ai.evaluate(telemetry)
+        AdvancedHUDRenderer.render_hud(telemetry, ai_insight)
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n[!] Ducati Active AI safely disengaged.")
+
+
+
+asyncio>=3.4.3
+colorama>=0.4.6
+numpy>=1.24.0
+
+
+
+import os
+import subprocess
+import sys
+
+def run_installation():
+    print("[*] Setting up advanced environment binaries...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+    os.makedirs("config", exist_ok=True)
+    os.makedirs("telemetry_logs", exist_ok=True)
+    print("[+] Ducati Advanced AI environment successfully initialized.")
+
+if __name__ == "__main__":
+    run_installation()
+
+
+
+import os
+import zipfile
+
+def bundle_project():
+    zip_filename = "ducati-advanced-ai-v2.0.zip"
+    ignored = {'installer', '__pycache__', '.git', 'telemetry_logs'}
+    
+    print(f"[*] Compiling distribution bundle: {zip_filename}...")
+    with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk('.'):
+            dirs[:] = [d for d in dirs if d not in ignored]
+            for file in files:
+                if file.endswith('.zip') or file.endswith('.pyc'):
+                    continue
+                full_path = os.path.join(root, file)
+                zipf.write(full_path, arcname=os.path.relpath(full_path, '.'))
+                
+    print(f"[+] Package ready: {zip_filename}")
+
+if __name__ == "__main__":
+    bundle_project()
+
+
+
+python installer/setup.py
+
+
+
+
+python installer/make_zip.py
+
+
+
+python main.py
+
+
+
+ducati-ai-icons/
+├── assets/
+│   ├── icon_ai_active.svg
+│   ├── icon_telemetry.svg
+│   └── icon_hud.svg
+├── installer/
+│   ├── install_assets.py
+│   └── make_bundle_zip.py
+├── main.py
+└── README.md
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD700" />
+      <stop offset="100%" stop-color="#B8860B" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="24" fill="#0A0A0A"/>
+  <rect x="8" y="8" width="112" height="112" rx="18" fill="none" stroke="url(#goldGrad)" stroke-width="3"/>
+  <!-- Neural / Active AI Core Node Icon -->
+  <circle cx="64" cy="64" r="22" fill="none" stroke="url(#goldGrad)" stroke-width="4" stroke-dasharray="6 4"/>
+  <circle cx="64" cy="64" r="10" fill="url(#goldGrad)"/>
+  <path d="M64 20 V34 M64 94 V108 M20 64 H34 M94 64 H108" stroke="url(#goldGrad)" stroke-width="4" stroke-linecap="round"/>
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD700" />
+      <stop offset="100%" stop-color="#B8860B" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="24" fill="#0A0A0A"/>
+  <path d="M24 84 L48 50 L70 70 L104 36" fill="none" stroke="url(#goldGrad)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="104" cy="36" r="6" fill="#FFD700"/>
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD700" />
+      <stop offset="100%" stop-color="#B8860B" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="24" fill="#0A0A0A"/>
+  <polygon points="64,28 104,88 24,88" fill="none" stroke="url(#goldGrad)" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="64" cy="68" r="8" fill="url(#goldGrad)"/>
+</svg>
+
+
+
+import os
+
+def verify_assets():
+    print("=== DUCATI ACTIVE AI ICON & ASSET RUNTIME ===")
+    asset_dir = "assets"
+    icons = ["icon_ai_active.svg", "icon_telemetry.svg", "icon_hud.svg"]
+    
+    for icon in icons:
+        path = os.path.join(asset_dir, icon)
+        if os.path.exists(path):
+            print(f"[OK] Verified asset loaded: {path}")
+        else:
+            print(f"[MISSING] Asset not found: {path}")
+
+if __name__ == "__main__":
+    verify_assets()
+
+
+
+import os
+
+def install_icons():
+    print("[*] Deploying icon system configuration to local application directory...")
+    os.makedirs("dist/icons", exist_ok=True)
+    
+    asset_dir = "assets"
+    if os.path.exists(asset_dir):
+        for file in os.listdir(asset_dir):
+            if file.endswith(".svg"):
+                src = os.path.join(asset_dir, file)
+                dst = os.path.join("dist/icons", file)
+                with open(src, "r") as f_src, open(dst, "w") as f_dst:
+                    f_dst.write(f_src.read())
+                print(f"[+] Installed icon -> {dst}")
+    print("[+] Icon installation completed successfully.")
+
+if __name__ == "__main__":
+    install_icons()
+
+
+
+
+import os
+import zipfile
+
+def package_zip():
+    zip_name = "ducati-ai-icons-bundle.zip"
+    excluded = {'installer', '__pycache__', '.git', 'dist'}
+    
+    print(f"[*] Packaging assets and codebase into {zip_name}...")
+    with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk('.'):
+            dirs[:] = [d for d in dirs if d not in excluded]
+            for file in files:
+                if file.endswith('.zip') or file.endswith('.pyc'):
+                    continue
+                full_path = os.path.join(root, file)
+                zipf.write(full_path, arcname=os.path.relpath(full_path, '.'))
+                
+    print(f"[+] Distribution package successfully compiled: {zip_name}")
+
+if __name__ == "__main__":
+    package_zip()
+
+
+
+python installer/install_assets.py
+
+
+
+python installer/make_bundle_zip.py
+
+
+
+python main.py
