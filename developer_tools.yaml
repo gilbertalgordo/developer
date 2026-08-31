@@ -1,0 +1,531 @@
+gilbert_ai_connector/
+│
+├── gilbert_ai/
+│   ├── __init__.py
+│   └── connector.py
+│
+├── setup.py
+├── installer.py
+├── requirements.txt
+└── README.md
+
+
+
+google-genai>=0.1.0
+click>=8.0.0
+
+
+
+from .connector import GilbertAIConnector
+
+__version__ = "1.0.0"
+__all__ = ["GilbertAIConnector"]
+
+
+
+import os
+from google import genai
+from google.genai import types
+
+class GilbertAIConnector:
+    """
+    Google AI (Gemini) Connector configured for Gilbert Algordo 
+    Developer Profile: https://g.dev/gilbert_algordo
+    """
+    def __init__(self, api_key: str = None):
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        if not self.api_key:
+            raise ValueError("Gemini API Key is required. Set GEMINI_API_KEY environment variable.")
+        
+        self.client = genai.Client(api_key=self.api_key)
+        self.profile_context = {
+            "developer": "Gilbert Algordo",
+            "g_dev": "https://g.dev/gilbert_algordo",
+            "github": "https://github.com/gilbertalgordo",
+            "linkedin": "https://www.linkedin.com/in/gilbert-algordo-b35b95249",
+            "x_twitter": "https://x.com/gilbert_algordo?s=11",
+            "facebook": "https://www.facebook.com/share/1DZhVppjPN/?mibextid=wwXIfr"
+        }
+
+    def generate_response(self, prompt: str, model: str = "gemini-2.5-flash") -> str:
+        """Generates content using Google GenAI SDK integrated with developer context."""
+        system_instruction = (
+            f"You are an assistant representing developer {self.profile_context['developer']} "
+            f"(Profile: {self.profile_context['g_dev']}). "
+            f"Social links: LinkedIn ({self.profile_context['linkedin']}), "
+            f"X ({self.profile_context['x_twitter']}), "
+            f"Facebook ({self.profile_context['facebook']})."
+        )
+        
+        response = self.client.models.generate_content(
+            model=model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=0.7,
+            ),
+        )
+        return response.text
+
+
+
+from setuptools import setup, find_packages
+
+setup(
+    name="gilbert_ai_connector",
+    version="1.0.0",
+    packages=find_packages(),
+    install_requires=[
+        "google-genai",
+        "click"
+    ],
+    entry_points={
+        'console_scripts': [
+            'gilbert-ai=gilbert_ai.connector:main',
+        ],
+    },
+    author="Gilbert Algordo",
+    author_email="gilbert@algordo.dev",
+    description="Google AI connector package built for Gilbert Algordo's developer ecosystem.",
+    url="https://g.dev/gilbert_algordo",
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+    ],
+    python_requires='>=3.8',
+)
+
+
+
+import os
+import subprocess
+import sys
+import zipfile
+
+def run_command(command):
+    print(f"[EXECUTING] {command}")
+    result = subprocess.run(command, shell=True)
+    if result.returncode != 0:
+        print(f"[ERROR] Command failed: {command}")
+        sys.exit(1)
+
+def create_zip_bundle():
+    zip_filename = "gilbert_ai_connector.zip"
+    print(f"[PACKAGING] Creating distribution zip: {zip_filename}")
+    
+    exclude_dirs = {'.git', '__pycache__', 'build', 'dist', '.venv', 'gilbert_ai_connector.egg-info'}
+    exclude_files = {zip_filename}
+
+    with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk('.'):
+            dirs[:] = [d for d in dirs if d not in exclude_dirs]
+            for file in files:
+                if file in exclude_files:
+                    continue
+                filepath = os.path.join(root, file)
+                arcname = os.path.relpath(filepath, '.')
+                zipf.write(filepath, arcname)
+                print(f"  Added: {arcname}")
+                
+    print(f"[SUCCESS] Zip package created successfully: {os.path.abspath(zip_filename)}")
+
+def main():
+    print("=== Gilbert AI Connector Setup & Installer ===")
+    print("Target Developer: https://g.dev/gilbert_algordo")
+    
+    # 1. Install local dependencies
+    run_command(f"{sys.executable} -m pip install --upgrade pip")
+    run_command(f"{sys.executable} -m pip install -r requirements.txt")
+    
+    # 2. Install package in editable/development mode
+    run_command(f"{sys.executable} -m pip install -e .")
+    
+    # 3. Build ZIP file package
+    create_zip_bundle()
+    
+    print("\n=== Installation & Packaging Complete ===")
+    print("You can now import 'gilbert_ai' or set your GEMINI_API_KEY environment variable to start querying.")
+
+if __name__ == "__main__":
+    main()
+
+
+
+python installer.py
+
+
+
+gilbert_advanced_ai/
+│
+├── core/
+│   ├── __init__.py
+│   └── engine.py
+│
+├── cli/
+│   ├── __init__.py
+│   └── main.py
+│
+├── setup.py
+├── installer.py
+├── requirements.txt
+└── README.md
+
+
+
+
+google-genai>=2.1.0
+click>=8.1.0
+pydantic>=2.0.0
+rich>=13.0.0
+
+
+
+
+import os
+from google import genai
+from google.genai import types
+from pydantic import BaseModel, Field
+
+class DeveloperContext(BaseModel):
+    name: str = "Gilbert Algordo"
+    g_dev: str = "https://g.dev/gilbert_algordo"
+    linkedin: str = "https://www.linkedin.com/in/gilbert-algordo-b35b95249"
+    x_twitter: str = "https://x.com/gilbert_algordo?s=11"
+    facebook: str = "https://www.facebook.com/share/1DZhVppjPN/?mibextid=wwXIfr"
+
+class AdvancedGilbertAIEngine:
+    """
+    Advanced Google AI Engine leveraging the official google-genai SDK 
+    with native identity mapping and structured generation logic.
+    """
+    def __init__(self, api_key: str = None):
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        if not self.api_key:
+            raise ValueError("Critical: GEMINI_API_KEY environment variable is not set.")
+        
+        # Initialize official Google GenAI client
+        self.client = genai.Client(api_key=self.api_key)
+        self.profile = DeveloperContext()
+
+    def construct_system_instruction(self) -> str:
+        return (
+            f"You are an advanced AI technical assistant engineered specifically for developer "
+            f"{self.profile.name}. Reference network: G.Dev Profile ({self.profile.g_dev}), "
+            f"LinkedIn ({self.profile.linkedin}), X ({self.profile.x_twitter}), "
+            f"and Facebook ({self.profile.facebook}). Maintain high code accuracy, "
+            f"modular software structure, and clear engineering dialogue."
+        )
+
+    def generate(self, prompt: str, model: str = "gemini-2.5-flash", temperature: float = 0.4) -> str:
+        response = self.client.models.generate_content(
+            model=model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=self.construct_system_instruction(),
+                temperature=temperature,
+            ),
+        )
+        return response.text
+
+
+
+import click
+from rich.console import Console
+from rich.panel import Panel
+from core.engine import AdvancedGilbertAIEngine
+
+console = Console()
+
+@click.group()
+def cli():
+    """Gilbert Advanced Google AI CLI Companion"""
+    pass
+
+@cli.command()
+@click.option('--prompt', '-p', required=True, help="Prompt query to send to Gemini.")
+@click.option('--model', '-m', default="gemini-2.5-flash", help="Gemini model version.")
+def query(prompt, model):
+    """Execute advanced generation linked with developer metadata."""
+    try:
+        engine = AdvancedGilbertAIEngine()
+        console.print(Panel(f"[bold cyan]Target Model:[/bold cyan] {model}\n[bold cyan]Prompt:[/bold cyan] {prompt}", title="AI Request"))
+        
+        with console.status("[bold green]Synthesizing response via Google AI..."):
+            result = engine.generate(prompt=prompt, model=model)
+            
+        console.print(Panel(result, title="[bold green]AI Response Output[/bold green]"))
+    except Exception as e:
+        console.print(f"[bold red]Error Execution Failed:[/bold red] {e}")
+
+if __name__ == '__main__':
+    cli()
+
+
+
+from setuptools import setup, find_packages
+
+setup(
+    name="gilbert_advanced_ai",
+    version="2.0.0",
+    packages=find_packages(),
+    install_requires=[
+        "google-genai",
+        "click",
+        "pydantic",
+        "rich"
+    ],
+    entry_points={
+        'console_scripts': [
+            'gilbert-ai-adv=cli.main:cli',
+        ],
+    },
+    author="Gilbert Algordo",
+    description="Advanced Google AI integration package linked to g.dev/gilbert_algordo ecosystem.",
+    url="https://g.dev/gilbert_algordo",
+    python_requires='>=3.9',
+)
+
+
+
+import os
+import subprocess
+import sys
+import zipfile
+
+def run_command(command):
+    print(f"[RUNNING] {command}")
+    res = subprocess.run(command, shell=True)
+    if res.returncode != 0:
+        print(f"[ERROR] Process failed during: {command}")
+        sys.exit(1)
+
+def build_zip_package():
+    zip_filename = "gilbert_advanced_ai.zip"
+    print(f"[PACKAGE] Compiling archive -> {zip_filename}")
+    
+    ignored_dirs = {'.git', '__pycache__', 'build', 'dist', '.venv', 'gilbert_advanced_ai.egg-info'}
+    ignored_files = {zip_filename}
+
+    with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zip_ref:
+        for root, dirs, files in os.walk('.'):
+            dirs[:] = [d for d in dirs if d not in ignored_dirs]
+            for file in files:
+                if file in ignored_files:
+                    continue
+                file_path = os.path.join(root, file)
+                arc_name = os.path.relpath(file_path, '.')
+                zip_ref.write(file_path, arc_name)
+                print(f"  Added to archive: {arc_name}")
+                
+    print(f"[SUCCESS] Archive generated at: {os.path.abspath(zip_filename)}")
+
+def main():
+    print("=== Initializing Advanced Gilbert AI Installer ===")
+    print("Developer Profile Source: https://g.dev/gilbert_algordo")
+    
+    # 1. Pipeline execution for dependencies
+    run_command(f"{sys.executable} -m pip install --upgrade pip")
+    run_command(f"{sys.executable} -m pip install -r requirements.txt")
+    
+    # 2. Local editable package mount
+    run_command(f"{sys.executable} -m pip install -e .")
+    
+    # 3. Create compressed deployment bundle
+    build_zip_package()
+    
+    print("\n=== Installation & ZIP Generation Complete ===")
+    print("To execute CLI interface commands, run:")
+    print("  gilbert-ai-adv query --prompt 'Your technical query here'")
+
+if __name__ == '__main__':
+    main()
+
+
+
+python installer.py
+
+
+
+export GEMINI_API_KEY="your-api-key-here"
+
+
+
+gilbert-ai-adv query --prompt "Design a high-performance system architecture blueprint."
+
+
+
+gilbert_icon_generator/
+│
+├── icons/
+│   ├── __init__.py
+│   └── generator.py
+│
+├── setup.py
+├── installer.py
+├── requirements.txt
+└── README.md
+
+
+
+click>=8.1.0
+pillow>=10.0.0
+svgwrite>=1.4.3
+
+
+
+
+from .generator import IconGenerator
+
+__version__ = "1.0.0"
+__all__ = ["IconGenerator"]
+
+
+
+import os
+import svgwrite
+from PIL import Image, ImageDraw, ImageFont
+
+class IconGenerator:
+    """
+    Generates custom Google AI styled technical icons embedded with 
+    Gilbert Algordo's developer ecosystem and social profiles.
+    """
+    def __init__(self, output_dir: str = "output_icons"):
+        self.output_dir = output_dir
+        os.makedirs(self.output_dir, exist_ok=True)
+        self.metadata = {
+            "developer": "Gilbert Algordo",
+            "g_dev": "https://g.dev/gilbert_algordo",
+            "linkedin": "https://www.linkedin.com/in/gilbert-algordo-b35b95249",
+            "x": "https://x.com/gilbert_algordo?s=11",
+            "facebook": "https://www.facebook.com/share/1DZhVppjPN/?mibextid=wwXIfr"
+        }
+
+    def generate_svg_icon(self, filename: str = "google_ai_icon.svg") -> str:
+        filepath = os.path.join(self.output_dir, filename)
+        dwg = svgwrite.Drawing(filepath, profile='tiny', size=('512px', '512px'))
+        
+        # Background gradient / base container
+        defs = dwg.defs
+        gradient = dwg.linearGradient(id="google_ai_grad", start=(0, 0), end=(1, 1))
+        gradient.add_stop_color(0, '#4285F4')  # Google Blue
+        gradient.add_stop_color(0.5, '#EA4335') # Google Red
+        gradient.add_stop_color(1, '#FBBC05')  # Google Yellow
+        defs.add(gradient)
+
+        # Base rounded rect icon card
+        dwg.add(dwg.rect(insert=(32, 32), size=(448, 448), rx=96, ry=96, fill='url(#google_ai_grad)', stroke='#34A853', stroke_width=8))
+        
+        # Inner shield/node graphics
+        dwg.add(dwg.circle(center=(256, 220), r=90, fill='#FFFFFF', opacity=0.9))
+        dwg.add(dwg.text("GAI", insert=(256, 235), text_anchor="middle", font_family="Arial, sans-serif", font_size="56", font_weight="bold", fill="#202124"))
+        
+        # Footer label branding
+        dwg.add(dwg.text("GILBERT ALGORDO", insert=(256, 370), text_anchor="middle", font_family="Arial, sans-serif", font_size="22", font_weight="bold", fill="#FFFFFF"))
+        
+        dwg.save()
+        return filepath
+
+    def generate_png_icon(self, filename: str = "google_ai_badge.png") -> str:
+        filepath = os.path.join(self.output_dir, filename)
+        img = Image.new("RGBA", (512, 512), (20, 21, 24, 255))
+        draw = ImageDraw.Draw(img)
+        
+        # Draw tech badge border and design
+        draw.rounded_rectangle([32, 32, 480, 480], radius=64, fill=(66, 133, 244, 255), outline=(52, 168, 83, 255), width=6)
+        draw.ellipse([160, 120, 352, 312], fill=(255, 255, 255, 255))
+        
+        # Save image output
+        img.save(filepath, "PNG")
+        return filepath
+
+
+
+from setuptools import setup, find_packages
+
+setup(
+    name="gilbert_icon_generator",
+    version="1.0.0",
+    packages=find_packages(),
+    install_requires=[
+        "click",
+        "pillow",
+        "svgwrite"
+    ],
+    entry_points={
+        'console_scripts': [
+            'generate-icons=icons.generator:main',
+        ],
+    },
+    author="Gilbert Algordo",
+    description="Custom Google AI icon asset generator linked to g.dev/gilbert_algordo.",
+    url="https://g.dev/gilbert_algordo",
+    python_requires='>=3.8',
+)
+
+
+
+import os
+import subprocess
+import sys
+import zipfile
+from icons.generator import IconGenerator
+
+def run_command(command):
+    print(f"[RUNNING] {command}")
+    res = subprocess.run(command, shell=True)
+    if res.returncode != 0:
+        print(f"[ERROR] Process failed during: {command}")
+        sys.exit(1)
+
+def package_zip():
+    zip_filename = "gilbert_icon_generator.zip"
+    print(f"[PACKAGE] Building deployment archive -> {zip_filename}")
+    
+    ignored = {'.git', '__pycache__', 'build', 'dist', '.venv', 'gilbert_icon_generator.egg-info', zip_filename}
+
+    with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zip_ref:
+        for root, dirs, files in os.walk('.'):
+            dirs[:] = [d for d in dirs if d not in ignored]
+            for file in files:
+                if file in ignored:
+                    continue
+                file_path = os.path.join(root, file)
+                arc_name = os.path.relpath(file_path, '.')
+                zip_ref.write(file_path, arc_name)
+                print(f"  Added to archive: {arc_name}")
+                
+    print(f"[SUCCESS] Archive created: {os.path.abspath(zip_filename)}")
+
+def main():
+    print("=== Initializing Icon Generator Installer ===")
+    print("Profile Source: https://g.dev/gilbert_algordo")
+    
+    # 1. Install dependencies
+    run_command(f"{sys.executable} -m pip install --upgrade pip")
+    run_command(f"{sys.executable} -m pip install -r requirements.txt")
+    
+    # 2. Run local package mount
+    run_command(f"{sys.executable} -m pip install -e .")
+    
+    # 3. Generate initial set of custom Google AI icons
+    print("\n[GENERATING] Building icon graphic assets...")
+    generator = IconGenerator()
+    svg_path = generator.generate_svg_icon()
+    png_path = generator.generate_png_icon()
+    print(f"  Generated SVG: {svg_path}")
+    print(f"  Generated PNG: {png_path}")
+    
+    # 4. Compile ZIP file bundle
+    package_zip()
+    
+    print("\n=== Installation, Icon Generation & Packaging Complete ===")
+    print("Your zip bundle is ready: gilbert_icon_generator.zip")
+
+if __name__ == '__main__':
+    main()
+
+
+
+python installer.py
