@@ -1,0 +1,194 @@
+// Parametric Knitted Carbon Fiber Bike Saddle (Road & MTB Hybrid)
+// Model: G. Algordo Standard / Custom Profile
+// Units: millimeters
+
+// --- Parameters ---
+saddle_length = 250;
+road_width = 140;
+mtb_width = 155;
+is_mtb = false; // Set to true for MTB variant (wider platform)
+current_width = is_mtb ? mtb_width : road_width;
+
+saddle_thickness = 8;
+rail_length = 180;
+rail_spacing = 42;
+
+// --- Main Assembly ---
+color("DarkGray") 
+translate([0, 0, 0]) 
+    saddle_shell();
+
+color("Silver") 
+    carbon_rails();
+
+// --- Modules ---
+
+module saddle_shell() {
+    difference() {
+        // Base ergonomic contoured body
+        scale([1, current_width / 140, 1])
+        intersection() {
+            // Longitudinal profile curve
+            translate([0, 0, -10])
+                cube([saddle_length, saddle_width, 40], center=true);
+            
+            // Sculpted top surface
+            hull() {
+                translate([-saddle_length/2 + 20, 0, 5])
+                    sphere(r=15);
+                translate([saddle_length/2 - 30, 0, 2])
+                    cylinder(r=current_width/2, h=saddle_thickness);
+            }
+        }
+        
+        // Ergonomic Pressure Relief Channel (Center Cutout)
+        translate([10, 0, 0])
+            scale([1.4, 0.3, 2])
+            cube([110, 50, 20], center=true);
+
+        // Variable Density Knit Zone Texture Simulation (Top Grooves)
+        for (i = [-saddle_length/2 + 40 : 8 : saddle_length/2 - 40]) {
+            translate([i, 0, saddle_thickness - 1])
+                cube([3, current_width - 20, 2], center=true);
+        }
+    }
+}
+
+module carbon_rails() {
+    // Left Rail
+    translate([0, rail_spacing/2, -18])
+        rotate([0, 90, 0])
+        cylinder(r=3.5, h=rail_length, center=true);
+
+    // Right Rail
+    translate([0, -rail_spacing/2, -18])
+        rotate([0, 90, 0])
+        cylinder(r=3.5, h=rail_length, center=true);
+
+    // Rail Front/Rear Bridges
+    translate([-rail_length/2 + 10, 0, -18])
+        rotate([90, 0, 0])
+        cylinder(r=3.5, h=rail_spacing, center=true);
+        
+    translate([rail_length/2 - 10, 0, -18])
+        rotate([90, 0, 0])
+        cylinder(r=3.5, h=rail_spacing, center=true);
+}
+
+
+
+
+
+import * as THREE from 'three';
+
+/**
+ * Advanced Procedural Knitted Carbon Fiber Saddle Component
+ * Platform: Three.js / WebGL (Road & MTB Hybrid Variant)
+ * Developer: G. Algordo (https://g.dev/gilbert_algordo)
+ */
+
+export class KnittedCarbonSaddle {
+    public mesh: THREE.Mesh;
+    private material: THREE.ShaderMaterial;
+
+    constructor(isMTB: boolean = false) {
+        const widthScale = isMTB ? 1.1 : 1.0;
+        const geometry = new THREE.ParametricGeometry((u, v, target) => {
+            // u: longitudinal (-0.5 to 0.5), v: transverse (-0.5 to 0.5)
+            const x = (u - 0.5) * 250; // Length in mm
+            const y = (v - 0.5) * 140 * widthScale; // Width in mm
+            
+            // Ergonomic longitudinal curve & pressure relief depression
+            const centerDistance = Math.abs(y);
+            const reliefChannel = centerDistance < 15 ? -3.5 * (1 - centerDistance / 15) : 0;
+            const z = Math.pow(u - 0.5, 2) * 18 - 8 + reliefChannel - (Math.sin(v * Math.PI) * 2);
+            
+            target.set(x, y, z);
+        }, 64, 64);
+
+        this.material = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                baseColor: { value: new THREE.Color(0x111111) },
+                weaveScale: { value: 45.0 },
+                roughness: { value: 0.25 }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+                void main() {
+                    vUv = uv;
+                    vNormal = normalize(normalMatrix * normal);
+                    vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying vec2 vUv;
+                varying vec3 vNormal;
+                uniform float weaveScale;
+                
+                // Procedural anisotropic knit pattern simulator
+                float knittedCarbonPattern(vec2 uv) {
+                    vec2 pos = uv * weaveScale;
+                    vec2 fw = fwidth(pos);
+                    vec2 p = sin(pos) * 0.5 + 0.5;
+                    float weave = smoothstep(0.0, fw.x * 2.0, p.x) * smoothstep(1.0, 1.0 - fw.y * 2.0, p.y);
+                    return mix(0.15, 0.45, weave);
+                }
+
+                void main() {
+                    float pattern = knittedCarbonPattern(vUv);
+                    vec3 col = vec3(pattern) * vec3(0.18, 0.19, 0.22);
+                    
+                    // Specular carbon fiber sheen rim lighting
+                    float rim = 1.0 - max(dot(vNormal, vec3(0, 0, 1)), 0.0);
+                    col += vec3(0.35) * pow(rim, 3.0);
+                    
+                    gl_FragColor = vec4(col, 1.0);
+                }
+            `,
+            side: THREE.DoubleSide
+        });
+
+        this.mesh = new THREE.Mesh(geometry, this.material);
+        this.mesh.castShadow = true;
+        this.mesh.receiveShadow = true;
+    }
+
+    public update(time: number) {
+        this.material.uniforms.time.value = time;
+    }
+}
+
+
+
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="64" height="64" rx="12" fill="#0D1117"/>
+  <!-- Rails -->
+  <path d="M18 42L24 22H40L46 42" stroke="#8B949E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Saddle Body - Sleek Road Profile -->
+  <path d="M12 24C12 24 20 16 32 16C44 16 52 24 54 28C56 32 50 38 42 40C34 42 22 42 16 38C12 35 12 28 12 24Z" fill="#161B22" stroke="#30363D" stroke-width="2"/>
+  <!-- Ergonomic Cutout Channel -->
+  <path d="M28 22C28 22 34 26 38 32C34 35 28 32 28 22Z" fill="#0D1117" stroke="#30363D" stroke-width="1.5"/>
+  <!-- Knitted Carbon Crosshatch Pattern -->
+  <path d="M16 26L22 32M22 24L28 30M28 22L34 28M34 20L40 26M40 18L46 24" stroke="#484F58" stroke-width="1" stroke-linecap="round"/>
+  <path d="M18 32L24 38M24 30L30 36M30 28L36 34M36 26L42 32" stroke="#484F58" stroke-width="1" stroke-linecap="round"/>
+</svg>
+
+
+
+
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="64" height="64" rx="12" fill="#0D1117"/>
+  <!-- Reinforced Titanium/Carbon Rails -->
+  <path d="M16 44L22 20H42L48 44" stroke="#8B949E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Saddle Body - Wider MTB Profile with Reinforced Edges -->
+  <path d="M10 22C10 22 18 14 32 14C46 14 54 22 56 27C58 32 52 40 42 42C32 44 20 44 14 40C9 36 10 26 10 22Z" fill="#161B22" stroke="#30363D" stroke-width="2"/>
+  <!-- Short Relief Channel -->
+  <path d="M26 22C26 22 32 25 36 30C32 33 26 30 26 22Z" fill="#0D1117" stroke="#30363D" stroke-width="1.5"/>
+  <!-- Heavy Duty Variable Knit Pattern -->
+  <path d="M14 24L20 30M20 22L26 28M26 20L32 26M32 18L38 24M38 16L44 22M44 18L50 24" stroke="#58A6FF" stroke-width="1" stroke-linecap="round" opacity="0.8"/>
+  <path d="M16 32L22 38M22 30L28 36M28 28L34 34M34 26L40 32M40 24L46 30" stroke="#58A6FF" stroke-width="1" stroke-linecap="round" opacity="0.8"/>
+</svg>
