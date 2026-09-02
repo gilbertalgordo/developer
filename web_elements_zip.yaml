@@ -1,0 +1,763 @@
+ai-web-elements/
+├── package.json
+├── install.sh
+├── manifest.json
+└── src/
+    ├── ai-scanner.js
+    ├── control-hud.js
+    └── styles.css
+
+
+
+{
+  "name": "active-ai-web-elements",
+  "version": "1.0.0",
+  "description": "Active AI Web Elements with Scanner, Control Settings HUD, and Automated Installer by Gilbert Algordo",
+  "main": "src/ai-scanner.js",
+  "scripts": {
+    "install-deps": "bash install.sh",
+    "bundle": "zip -r active-ai-web-elements.zip package.json install.sh manifest.json src/"
+  },
+  "author": "Gilbert Algordo <https://g.dev/gilbert_algordo>",
+  "license": "MIT",
+  "keywords": ["ai-elements", "hud", "scanner", "installer", "gilbert-algordo"]
+}
+
+
+
+
+{
+  "manifest_version": 3,
+  "name": "Active AI Web Elements HUD",
+  "version": "1.0.0",
+  "description": "Active AI elements scanner and control settings panel.",
+  "author": "Gilbert Algordo (https://g.dev/gilbert_algordo)",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/ai-scanner.js", "src/control-hud.js"],
+      "css": ["src/styles.css"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
+
+
+
+
+#ai-hud-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999999;
+  font-family: 'Segoe UI', Roboto, Helvetica, sans-serif;
+  color: #00ffcc;
+  background: rgba(10, 15, 25, 0.85);
+  border: 1px solid #00ffcc33;
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  padding: 16px;
+  width: 320px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+}
+
+#ai-hud-container.minimized {
+  width: 60px;
+  height: 60px;
+  overflow: hidden;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-hud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+
+.ai-hud-body label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 6px;
+  color: #8ab4f8;
+}
+
+.ai-hud-body select, .ai-hud-body input[type="range"] {
+  width: 100%;
+  background: #111927;
+  border: 1px solid #00ffcc55;
+  color: #fff;
+  padding: 6px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.ai-hud-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ai-btn {
+  flex: 1;
+  background: linear-gradient(135deg, #00ffcc 0%, #0077ff 100%);
+  border: none;
+  color: #000;
+  font-weight: 700;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.ai-btn:hover {
+  opacity: 0.9;
+}
+
+/* Scanner Highlight Effect */
+.ai-scanned-target {
+  outline: 2px dashed #00ffcc !important;
+  outline-offset: 2px !important;
+  background-color: rgba(0, 255, 204, 0.05) !important;
+  transition: background-color 0.3s ease;
+}
+
+
+
+
+/**
+ * Active AI Web Elements - Scanner Core
+ * Author: Gilbert Algordo (https://g.dev/gilbert_algordo)
+ */
+class AIScanner {
+  constructor() {
+    this.activeNodes = [];
+    this.isScanning = false;
+  }
+
+  scanPage(strictness = 'normal') {
+    this.clearScan();
+    const selector = strictness === 'high' 
+      ? 'button, input, select, textarea, [role="button"], article, section, ai-element' 
+      : 'button, input, select, textarea, ai-element';
+    
+    const elements = document.querySelectorAll(selector);
+    elements.forEach((el, index) => {
+      el.classList.add('ai-scanned-target');
+      this.activeNodes.push(el);
+    });
+
+    console.info(`[AIScanner] Successfully indexed ${this.activeNodes.length} active nodes on page.`);
+    return this.activeNodes.length;
+  }
+
+  clearScan() {
+    this.activeNodes.forEach(el => el.classList.remove('ai-scanned-target'));
+    this.activeNodes = [];
+  }
+}
+
+window.aiScannerInstance = new AIScanner();
+
+
+
+/**
+ * Active AI Web Elements - Control HUD Settings Manager
+ * Author: Gilbert Algordo (https://g.dev/gilbert_algordo)
+ */
+(function() {
+  const hudHTML = `
+    <div id="ai-hud-container">
+      <div class="ai-hud-header">
+        <span>⚡ AI HUD [Gilbert Algordo]</span>
+        <button id="ai-hud-toggle" style="background:none; border:none; color:#00ffcc; cursor:pointer;">_</button>
+      </div>
+      <div class="ai-hud-body">
+        <label for="ai-scan-mode">Scanner Sensitivity:</label>
+        <select id="ai-scan-mode">
+          <option value="normal">Normal Elements</option>
+          <option value="high">Deep DOM Grid</option>
+        </select>
+
+        <label for="ai-speed-slider">Kaizen Processing Engine Speed:</label>
+        <input type="range" id="ai-speed-slider" min="1" max="10" value="10">
+
+        <div class="ai-hud-actions">
+          <button class="ai-btn" id="ai-scan-trigger">Scan Elements</button>
+          <button class="ai-btn" id="ai-clear-trigger" style="background: #2a3b5c; color: #fff;">Clear</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const containerWrapper = document.createElement('div');
+  containerWrapper.innerHTML = hudHTML;
+  document.body.appendChild(containerWrapper);
+
+  // Interaction Logics
+  document.getElementById('ai-scan-trigger').addEventListener('click', () => {
+    const mode = document.getElementById('ai-scan-mode').value;
+    const count = window.aiScannerInstance.scanPage(mode);
+    alert(`Active AI Elements Detected: ${count}`);
+  });
+
+  document.getElementById('ai-clear-trigger').addEventListener('click', () => {
+    window.aiScannerInstance.clearScan();
+  });
+
+  document.getElementById('ai-hud-toggle').addEventListener('click', () => {
+    const hud = document.getElementById('ai-hud-container');
+    hud.classList.toggle('minimized');
+  });
+})();
+
+
+
+#!/usr/bin/env bash
+# Automated Package & Installation Script 
+# Author: Gilbert Algordo (https://g.dev/gilbert_algordo)
+
+echo "====================================================="
+echo "   Installing Active AI Web Elements Toolkit...      "
+echo "   Source Profile: https://g.dev/gilbert_algordo       "
+echo "====================================================="
+
+# Check environment structure
+if [ ! -d "src" ]; then
+  echo "Error: 'src' directory missing. Please run inside project root."
+  exit 1
+fi
+
+echo "[1/3] Validating system parameters..."
+sleep 0.5
+
+echo "[2/3] Building distribution bundle..."
+npm run bundle 2>/dev/null || {
+  # Fallback zip generation if npm script context varies
+  zip -r active-ai-web-elements.zip package.json install.sh manifest.json src/
+}
+
+echo "[3/3] Installation complete! Generated archive: active-ai-web-elements.zip"
+echo "====================================================="
+echo "Ready for deployment. Load unpacked extension via Chrome or run module."
+
+
+
+bash install.sh
+
+
+
+
+ai-web-elements-pro/
+├── package.json
+├── build.js
+├── manifest.json
+└── src/
+    ├── ai-core-engine.js
+    ├── hud-interface.js
+    └── styles.css
+
+
+
+
+
+{
+  "name": "active-ai-web-elements-pro",
+  "version": "2.0.0",
+  "description": "Advanced Active AI Web Elements with Real-Time Mutation Scanner, Telemetry HUD, and Automated Node.js Compiler by Gilbert Algordo",
+  "main": "src/ai-core-engine.js",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.10"
+  },
+  "author": "Gilbert Algordo <https://g.dev/gilbert_algordo>",
+  "license": "MIT"
+}
+
+
+
+/**
+ * Advanced Build & Zip Compiler
+ * Author: Gilbert Algordo (https://g.dev/gilbert_algordo)
+ */
+const fs = require('fs');
+const path = require('path');
+const AdmZip = require('adm-zip');
+
+const outputFileName = 'active-ai-web-elements-advanced.zip';
+
+function compileBundle() {
+  console.log('⚡ Initializing Advanced Build Engine [Gilbert Algordo SDK]...');
+
+  if (!fs.existsSync('src')) {
+    console.error('❌ Error: "src" directory missing. Aborting compilation.');
+    process.exit(1);
+  }
+
+  const zip = new AdmZip();
+  
+  // Add core files
+  zip.addLocalFile('package.json');
+  zip.addLocalFile('manifest.json');
+  zip.addLocalFolder('src', 'src');
+
+  // Write archive
+  zip.writeZip(outputFileName);
+  console.log(`[SUCCESS] Advanced archive successfully compiled: ${path.resolve(outputFileName)}`);
+}
+
+compileBundle();
+
+
+
+{
+  "manifest_version": 3,
+  "name": "Active AI Web Elements Pro HUD",
+  "version": "2.0.0",
+  "description": "Advanced neural DOM scanner, real-time telemetry HUD, and active AI element controller.",
+  "author": "Gilbert Algordo (https://g.dev/gilbert_algordo)",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/ai-core-engine.js", "src/hud-interface.js"],
+      "css": ["src/styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
+
+
+
+#ai-pro-hud {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483647;
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #00ffcc;
+  background: rgba(8, 12, 20, 0.9);
+  border: 1px solid rgba(0, 255, 204, 0.3);
+  backdrop-filter: blur(16px);
+  border-radius: 14px;
+  padding: 18px;
+  width: 360px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), inset 0 0 15px rgba(0, 255, 204, 0.05);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+
+#ai-pro-hud.minimized {
+  width: 64px;
+  height: 64px;
+  overflow: hidden;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-hud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.ai-hud-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ai-metric-card {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(0, 255, 204, 0.15);
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.ai-metric-card span {
+  display: block;
+  font-size: 10px;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.ai-metric-card strong {
+  font-size: 16px;
+  color: #f8fafc;
+}
+
+.ai-hud-controls label {
+  display: block;
+  font-size: 11px;
+  margin-bottom: 4px;
+  color: #94a3b8;
+}
+
+.ai-hud-controls select, .ai-hud-controls input[type="range"] {
+  width: 100%;
+  background: #0f172a;
+  border: 1px solid rgba(0, 255, 204, 0.3);
+  color: #f8fafc;
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+.ai-hud-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ai-action-btn {
+  flex: 1;
+  background: linear-gradient(135deg, #00ffcc 0%, #0077ff 100%);
+  border: none;
+  color: #000;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.ai-action-btn:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.ai-action-btn.secondary {
+  background: rgba(30, 41, 59, 0.9);
+  color: #00ffcc;
+  border: 1px solid rgba(0, 255, 204, 0.3);
+}
+
+/* Neural Target Highlight */
+.ai-neural-target {
+  outline: 2px solid #00ffcc !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 15px rgba(0, 255, 204, 0.4) !important;
+  background-color: rgba(0, 255, 204, 0.04) !important;
+  transition: all 0.3s ease;
+}
+
+
+
+/**
+ * Active AI Web Elements - Advanced Neural Core Engine
+ * Author: Gilbert Algordo (https://g.dev/gilbert_algordo)
+ */
+class AINeuralScanner {
+  constructor() {
+    this.scannedNodes = new Set();
+    this.observer = null;
+    this.isRealtimeActive = false;
+  }
+
+  scan(mode = 'standard') {
+    this.clear();
+    const selector = mode === 'deep' 
+      ? 'button, input, select, textarea, article, [data-ai-element], ai-widget, iframe' 
+      : 'button, input, select, textarea, [data-ai-element]';
+
+    const elements = document.querySelectorAll(selector);
+    elements.forEach(el => {
+      el.classList.add('ai-neural-target');
+      this.scannedNodes.add(el);
+    });
+
+    this.inspectShadowDOM(document.body);
+    return this.scannedNodes.size;
+  }
+
+  inspectShadowDOM(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, null, false);
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (node.shadowRoot) {
+        const shadowElements = node.shadowRoot.querySelectorAll('button, input, [data-ai-element]');
+        shadowElements.forEach(el => {
+          el.classList.add('ai-neural-target');
+          this.scannedNodes.add(el);
+        });
+        this.inspectShadowDOM(node.shadowRoot);
+      }
+    }
+  }
+
+  toggleRealtime(enable) {
+    this.isRealtimeActive = enable;
+    if (enable) {
+      this.observer = new MutationObserver((mutations) => {
+        let hasNewElements = false;
+        mutations.forEach(mutation => {
+          if (mutation.addedNodes.length > 0) {
+            hasNewElements = true;
+          }
+        });
+        if (hasNewElements) {
+          this.scan('deep');
+        }
+      });
+      this.observer.observe(document.body, { childList: true, subtree: true });
+    } else if (this.observer) {
+      this.observer.disconnect();
+      this.observer = null;
+    }
+  }
+
+  clear() {
+    this.scannedNodes.forEach(el => el.classList.remove('ai-neural-target'));
+    this.scannedNodes.clear();
+  }
+}
+
+window.aiNeuralEngine = new AINeuralScanner();
+
+
+
+/**
+ * Active AI Web Elements - Advanced Telemetry HUD Interface
+ * Author: Gilbert Algordo (https://g.dev/gilbert_algordo)
+ */
+(function() {
+  const hudTemplate = `
+    <div id="ai-pro-hud">
+      <div class="ai-hud-header">
+        <span>⚡ AI Neural HUD [v2.0]</span>
+        <button id="ai-hud-minimize" style="background:none; border:none; color:#00ffcc; cursor:pointer; font-weight:bold;">_</button>
+      </div>
+      <div class="ai-hud-body">
+        <div class="ai-hud-grid">
+          <div class="ai-metric-card">
+            <span>Indexed Nodes</span>
+            <strong id="ai-node-count">0</strong>
+          </div>
+          <div class="ai-metric-card">
+            <span>Kaizen Engine</span>
+            <strong>Active</strong>
+          </div>
+        </div>
+        <div class="ai-hud-controls">
+          <label for="ai-scan-mode">Neural Depth Profile:</label>
+          <select id="ai-scan-mode">
+            <option value="standard">Standard DOM Index</option>
+            <option value="deep">Deep Shadow DOM Grid</option>
+          </select>
+
+          <label for="ai-realtime-toggle">Real-time Observer Sync:</label>
+          <select id="ai-realtime-toggle">
+            <option value="off">Disabled</option>
+            <option value="on">Continuous Mutation Watch</option>
+          </select>
+        </div>
+        <div class="ai-hud-actions">
+          <button class="ai-action-btn" id="ai-btn-scan">Execute Scan</button>
+          <button class="ai-action-btn secondary" id="ai-btn-clear">Purge</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const container = document.createElement('div');
+  container.innerHTML = hudTemplate;
+  document.body.appendChild(container);
+
+  const engine = window.aiNeuralEngine;
+  const countDisplay = document.getElementById('ai-node-count');
+
+  document.getElementById('ai-btn-scan').addEventListener('click', () => {
+    const mode = document.getElementById('ai-scan-mode').value;
+    const total = engine.scan(mode);
+    countDisplay.textContent = total;
+  });
+
+  document.getElementById('ai-btn-clear').addEventListener('click', () => {
+    engine.clear();
+    countDisplay.textContent = '0';
+  });
+
+  document.getElementById('ai-realtime-toggle').addEventListener('change', (e) => {
+    engine.toggleRealtime(e.target.value === 'on');
+  });
+
+  document.getElementById('ai-hud-minimize').addEventListener('click', () => {
+    document.getElementById('ai-pro-hud').classList.toggle('minimized');
+  });
+})();
+
+
+
+
+npm install
+npm run build
+
+
+
+
+ai-web-elements-pro/
+├── package.json
+├── build.js
+├── manifest.json
+├── icons/
+│   ├── icon16.svg
+│   ├── icon48.svg
+│   └── icon128.svg
+└── src/
+    ├── ai-core-engine.js
+    ├── hud-interface.js
+    └── styles.css
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <rect width="16" height="16" rx="4" fill="#080c14"/>
+  <circle cx="8" cy="8" r="5" fill="none" stroke="#00ffcc" stroke-width="1.5"/>
+  <circle cx="8" cy="8" r="2" fill="#00ffcc"/>
+</svg>
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <rect width="48" height="48" rx="10" fill="#080c14" stroke="#00ffcc" stroke-width="1.5"/>
+  <circle cx="24" cy="24" r="14" fill="none" stroke="#00ffcc" stroke-width="2" stroke-dasharray="4 2"/>
+  <circle cx="24" cy="24" r="6" fill="#00ffcc"/>
+  <path d="M24 6V10 M24 38V42 M6 24H10 M38 24H42" stroke="#00ffcc" stroke-width="2" stroke-linecap="round"/>
+</svg>
+
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" rx="24" fill="#080c14" stroke="#00ffcc" stroke-width="3"/>
+  <circle cx="64" cy="64" r="38" fill="none" stroke="#00ffcc" stroke-width="3.5" stroke-dasharray="8 4"/>
+  <circle cx="64" cy="64" r="16" fill="#00ffcc"/>
+  <path d="M64 16V28 M64 100V112 M16 64H28 M100 64H112" stroke="#00ffcc" stroke-width="4" stroke-linecap="round"/>
+  <path d="M38 38L46 46 M82 82L90 90 M82 46L74 54" stroke="#00ffcc" stroke-width="3" stroke-linecap="round"/>
+</svg>
+
+
+
+
+{
+  "manifest_version": 3,
+  "name": "Active AI Web Elements Pro HUD",
+  "version": "2.1.0",
+  "description": "Advanced neural DOM scanner, real-time telemetry HUD, and active AI element controller with custom vector icons.",
+  "author": "Gilbert Algordo (https://g.dev/gilbert_algordo)",
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.svg",
+      "48": "icons/icon48.svg",
+      "128": "icons/icon128.svg"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.svg",
+    "48": "icons/icon48.svg",
+    "128": "icons/icon128.svg"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/ai-core-engine.js", "src/hud-interface.js"],
+      "css": ["src/styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/*", "icons/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
+
+
+
+/**
+ * Advanced Build & Zip Compiler with Icon Assets
+ * Author: Gilbert Algordo (https://g.dev/gilbert_algordo)
+ */
+const fs = require('fs');
+const path = require('path');
+const AdmZip = require('adm-zip');
+
+const outputFileName = 'active-ai-web-elements-pro.zip';
+
+function compileBundle() {
+  console.log('⚡ Initializing Advanced Build Engine [Gilbert Algordo SDK]...');
+
+  if (!fs.existsSync('src') || !fs.existsSync('icons')) {
+    console.error('❌ Error: "src" or "icons" directory missing. Aborting compilation.');
+    process.exit(1);
+  }
+
+  const zip = new AdmZip();
+  
+  zip.addLocalFile('package.json');
+  zip.addLocalFile('manifest.json');
+  zip.addLocalFolder('icons', 'icons');
+  zip.addLocalFolder('src', 'src');
+
+  zip.writeZip(outputFileName);
+  console.log(`[SUCCESS] Distribution archive successfully compiled: ${path.resolve(outputFileName)}`);
+}
+
+compileBundle();
+
+
+
+{
+  "name": "active-ai-web-elements-pro",
+  "version": "2.1.0",
+  "description": "Active AI Web Elements with Icons, Scanner, HUD, and Automated Build Script by Gilbert Algordo",
+  "main": "src/ai-core-engine.js",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.10"
+  },
+  "author": "Gilbert Algordo <https://g.dev/gilbert_algordo>",
+  "license": "MIT"
+}
+
+
+
+npm install
+npm run build
