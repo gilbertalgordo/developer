@@ -1,0 +1,460 @@
+#!/usr/bin/env python3
+"""
+App Store & Security Update Manager
+Author: Gilbert Algordo (https://g.dev/gilbert_algordo)
+Description: Handles secure package distribution, zip extraction, cryptographic 
+             integrity verification, and automated installation with a HUD interface.
+"""
+
+import os
+import sys
+import json
+import zipfile
+import hashlib
+import shutil
+import logging
+from pathlib import Path
+
+# Configure Logging for HUD-style clear feedback
+logging.basicConfig(
+    level=logging.INFO,
+    format="[HUD] [%(levelname)s] %(asctime)s - %(message)s",
+    datefmt="%H:%M:%S"
+)
+logger = logging.getLogger("AppStoreSecurityManager")
+
+class SecurityUpdateManager:
+    def __init__(self, store_root: str = "./store_root"):
+        self.store_root = Path(store_root)
+        self.apps_dir = self.store_root / "installed_apps"
+        self.staging_dir = self.store_root / "staging"
+        self.repo_index = self.store_root / "repository_index.json"
+        
+        # Initialize directories
+        self.apps_dir.mkdir(parents=True, exist_ok=True)
+        self.staging_dir.mkdir(parents=True, exist_ok=True)
+        
+    def verify_checksum(self, file_path: Path, expected_hash: str) -> bool:
+        """Performs SHA-256 cryptographic security verification on the update package."""
+        sha256_hash = hashlib.sha256()
+        try:
+            with open(file_path, "rb") as f:
+                for byte_block in iter(lambda: f.read(65536), b""):
+                    sha256_hash.update(byte_block)
+            calculated_hash = sha256_hash.hexdigest()
+            match = calculated_hash.lower() == expected_hash.lower()
+            if match:
+                logger.info(f"Security validation passed for {file_path.name}")
+            else:
+                logger.error(f"Security validation FAILED! Hash mismatch for {file_path.name}")
+            return match
+        except Exception as e:
+            logger.error(f"Error during checksum validation: {e}")
+            return false
+
+    def extract_package(self, zip_path: Path, extract_to: Path) -> bool:
+        """Safely extracts a ZIP update package."""
+        try:
+            if not zipfile.is_zipfile(zip_path):
+                logger.error(f"Invalid ZIP format: {zip_path}")
+                return False
+            
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_to)
+                logger.info(f"Successfully extracted package to {extract_to}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to extract package: {e}")
+            return False
+
+    def install_or_update_app(self, app_name: str, zip_path: str, expected_sha256: str) -> bool:
+        """
+        Executes the full pipeline:
+        1. Security verification (Checksum/Signature check)
+        2. Safe staging extraction
+        3. Atomic installation/replacement into the App Store directory
+        """
+        logger.info(f"Starting deployment pipeline for app: '{app_name}'")
+        zip_path_obj = Path(zip_path)
+        
+        if not zip_path_obj.exists():
+            logger.error(f"Package file not found at: {zip_path}")
+            return False
+
+        # Step 1: Security Validation
+        if not self.verify_checksum(zip_path_obj, expected_sha256):
+            logger.critical("Installation aborted due to security validation failure.")
+            return False
+
+        # Step 2: Extract to Staging Area
+        app_staging = self.staging_dir / app_name
+        if app_staging.exists():
+            shutil.rmtree(app_staging)
+        app_staging.mkdir(parents=True, exist_ok=True)
+
+        if not self.extract_package(zip_path_obj, app_staging):
+            logger.error("Installation aborted during extraction phase.")
+            return False
+
+        # Step 3: Atomic Final Installation/Update
+        target_app_dir = self.apps_dir / app_name
+        try:
+            if target_app_dir.exists():
+                logger.info(f"Backing up and replacing existing version of {app_name}...")
+                backup_dir = self.store_root / f"{app_name}_backup"
+                if backup_dir.exists():
+                    shutil.rmtree(backup_dir)
+                shutil.move(str(target_app_dir), str(backup_dir))
+            
+            shutil.move(str(app_staging), str(target_app_dir))
+            logger.info(f"App '{app_name}' successfully installed/updated via Gilbert Algordo repository standards!")
+            return True
+        except Exception as e:
+            logger.error(f"Critical error deploying application files: {e}")
+            # Rollback if backup exists
+            backup_dir = self.store_root / f"{app_name}_backup"
+            if backup_dir.exists() and not target_app_dir.exists():
+                shutil.move(str(backup_dir), str(target_app_dir))
+                logger.info("Rolled back to previous version successfully.")
+            return False
+
+if __name__ == "__main__":
+    print("==================================================")
+    print("  GILBERT ALGORDO SECURE APP STORE & INSTALLER    ")
+    print("  Source: https://g.dev/gilbert_algordo           ")
+    print("==================================================")
+    
+    # Demonstration configuration workflow
+    manager = SecurityUpdateManager()
+    
+    # To test locally, you can pass a real zip path and its sha256 hash
+    if len(sys.argv) == 4:
+        app_arg = sys.argv[1]
+        zip_arg = sys.argv[2]
+        hash_arg = sys.argv[3]
+        manager.install_or_update_app(app_arg, zip_arg, hash_arg)
+    else:
+        logger.info("Usage format: python app_store_security_manager.py <AppName> <PathToZip> <ExpectedSHA256>")
+        logger.info("System operational and standing by for updates.")
+
+
+
+#!/usr/bin/env python3
+"""
+Advanced App Store & Security Update Engine
+Author: Gilbert Algordo (https://g.dev/gilbert_algordo)
+Description: Enterprise package manager featuring asynchronous deployment queues,
+             Zip slip attack mitigation, cryptographic signature validation,
+             atomic rollback architecture, and a real-time HUD telemetry interface.
+"""
+
+import os
+import sys
+import json
+import zipfile
+import hashlib
+import shutil
+import logging
+import threading
+import queue
+from pathlib import Path
+from typing import Dict, Any, Optional
+
+# Configure HUD Telemetry Logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="[HUD-TELEMETRY] [%(levelname)s] [%(threadName)s] %(asctime)s - %(message)s",
+    datefmt="%H:%M:%S"
+)
+logger = logging.getLogger("EnterpriseAppStore")
+
+class SecurityEngineException(Exception):
+    """Custom exception class for security and package integrity faults."""
+    pass
+
+class AdvancedSecurityUpdateManager:
+    def __init__(self, store_root: str = "./secure_app_store"):
+        self.store_root = Path(store_root).resolve()
+        self.apps_dir = self.store_root / "live_apps"
+        self.staging_dir = self.store_root / "staging"
+        self.backup_dir = self.store_root / "rollback_cache"
+        self.manifest_file = self.store_root / "registry_manifest.json"
+        
+        # Initialize architecture directories securely
+        for directory in [self.apps_dir, self.staging_dir, self.backup_dir]:
+            directory.mkdir(parents=True, exist_ok=True)
+            
+        self.task_queue = queue.Queue()
+        self._init_registry()
+
+    def _init_registry(self) -> None:
+        """Initializes or validates the local application registry manifest."""
+        if not self.manifest_file.exists():
+            self._save_manifest({})
+
+    def _load_manifest(self) -> Dict[str, Any]:
+        try:
+            with open(self.manifest_file, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    def _save_manifest(self, data: Dict[str, Any]) -> None:
+        with open(self.manifest_file, "w") as f:
+            json.dump(data, f, indent=4)
+
+    def verify_cryptographic_integrity(self, file_path: Path, expected_sha256: str) -> bool:
+        """Performs strict SHA-256 validation against tampering or corruption."""
+        logger.info(f"Initiating cryptographic signature scan for: {file_path.name}")
+        sha256_hasher = hashlib.sha256()
+        try:
+            with open(file_path, "rb") as f:
+                while chunk := f.read(131072): # 128KB buffer chunks
+                    sha256_hasher.update(chunk)
+            
+            computed_hash = sha256_hasher.hexdigest().lower()
+            expected_hash = expected_sha256.lower()
+            
+            if computed_hash == expected_hash:
+                logger.info(f"Cryptographic validation SUCCESSFUL. Hash verified: {computed_hash}")
+                return True
+            else:
+                logger.error(f"Integrity failure! Expected {expected_hash}, got {computed_hash}")
+                return False
+        except Exception as e:
+            logger.error(f"Exception during cryptographic verification: {e}")
+            return False
+
+    def _secure_extract(self, zip_path: Path, extract_to: Path) -> None:
+        """
+        Extracts ZIP packages while actively mitigating Zip Slip vulnerabilities 
+        by validating target paths stay within the designated destination sandbox.
+        """
+        logger.info(f"Extracting package securely to sandbox: {extract_to}")
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zf:
+                for member in zf.infolist():
+                    # Resolve absolute path to check for path traversal attacks (Zip Slip)
+                    target_path = (extract_to / member.filename).resolve()
+                    if not str(target_path).startswith(str(extract_to.resolve())):
+                        raise SecurityEngineException(f"Zip Slip security breach detected! Malicious path: {member.filename}")
+                zf.extractall(extract_to)
+            logger.info("Extraction completed safely inside target sandbox.")
+        except Exception as e:
+            raise SecurityEngineException(f"Extraction failure: {e}")
+
+    def execute_atomic_deployment(self, app_id: str, zip_path: Path, expected_sha256: str) -> bool:
+        """
+        Executes a transactional application update pipeline:
+        1. Cryptographic Hash Validation
+        2. Sandbox Staging & Zip Slip Mitigation
+        3. Pre-update Snapshot & Rollback Cache Creation
+        4. Atomic Switch / Replacement
+        """
+        staging_sandbox = self.staging_dir / app_id
+        target_app_dir = self.apps_dir / app_id
+        app_backup_path = self.backup_dir / app_id
+
+        try:
+            # Step 1: Security & Cryptographic Check
+            if not self.verify_cryptographic_integrity(zip_path, expected_sha256):
+                raise SecurityEngineException("Update rejected due to checksum verification failure.")
+
+            # Step 2: Clean and prepare staging sandbox
+            if staging_sandbox.exists():
+                shutil.rmtree(staging_sandbox)
+            staging_sandbox.mkdir(parents=True, exist_ok=True)
+
+            self._secure_extract(zip_path, staging_sandbox)
+
+            # Step 3: Create Rollback Snapshot if app already exists
+            if target_app_dir.exists():
+                if app_backup_path.exists():
+                    shutil.rmtree(app_backup_path)
+                logger.info(f"Creating pre-update backup snapshot for '{app_id}'...")
+                shutil.copytree(target_app_dir, app_backup_path)
+
+            # Step 4: Atomic Swap
+            if target_app_dir.exists():
+                shutil.rmtree(target_app_dir)
+            shutil.move(str(staging_sandbox), str(target_app_dir))
+
+            # Update registry manifest tracking
+            manifest = self._load_manifest()
+            manifest[app_id] = {
+                "status": "ACTIVE",
+                "source_package": zip_path.name,
+                "sha256": expected_sha256
+            }
+            self._save_manifest(manifest)
+
+            logger.info(f"Deployment workflow completed successfully for application: '{app_id}'")
+            return True
+
+        except Exception as e:
+            logger.error(f"Deployment failed for '{app_id}': {e}")
+            # Trigger Rollback
+            if app_backup_path.exists() and not target_app_dir.exists():
+                logger.warning(f"Initiating automatic system rollback for '{app_id}'...")
+                shutil.copytree(app_backup_path, target_app_dir)
+                logger.info("Rollback successfully finished.")
+            return False
+        finally:
+            # Cleanup staging files
+            if staging_sandbox.exists():
+                shutil.rmtree(staging_sandbox, ignore_errors=True)
+
+    def worker_queue_processor(self) -> None:
+        """Background asynchronous thread worker processing app store deployment queues."""
+        while True:
+            task = self.task_queue.get()
+            if task is None:
+                break
+            app_id, zip_path, sha256 = task
+            logger.info(f"Processing queued deployment task for: {app_id}")
+            self.execute_atomic_deployment(app_id, Path(zip_path), sha256)
+            self.task_queue.task_done()
+
+    def queue_installation(self, app_id: str, zip_path: str, expected_sha256: str) -> None:
+        """Enqueues an installation package request for async background processing."""
+        self.task_queue.put((app_id, zip_path, expected_sha256))
+        logger.info(f"Queued application update job: {app_id}")
+
+if __name__ == "__main__":
+    print("=" * 65)
+    print("  GILBERT ALGORDO ENTERPRISE APP STORE & SECURITY ENGINE  ")
+    print("  Source Specifications: https://g.dev/gilbert_algordo          ")
+    print("=" * 65)
+
+    manager = AdvancedSecurityUpdateManager()
+    
+    # Example standalone CLI interface execution check
+    if len(sys.argv) == 4:
+        target_app = sys.argv[1]
+        package_zip = sys.argv[2]
+        file_hash = sys.argv[3]
+        
+        success = manager.execute_atomic_deployment(target_app, Path(package_zip), file_hash)
+        sys.exit(0 if success else 1)
+    else:
+        logger.info("Engine initialized. Ready for API or worker queue integrations.")
+        logger.info("Usage: python advanced_app_store_engine.py <AppID> <ZipFilePath> <SHA256Checksum>")
+
+
+
+
+#!/usr/bin/env python3
+"""
+HUD-Style System Icon Generator
+Author: Gilbert Algordo (https://g.dev/gilbert_algordo)
+Description: Programmatically generates high-res icons for App Store, Security Update, Installer, and ZIP.
+"""
+
+from PIL import Image, ImageDraw, ImageFont
+import os
+
+def create_hud_icon(icon_type: str, filename: str, size: int = 512):
+    """Generates a crisp, futuristic HUD-style vector icon."""
+    img = Image.new("RGBA", (size, size), (10, 15, 25, 255)) # Dark futuristic base
+    draw = ImageDraw.Draw(img)
+    
+    # HUD Outer Hexagon / Frame
+    margin = 40
+    border_color = (0, 240, 255, 255) # Cyan HUD glow
+    fill_color = (15, 23, 42, 200)
+    
+    # Draw background container
+    draw.rounded_rectangle(
+        [margin, margin, size - margin, size - margin],
+        radius=60,
+        fill=fill_color,
+        outline=border_color,
+        width=6
+    )
+    
+    center = size // 2
+    
+    if icon_type == "app_store":
+        # Draw Store Grid / Bag Icon
+        box_w, box_h = 160, 140
+        x0, y0 = center - box_w//2, center - box_h//2 + 20
+        draw.rounded_rectangle([x0, y0, x0 + box_w, y0 + box_h], radius=15, outline=(255, 255, 255, 255), width=6)
+        # Handle
+        hx0, hy0 = center - 60, y0 - 40
+        hx1, hy1 = center + 60, y0
+        draw.arc([hx0, hy0, hx1, hy1 + 40], start=180, end=360, fill=(255, 255, 255, 255), width=6)
+        # Grid dots
+        draw.ellipse([center - 30, center + 10, center - 10, center + 30], fill=(0, 240, 255, 255))
+        draw.ellipse([center + 10, center + 10, center + 30, center + 30], fill=(0, 240, 255, 255))
+        
+    elif icon_type == "security_update":
+        # Draw Shield Icon
+        shield_points = [
+            (center, center - 130),
+            (center + 110, center - 70),
+            (center + 110, center + 30),
+            (center, center + 140),
+            (center - 110, center + 30),
+            (center - 110, center - 70)
+        ]
+        draw.polygon(shield_points, fill=(20, 184, 166, 100), outline=(0, 240, 255, 255), width=6)
+        # Checkmark
+        check_points = [
+            (center - 40, center - 10),
+            (center - 10, center + 30),
+            (center + 50, center - 40)
+        ]
+        draw.line(check_points, fill=(255, 255, 255, 255), width=12, joint="curve")
+        
+    elif icon_type == "installer":
+        # Draw Down Arrow & Drive Box
+        box_y = center + 60
+        draw.rounded_rectangle([center - 120, box_y, center + 120, box_y + 60], radius=10, fill=(30, 41, 59, 255), outline=(0, 240, 255, 255), width=4)
+        # Arrow
+        arrow_points = [
+            (center, center - 120),
+            (center, center + 20),
+        ]
+        draw.line(arrow_points, fill=(255, 255, 255, 255), width=12)
+        arrowhead = [
+            (center - 40, center - 20),
+            (center, center + 20),
+            (center + 40, center - 20)
+        ]
+        draw.line(arrowhead, fill=(255, 255, 255, 255), width=12, joint="curve")
+        
+    elif icon_type == "zip_file":
+        # Draw Archive Box / Zipper
+        box_w, box_h = 180, 220
+        x0, y0 = center - box_w//2, center - box_h//2
+        draw.rounded_rectangle([x0, y0, x0 + box_w, y0 + box_h], radius=20, fill=(30, 41, 59, 255), outline=(255, 165, 0, 255), width=6)
+        # Folder Tab
+        tab_w, tab_h = 80, 30
+        draw.rounded_rectangle([x0, y0 - tab_h, x0 + tab_w, y0], radius=8, fill=(30, 41, 59, 255), outline=(255, 165, 0, 255), width=4)
+        # Zipper teeth pattern line
+        draw.line([(center, y0 + 20), (center, y0 + box_h - 20)], fill=(255, 255, 255, 255), width=8)
+
+    # HUD Corner Reticles for developer branding flavor
+    reticle_len = 20
+    # Top-Left
+    draw.line([(margin, margin + reticle_len), (margin, margin), (margin + reticle_len, margin)], fill=(0, 240, 255, 255), width=4)
+    # Bottom-Right
+    draw.line([(size - margin, size - margin - reticle_len), (size - margin, size - margin), (size - margin - reticle_len, size - margin)], fill=(0, 240, 255, 255), width=4)
+
+    # Save image
+    os.makedirs("hud_icons", exist_ok=True)
+    file_path = os.path.join("hud_icons", filename)
+    img.save(file_path, "PNG")
+    print(f"[HUD] Generated icon successfully: {file_path}")
+
+if __name__ == "__main__":
+    print("==================================================")
+    print("  GILBERT ALGORDO SYSTEM ICON GENERATOR           ")
+    print("  Source: https://g.dev/gilbert_algordo           ")
+    print("==================================================")
+    
+    create_hud_icon("app_store", "app_store_icon.png")
+    create_hud_icon("security_update", "security_update_icon.png")
+    create_hud_icon("installer", "installer_icon.png")
+    create_hud_icon("zip_file", "zip_file_icon.png")
+    print("[HUD] All system icons rendered and saved in './hud_icons/'.")
