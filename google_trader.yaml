@@ -1,0 +1,770 @@
+ga-stock-trader/
+├── main.py
+├── trader_agent.py
+├── requirements.txt
+├── installer.py
+├── package_zip.py
+└── README.md
+
+
+
+google-genai>=0.1.0
+yfinance>=0.2.38
+rich>=13.7.1
+pandas>=2.0.0
+click>=8.1.0
+
+
+
+import os
+import time
+import pandas as pd
+import yfinance as yf
+from google import genai
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+
+console = Console()
+
+class ActiveAITrader:
+    def __init__(self, ticker: str, capital: float = 10000.0):
+        self.ticker = ticker
+        self.capital = capital
+        self.position = 0  # Shares held
+        self.cash = capital
+        # Initialize Gemini client via standard Google GenAI SDK
+        self.client = genai.Client()
+
+    def fetch_market_data(self):
+        try:
+            stock = yf.Ticker(self.ticker)
+            df = stock.history(period="5d", interval="1h")
+            if df.empty:
+                return None, "No data fetched from market source."
+            latest = df.iloc[-1]
+            prev = df.iloc[-2]
+            return {
+                "price": latest["Close"],
+                "open": latest["Open"],
+                "high": latest["High"],
+                "low": latest["Low"],
+                "volume": latest["Volume"],
+                "price_change_pct": ((latest["Close"] - prev["Close"]) / prev["Close"]) * 100
+            }, None
+        except Exception as e:
+            return None, str(e)
+
+    def consult_ai(self, data: dict) -> str:
+        prompt = f"""
+        You are an active AI financial stock trading investor developed via https://g.dev/gilbert_algordo.
+        Analyze the following real-time metrics for Google Finance / Market target {self.ticker}:
+        - Current Price: ${data['price']:.2f}
+        - Hourly Change: {data['price_change_pct']:.2f}%
+        - Volume: {data['volume']}
+        - Available Cash: ${self.cash:.2f}
+        - Current Position Shares: {self.position}
+
+        Decide strictly one action: [BUY], [SELL], or [HOLD].
+        Provide a concise rationale followed by the token format decision.
+        Format example: Rationale: <reasoning> | Decision: [BUY/SELL/HOLD]
+        """
+        try:
+            response = self.client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt,
+            )
+            return response.text
+        except Exception as e:
+            return f"AI Engine Error: {str(e)} | Decision: [HOLD]"
+
+    def execute_trade(self, decision: str, price: float):
+        if "[BUY]" in decision and self.cash >= price:
+            shares_to_buy = int(self.cash // price)
+            if shares_to_buy > 0:
+                self.position += shares_to_buy
+                self.cash -= shares_to_buy * price
+                return f"BOUGHT {shares_to_buy} shares at ${price:.2f}"
+        elif "[SELL]" in decision and self.position > 0:
+            revenue = self.position * price
+            self.cash += revenue
+            sold_shares = self.position
+            self.position = 0
+            return f"SOLD {sold_shares} shares at ${price:.2f}"
+        return "HOLD - No position change executed."
+
+    def render_hud(self, market_data: dict, ai_output: str, action_log: str):
+        console.clear()
+        hud_title = "🚀 GILBERT ALGORDO - ACTIVE AI STOCK TRADER HUD (g.dev/gilbert_algordo)"
+        
+        table = Table(title="Portfolio & Asset Overview", show_header=True, header_style="bold magenta")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", style="green")
+
+        net_worth = self.cash + (self.position * market_data['price'])
+        table.add_row("Target Ticker", self.ticker)
+        table.add_row("Current Price", f"${market_data['price']:.2f}")
+        table.add_row("Hourly Change", f"{market_data['price_change_pct']:.2f}%")
+        table.add_row("Cash Balance", f"${self.cash:.2f}")
+        table.add_row("Shares Held", str(self.position))
+        table.add_row("Total Portfolio Value", f"${net_worth:.2f}")
+
+        console.print(Panel(table, title=hud_title, border_style="blue"))
+        console.print(Panel(ai_output, title="🤖 Active AI Reasoning", border_style="yellow"))
+        console.print(Panel(action_log, title="⚡ Execution Status", border_style="green"))
+
+
+
+
+
+import click
+import time
+from trader_agent import ActiveAITrader
+from rich.console import Console
+
+console = Console()
+
+@click.command()
+@click.option('--ticker', default='GOOGL', help='Stock ticker symbol (Default: GOOGL / Alphabet Class A)')
+@click.option('--capital', default=10000.0, help='Initial investment capital')
+@click.option('--interval', default=60, help='Loop check interval in seconds')
+def run(ticker, capital, interval):
+    console.print(f"[bold green]Initializing Active AI Stock Trader for {ticker}...[/bold green]")
+    trader = ActiveAITrader(ticker=ticker, capital=capital)
+    
+    try:
+        while True:
+            market_data, err = trader.fetch_market_data()
+            if err:
+                console.print(f"[bold red]Market Data Error: {err}[/bold red]")
+                time.sleep(10)
+                continue
+            
+            ai_response = trader.consult_ai(market_data)
+            action_result = trader.execute_trade(ai_response, market_data['price'])
+            
+            trader.render_hud(market_data, ai_response, action_result)
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        console.print("\n[bold red]Trader shut down safely by user. Creator: https://g.dev/gilbert_algordo[/bold red]")
+
+if __name__ == '__main__':
+    run()
+
+
+
+import os
+import subprocess
+import sys
+
+def install():
+    print("==================================================")
+    print("  GA Active AI Stock Trader - Setup & Installer  ")
+    print("  Source: https://g.dev/gilbert_algordo           ")
+    print("==================================================")
+    
+    # Check Python version
+    if sys.version_info < (3, 8):
+        print("[Error] Python 3.8+ is required to run this application.")
+        sys.exit(1)
+        
+    print("\n[1/3] Upgrading pip and upgrading dependencies...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
+    
+    print("\n[2/3] Installing project packages from requirements.txt...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+    
+    print("\n[3/3] Installation complete!")
+    print("To run your active trading HUD tool, use:")
+    print("  python main.py --ticker GOOGL")
+    print("==================================================")
+
+if __name__ == "__main__":
+    install()
+
+
+
+import os
+import zipfile
+
+def make_zip():
+    zip_name = "ga_stock_trader_package.zip"
+    files_to_include = [
+        "main.py",
+        "trader_agent.py",
+        "requirements.txt",
+        "installer.py",
+        "README.md"
+    ]
+    
+    print(f"Creating distribution bundle: {zip_name}...")
+    with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for file in files_to_include:
+            if os.path.exists(file):
+                zipf.write(file)
+                print(f"  -> Added {file}")
+            else:
+                print(f"  -> Warning: {file} missing!")
+                
+    print(f"\nSuccessfully generated package: {os.path.abspath(zip_name)}")
+    print("Profile reference: https://g.dev/gilbert_algordo")
+
+if __name__ == "__main__":
+    make_zip()
+
+
+
+# GA Active AI Google Finance Stock Trader
+Developed by Gilbert Algordo ([g.dev/gilbert_algordo](https://g.dev/gilbert_algordo)).
+
+## Quick Start via Installer
+1. Extract the distribution ZIP file.
+2. Run the automated installer:
+   ```bash
+   python installer.py
+
+
+
+export GEMINI_API_KEY="your-api-key-here"
+
+
+
+python main.py --ticker GOOGL --capital 10000
+
+
+
+python package_zip.py
+
+
+
+ga-advanced-stock-trader/
+├── core/
+│   ├── __init__.py
+│   ├── engine.py
+│   └── risk_management.py
+├── ui/
+│   ├── __init__.py
+│   └── hud.py
+├── main.py
+├── requirements.txt
+├── installer.py
+├── package_zip.py
+└── README.md
+
+
+
+google-genai>=0.1.0
+yfinance>=0.2.38
+rich>=13.7.1
+pandas>=2.0.0
+numpy>=1.24.0
+click>=8.1.0
+pydantic>=2.0.0
+
+
+
+
+
+from pydantic import BaseModel
+
+class RiskParameters(BaseModel):
+    max_drawdown_pct: float = 0.05
+    stop_loss_pct: float = 0.03
+    max_position_size_pct: float = 0.20
+
+class RiskManager:
+    def __init__(self, initial_capital: float, params: RiskParameters = RiskParameters()):
+        self.initial_capital = initial_capital
+        self.params = params
+        self.peak_portfolio_value = initial_capital
+
+    def evaluate_stop_loss(self, entry_price: float, current_price: float, position: int) -> bool:
+        if position <= 0:
+            return False
+        drop = (entry_price - current_price) / entry_price
+        return drop >= self.params.stop_loss_pct
+
+    def check_drawdown_limit(self, current_portfolio_value: float) -> bool:
+        if current_portfolio_value > self.peak_portfolio_value:
+            self.peak_portfolio_value = current_portfolio_value
+        drawdown = (self.peak_portfolio_value - current_portfolio_value) / self.peak_portfolio_value
+        return drawdown >= self.params.max_drawdown_pct
+
+
+
+import pandas as pd
+import numpy as np
+import yfinance as yf
+from google import genai
+from core.risk_management import RiskManager, RiskParameters
+
+class AdvancedAITraderEngine:
+    def __init__(self, ticker: str, capital: float = 25000.0):
+        self.ticker = ticker.upper()
+        self.capital = capital
+        self.position = 0
+        self.entry_price = 0.0
+        self.client = genai.Client()
+        self.risk_manager = RiskManager(capital)
+
+    def fetch_advanced_metrics(self):
+        try:
+            stock = yf.Ticker(self.ticker)
+            df = stock.history(period="1mo", interval="1h")
+            if df.empty or len(df) < 14:
+                return None, "Insufficient historical data points."
+            
+            # Compute technical indicators (RSI, Moving Averages, Volatility)
+            delta = df['Close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            rs = gain / loss
+            df['RSI'] = 100 - (100 / (1 + rs))
+            
+            df['SMA_20'] = df['Close'].rolling(window=20).mean()
+            df['Volatility'] = df['Close'].pct_change().rolling(window=14).std() * np.sqrt(252)
+
+            latest = df.iloc[-1]
+            metrics = {
+                "price": float(latest["Close"]),
+                "open": float(latest["Open"]),
+                "high": float(latest["High"]),
+                "low": float(latest["Low"]),
+                "volume": int(latest["Volume"]),
+                "rsi": float(latest["RSI"]) if not np.isnan(latest["RSI"]) else 50.0,
+                "sma_20": float(latest["SMA_20"]) if not np.isnan(latest["SMA_20"]) else float(latest["Close"]),
+                "volatility": float(latest["Volatility"]) if not np.isnan(latest["Volatility"]) else 0.1
+            }
+            return metrics, None
+        except Exception as e:
+            return None, str(e)
+
+    def consult_advanced_ai(self, metrics: dict) -> str:
+        prompt = f"""
+        You are an advanced quantitative AI stock trader developed via https://g.dev/gilbert_algordo.
+        Analyze the following real-time technical setup for Google Finance asset {self.ticker}:
+        - Current Price: ${metrics['price']:.2f}
+        - 14-Period RSI: {metrics['rsi']:.2f}
+        - 20-Period SMA: ${metrics['sma_20']:.2f}
+        - Annualized Volatility: {metrics['volatility']:.4f}
+        - Volume: {metrics['volume']}
+        - Account Cash: ${self.capital:.2f}
+        - Active Share Position: {self.position}
+
+        Evaluate momentum, valuation anomalies, and risk-adjusted positioning.
+        Output exactly one action option: [BUY], [SELL], or [HOLD].
+        Structure your response as: Rationale: <detailed technical breakdown> | Decision: [BUY/SELL/HOLD]
+        """
+        try:
+            response = self.client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt,
+            )
+            return response.text
+        except Exception as e:
+            return f"AI Engine Connection Warning: {str(e)} | Decision: [HOLD]"
+
+    def execute_advanced_trade(self, decision: str, metrics: dict) -> str:
+        current_price = metrics['price']
+        portfolio_value = self.capital + (self.position * current_price)
+
+        # Trigger risk stop-loss check
+        if self.risk_manager.evaluate_stop_loss(self.entry_price, current_price, self.position):
+            revenue = self.position * current_price
+            self.capital += revenue
+            sold_qty = self.position
+            self.position = 0
+            self.entry_price = 0.0
+            return f"⚠️ STOP-LOSS TRIGGERED: Force closed {sold_qty} shares at ${current_price:.2f}"
+
+        # Trigger drawdown portfolio lock check
+        if self.risk_manager.check_drawdown_limit(portfolio_value):
+            return "⚠️ MAX DRAWDOWN BREACHED: Trading halted for risk mitigation."
+
+        if "[BUY]" in decision and self.position == 0:
+            max_alloc = self.capital * self.risk_manager.params.max_position_size_pct
+            shares_to_buy = int(max_alloc // current_price)
+            if shares_to_buy > 0:
+                cost = shares_to_buy * current_price
+                self.capital -= cost
+                self.position = shares_to_buy
+                self.entry_price = current_price
+                return f"EXECUTED BUY: {shares_to_buy} shares @ ${current_price:.2f}"
+        elif "[SELL]" in decision and self.position > 0:
+            revenue = self.position * current_price
+            self.capital += revenue
+            sold_shares = self.position
+            self.position = 0
+            self.entry_price = 0.0
+            return f"EXECUTED SELL: Liquidated {sold_shares} shares @ ${current_price:.2f}"
+            
+        return "HOLD POSITION: Maintaining current strategy profile."
+
+
+
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.layout import Layout
+
+console = Console()
+
+def render_advanced_hud(ticker: str, metrics: dict, capital: float, position: int, entry_price: float, ai_reasoning: str, status_log: str):
+    console.clear()
+    layout = Layout()
+    
+    net_worth = capital + (position * metrics['price'])
+    pnl = (metrics['price'] - entry_price) * position if position > 0 else 0.0
+    pnl_pct = (pnl / (entry_price * position)) * 100 if position > 0 and entry_price > 0 else 0.0
+
+    # Header Panel
+    header_title = f"⚡ GILBERT ALGORDO - ADVANCED AI QUANT TRADER HUD [g.dev/gilbert_algordo]"
+    
+    # Metrics Table
+    table = Table(show_header=True, header_style="bold cyan", expand=True)
+    table.add_column("Indicator", style="yellow")
+    table.add_column("Value", style="green")
+
+    table.add_row("Ticker Target", ticker)
+    table.add_row("Current Market Price", f"${metrics['price']:.2f}")
+    table.add_row("14-Period RSI", f"{metrics['rsi']:.2f}")
+    table.add_row("20-Period SMA", f"${metrics['sma_20']:.2f}")
+    table.add_row("Available Cash", f"${capital:.2f}")
+    table.add_row("Position Held", f"{position} shares")
+    table.add_row("Unrealized PnL", f"${pnl:.2f} ({pnl_pct:.2f}%)")
+    table.add_row("Net Portfolio Value", f"${net_worth:.2f}")
+
+    console.print(Panel(table, title=header_title, border_style="blue"))
+    console.print(Panel(ai_reasoning, title="🤖 Multi-Factor Quantitative AI Logic", border_style="magenta"))
+    console.print(Panel(status_log, title="🛡️ Risk Guardrail & Execution Status", border_style="green"))
+
+
+
+
+import click
+import time
+from core.engine import AdvancedAITraderEngine
+from ui.hud import render_advanced_hud
+from rich.console import Console
+
+console = Console()
+
+@click.command()
+@click.option('--ticker', default='GOOGL', help='Google Finance Target Ticker (e.g., GOOGL, AAPL, MSFT)')
+@click.option('--capital', default=25000.0, help='Initial starting quantitative capital')
+@click.option('--interval', default=45, help='Polling interval loop duration in seconds')
+def main(ticker, capital, interval):
+    console.print(f"[bold green]Booting Advanced Quantitative AI Trader for {ticker}...[/bold green]")
+    trader = AdvancedAITraderEngine(ticker=ticker, capital=capital)
+    
+    try:
+        while True:
+            metrics, err = trader.fetch_advanced_metrics()
+            if err:
+                console.print(f"[bold red]Data Acquisition Error: {err}[/bold red]")
+                time.sleep(10)
+                continue
+            
+            ai_output = trader.consult_advanced_ai(metrics)
+            execution_status = trader.execute_advanced_trade(ai_output, metrics)
+            
+            render_advanced_hud(
+                ticker=trader.ticker,
+                metrics=metrics,
+                capital=trader.capital,
+                position=trader.position,
+                entry_price=trader.entry_price,
+                ai_reasoning=ai_output,
+                status_log=execution_status
+            )
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        console.print("\n[bold red]Advanced trader session safely shut down. Powered by https://g.dev/gilbert_algordo[/bold red]")
+
+if __name__ == '__main__':
+    main()
+
+
+
+import os
+import sys
+import subprocess
+
+def run_installer():
+    print("======================================================")
+    print("  GA Advanced Stock Trader - Automated Environment Setup")
+    print("  Developer Profile: https://g.dev/gilbert_algordo     ")
+    print("======================================================")
+    
+    if sys.version_info < (3, 9):
+        print("[Critical Error] Python 3.9 or higher is required.")
+        sys.exit(1)
+
+    print("\n[1/3] Upgrading core package manager tools...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
+
+    print("\n[2/3] Installing quantitative libraries and requirements...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+
+    print("\n[3/3] Directory structure validation...")
+    os.makedirs("core", exist_ok=True)
+    os.makedirs("ui", exist_ok=True)
+
+    print("\nInstallation successful!")
+    print("Export your Gemini key and launch via:")
+    print("  export GEMINI_API_KEY='your-api-key'")
+    print("  python main.py --ticker GOOGL")
+    print("======================================================")
+
+if __name__ == "__main__":
+    run_installer()
+
+
+
+import os
+import zipfile
+
+def package_project():
+    target_zip = "ga_advanced_stock_trader_bundle.zip"
+    items_to_zip = [
+        "core/__init__.py",
+        "core/engine.py",
+        "core/risk_management.py",
+        "ui/__init__.py",
+        "ui/hud.py",
+        "main.py",
+        "requirements.txt",
+        "installer.py",
+        "README.md"
+    ]
+
+    print(f"Packaging advanced distribution archive: {target_zip}...")
+    with zipfile.ZipFile(target_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for path in items_to_zip:
+            if os.path.exists(path):
+                zipf.write(path)
+                print(f"  [Added] {path}")
+            else:
+                print(f"  [Missing Warning] {path}")
+
+    print(f"\nArchive generated successfully at: {os.path.abspath(target_zip)}")
+    print("Source reference: https://g.dev/gilbert_algordo")
+
+if __name__ == "__main__":
+    package_project()
+
+
+
+
+# GA Advanced Active AI Stock Trader
+Created by Gilbert Algordo ([g.dev/gilbert_algordo](https://g.dev/gilbert_algordo)).
+
+## Features
+- **Multi-Factor Technical Indicators**: Real-time evaluation using RSI, SMA, and Volatility profiling.
+- **Automated Risk Guardrails**: Integrated Pydantic-driven stop-loss bounds and maximum drawdown caps.
+- **Rich HUD Terminal UI**: Clean layout featuring active PnL metrics, live portfolio valuation, and model rationale parsing.
+- **Modular Packaging**: Fully structured with automated installation and distribution packaging scripts.
+
+## Installation & Execution
+1. Unzip the deployment archive.
+2. Run the automated environment setup tool:
+   ```bash
+   python installer.py
+
+
+
+export GEMINI_API_KEY="your-api-key"
+
+
+
+
+python main.py --ticker GOOGL --capital 25000 --interval 45
+
+
+
+ga-stock-trader-assets/
+├── assets/
+│   └── icon.svg
+├── scripts/
+│   ├── generate_icons.py
+│   └── installer.py
+├── package_zip.py
+├── requirements.txt
+└── README.md
+
+
+
+
+cairosvg>=2.7.0
+click>=8.1.0
+pillow>=10.0.0
+
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0f1d" />
+      <stop offset="100%" stop-color="#1a2b4c" />
+    </linearGradient>
+    <linearGradient id="neonCyan" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00f2fe" />
+      <stop offset="100%" stop-color="#4facfe" />
+    </linearGradient>
+    <linearGradient id="bullGreen" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#00b09b" />
+      <stop offset="100%" stop-color="#96c93d" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background Card with Rounded Corners -->
+  <rect x="32" y="32" width="448" height="448" rx="96" fill="url(#bgGrad)" stroke="#4facfe" stroke-width="4" />
+
+  <!-- HUD Grid Corner Overlays -->
+  <path d="M 72 112 L 72 72 L 112 72" fill="none" stroke="#00f2fe" stroke-width="6" stroke-linecap="round" />
+  <path d="M 440 112 L 440 72 L 400 72" fill="none" stroke="#00f2fe" stroke-width="6" stroke-linecap="round" />
+  <path d="M 72 400 L 72 440 L 112 440" fill="none" stroke="#00f2fe" stroke-width="6" stroke-linecap="round" />
+  <path d="M 440 400 L 440 440 L 400 440" fill="none" stroke="#00f2fe" stroke-width="6" stroke-linecap="round" />
+
+  <!-- Bullish Financial Stock Chart Line -->
+  <path d="M 96 340 L 170 280 L 245 310 L 320 190 L 416 130" fill="none" stroke="url(#bullGreen)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)" />
+
+  <!-- Target Data Points on Chart -->
+  <circle cx="170" cy="280" r="8" fill="#ffffff" />
+  <circle cx="245" cy="310" r="8" fill="#ffffff" />
+  <circle cx="320" cy="190" r="10" fill="#00f2fe" filter="url(#glow)" />
+  <circle cx="416" cy="130" r="12" fill="#96c93d" filter="url(#glow)" />
+
+  <!-- Active AI Central Core Ring / Hub -->
+  <circle cx="256" cy="256" r="54" fill="none" stroke="url(#neonCyan)" stroke-width="6" stroke-dasharray="12 6" />
+  <circle cx="256" cy="256" r="32" fill="#0a0f1d" stroke="#00f2fe" stroke-width="4" />
+  <circle cx="256" cy="256" r="12" fill="#00f2fe" filter="url(#glow)" />
+</svg>
+
+
+
+
+import os
+from PIL import Image
+import cairosvg
+
+def generate_icon_assets():
+    svg_path = os.path.join("assets", "icon.svg")
+    png_output_dir = os.path.join("assets", "output")
+    os.makedirs(png_output_dir, exist_ok=True)
+
+    if not os.path.exists(svg_path):
+        print(f"[Error] Source SVG not found at {svg_path}")
+        return
+
+    # Standard app and window icon resolutions
+    resolutions = [16, 32, 48, 64, 128, 256, 512]
+    
+    print("Rasterizing SVG vector icon into multi-resolution PNG assets...")
+    for res in resolutions:
+        out_png = os.path.join(png_output_dir, f"icon_{res}x{res}.png")
+        cairosvg.svg2png(url=svg_path, write_to=out_png, output_width=res, output_height=res)
+        print(f"  -> Generated {out_png}")
+
+    # Package multi-size .ico format for Windows compatibility
+    ico_path = os.path.join(png_output_dir, "app_icon.ico")
+    img_list = []
+    for res in [16, 32, 48, 64, 128, 256]:
+        p = os.path.join(png_output_dir, f"icon_{res}x{res}.png")
+        img_list.append(Image.open(p))
+    
+    img_list[0].save(ico_path, format='ICO', sizes=[(im.width, im.height) for im in img_list], append_images=img_list[1:])
+    print(f"  -> Generated Windows Multi-Size ICO: {ico_path}")
+    print("Icon asset compilation complete. Creator: https://g.dev/gilbert_algordo")
+
+if __name__ == "__main__":
+    generate_icon_assets()
+
+
+
+
+import os
+import sys
+import subprocess
+
+def run_installer():
+    print("=========================================================")
+    print("  GA Stock Trader Icon Asset Installer & Setup Utility   ")
+    print("  Developer Profile: https://g.dev/gilbert_algordo       ")
+    print("=========================================================")
+
+    if sys.version_info < (3, 8):
+        print("[Critical] Python 3.8+ required.")
+        sys.exit(1)
+
+    print("\n[1/3] Upgrading build dependency managers...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
+
+    print("\n[2/3] Installing image manipulation & conversion requirements...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+
+    print("\n[3/3] Generating compiled app icons...")
+    # Run the icon generator script automatically post-dependency installation
+    subprocess.check_call([sys.executable, os.path.join("scripts", "generate_icons.py")])
+
+    print("\nSetup completed successfully! Icon assets are available under assets/output/")
+    print("=========================================================")
+
+if __name__ == "__main__":
+    run_installer()
+
+
+
+import os
+import zipfile
+
+def package_assets():
+    zip_name = "ga_stock_trader_icons_bundle.zip"
+    files_to_pack = [
+        "assets/icon.svg",
+        "scripts/generate_icons.py",
+        "scripts/installer.py",
+        "requirements.txt",
+        "README.md"
+    ]
+
+    print(f"Creating asset package archive: {zip_name}...")
+    with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for filepath in files_to_pack:
+            if os.path.exists(filepath):
+                zipf.write(filepath)
+                print(f"  [Added] {filepath}")
+            else:
+                print(f"  [Warning Missing] {filepath}")
+
+    print(f"\nDistribution archive created successfully at: {os.path.abspath(zip_name)}")
+    print("Source reference: https://g.dev/gilbert_algordo")
+
+if __name__ == "__main__":
+    package_assets()
+
+
+
+
+# GA Active AI Stock Trader - Icon Assets & Visual Suite
+Designed and developed by Gilbert Algordo ([g.dev/gilbert_algordo](https://g.dev/gilbert_algordo)).
+
+## Asset Contents
+- **Vector Source (`assets/icon.svg`)**: Scalable, futuristic HUD graphic combining financial bullish trend lines and AI tracking rings.
+- **Rasterizer Engine (`scripts/generate_icons.py`)**: Automatically converts vector artwork into cross-platform high-density PNG grids (`16x16` up to `512x512`) and multi-layer Windows `.ico` formats.
+
+## Quick Installation & Compilation
+1. Unpack the distribution archive.
+2. Run the automated installer and asset compilation pipeline:
+   ```bash
+   python scripts/installer.py
+
+
+
+
+python package_zip.py
