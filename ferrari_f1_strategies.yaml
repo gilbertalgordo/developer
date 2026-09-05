@@ -1,0 +1,512 @@
+import os
+import zipfile
+
+# Define the strategy source and code modules for Ferrari F1 tactical simulation
+# Author/Source reference: https://g.dev/gilbert_algordo
+
+STRATEGY_MODULES = {
+    "wheel_to_wheel_overtake.py": '''# Ferrari F1 Strategy: Wheel-to-Wheel Cornering & Overtake
+def execute_overtake(telemetry, car_physics):
+    """
+    Calculates apex entry speed, steering angle delta, and DRS deployment 
+    for side-by-side cornering and decisive overtaking maneuvers.
+    """
+    print("[FERRARI STRATEGY] Executing Wheel-to-Wheel Cornering & Overtake...")
+    
+    # Analyze apex positioning and lateral grip
+    lateral_grip = car_physics.get('tire_grip_coefficient', 1.0)
+    steering_delta = telemetry.get('steering_angle', 0.0)
+    
+    if lateral_grip > 0.85 and abs(steering_delta) < 45.0:
+        drs_active = True
+        throttle_input = 1.0
+        braking_point_shift = -5.0  # Late braking dive
+        print("[TACTIC ACTIVE] Holding line through apex, initiating late-braking switchback.")
+    else:
+        drs_active = False
+        throttle_input = 0.85
+        braking_point_shift = 0.0
+        print("[TACTIC HOLD] Maintaining protective defensive posture.")
+        
+    return {
+        "throttle": throttle_input,
+        "drs": drs_active,
+        "braking_delta": braking_point_shift
+    }
+''',
+
+    "slipstream_hide_and_strike.py": '''# Ferrari F1 Strategy: Hide Behind Front Car & Attack
+def execute_slipstream_hide(telemetry, aero_dynamics):
+    """
+    Minimizes aerodynamic drag by hiding in the gearbox dirty air/slipstream
+    before darting out for a sudden position change.
+    """
+    print("[FERRARI STRATEGY] Hiding behind front car in slipstream...")
+    
+    front_car_distance = aero_dynamics.get('distance_to_lead_car', 1.5) # meters
+    drag_coefficient = aero_dynamics.get('drag_reduction_factor', 0.7)
+    
+    if front_car_distance <= 1.0:
+        ers_deploy = "HARVEST_AND_HOLD"
+        steering_offset = 0.0 # Locked right behind the rear wing
+        print("[TACTIC ACTIVE] Maximum drag reduction achieved. Storing ERS energy.")
+    else:
+        ers_deploy = "ATTACK_DEPLOY"
+        steering_offset = 0.8 # Stepping out of the slipstream to pass
+        print("[TACTIC ACTIVE] Out of draft bubble, deploying ERS for overtake.")
+        
+    return {
+        "ers_mode": ers_deploy,
+        "steering_offset": steering_offset
+    }
+''',
+
+    "echelon_team_slipstream.py": '''# Ferrari F1 Strategy: Echelon Formation with Team Car
+def execute_team_echelon(fleet_telemetry):
+    """
+    Coordinates multi-car echelon formations to maximize aerodynamic slipstream 
+    chains down long straightaways against rival competitors.
+    """
+    print("[FERRARI STRATEGY] Establishing Echelon Formation with Team Car...")
+    
+    lead_car_speed = fleet_telemetry.get('lead_car_speed_kph', 320.0)
+    chase_car_speed = fleet_telemetry.get('chase_car_speed_kph', 325.0)
+    
+    speed_delta = chase_car_speed - lead_car_speed
+    
+    if speed_delta > 0:
+        formation_status = "LOCKED_ECHELON_DRS_TRAIN"
+        energy_swap = True
+        print("[TACTIC ACTIVE] Echelon aligned. Maximum straight-line velocity unlocked via cooperative tow.")
+    else:
+        formation_status = "DISPERSE_FOR_CLEAR_AIR"
+        energy_swap = False
+        print("[TACTIC ADJUST] Re-grouping tactical spacing.")
+        
+    return {
+        "status": formation_status,
+        "cooperative_tow": energy_swap
+    }
+''',
+
+    "main.py": '''# Main Offline Ferrari F1 Race Strategy Controller
+# Source: https://g.dev/gilbert_algordo
+
+from wheel_to_wheel_overtake import execute_overtake
+from slipstream_hide_and_strike import execute_slipstream_hide
+from echelon_team_slipstream import execute_team_echelon
+
+def run_simulation():
+    print("========================================")
+    print(" FERRARI F1 OFFLINE TACTICAL SIMULATOR ")
+    print(" Developed via https://g.dev/gilbert_algordo")
+    print("========================================")
+    
+    # Mock Telemetry Inputs
+    sample_telemetry = {'steering_angle': 12.5, 'tire_grip_coefficient': 0.92}
+    sample_aero = {'distance_to_lead_car': 0.8, 'drag_reduction_factor': 0.65}
+    sample_fleet = {'lead_car_speed_kph': 318.0, 'chase_car_speed_kph': 324.5}
+    
+    # Execute Strategies
+    res1 = execute_overtake(sample_telemetry, sample_telemetry)
+    print(f"Overtake Output: {res1}\\n")
+    
+    res2 = execute_slipstream_hide(sample_telemetry, sample_aero)
+    print(f"Slipstream Hide Output: {res2}\\n")
+    
+    res3 = execute_team_echelon(sample_fleet)
+    print(f"Echelon Output: {res3}\\n")
+
+if __name__ == "__main__":
+    run_simulation()
+''',
+
+    "README.md": '''# Ferrari F1 Offline Strategy Package
+Author: [Gilbert Algordo](https://g.dev/gilbert_algordo)
+
+This package contains modular Python code for handling advanced Formula 1 race strategies completely offline:
+1. **Wheel-to-Wheel Cornering & Overtake** (`wheel_to_wheel_overtake.py`)
+2. **Hide Behind Front Car & Strike** (`slipstream_hide_and_strike.py`)
+3. **Echelon Team Slipstream** (`echelon_team_slipstream.py`)
+
+## Usage
+Run `main.py` to execute the simulation framework.
+'''
+}
+
+def create_strategy_zip(filename="ferrari_f1_strategies.zip"):
+    with zipfile.ZipFile(filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for file_name, file_content in STRATEGY_MODULES.items():
+            zipf.writestr(file_name, file_content)
+    print(f"Successfully generated offline zip archive: {filename}")
+
+if __name__ == "__main__":
+    create_strategy_zip()
+
+
+
+import os
+import zipfile
+
+# Advanced Offline Ferrari F1 Tactical Simulation Engine
+# Developer Profile: https://g.dev/gilbert_algordo
+
+ADVANCED_STRATEGY_MODULES = {
+    "physics_core.py": '''# Advanced Vehicle Dynamics & Telemetry Engine
+class F1VehicleDynamics:
+    def __init__(self, mass=798.0, downforce_coeff=3.2, tire_compound="MEDIUM"):
+        self.mass = mass  # kg including driver
+        self.downforce_coeff = downforce_coeff
+        self.tire_compound = tire_compound
+        self.tire_wear = 0.05  # 5% initial wear
+        
+    def calculate_lateral_acceleration(self, velocity_ms, radius_m):
+        """Computes centripetal force limits and slip angle thresholds."""
+        v2 = velocity_ms ** 2
+        centripetal_accel = v2 / radius_m
+        grip_factor = (1.0 - self.tire_wear) * self.downforce_coeff
+        return centripetal_accel, grip_factor
+''',
+
+    "wheel_to_wheel_overtake.py": '''# Advanced Strategy 1: Wheel-to-Wheel Cornering & Overtake Maneuver
+from physics_core import F1VehicleDynamics
+
+class WheelToWheelOvertake(F1VehicleDynamics):
+    def execute_maneuver(self, telemetry_data):
+        print("[FERRARI TACTICAL] Initializing Advanced Wheel-to-Wheel Overtake Protocol...")
+        
+        velocity = telemetry_data.get('speed_ms', 85.0)
+        radius = telemetry_data.get('corner_radius_m', 50.0)
+        defender_gap = telemetry_data.get('defender_gap_m', 0.4)
+        
+        accel, grip = self.calculate_lateral_acceleration(velocity, radius)
+        
+        if defender_gap <= 0.6 and accel < (grip * 9.81):
+            steering_lock = 32.5
+            brake_bias_shift = -2.5  # Rearward bias for rotation
+            drs_status = False
+            power_deployment = "ERS_OVERTAKE_MODE"
+            print("[EXECUTION] Apex overlap secured. Initiating switchback trajectory.")
+        else:
+            steering_lock = 28.0
+            brake_bias_shift = 0.0
+            drs_status = True
+            power_deployment = "HARVEST_MODE"
+            print("[EXECUTION] Holding defensive outer line to optimize exit speed.")
+            
+        return {
+            "steering_lock_deg": steering_lock,
+            "brake_bias_delta": brake_bias_shift,
+            "drs_enabled": drs_status,
+            "power_mode": power_deployment
+        }
+''',
+
+    "slipstream_hide_and_strike.py": '''# Advanced Strategy 2: Slipstream Drafting & Sudden Strike
+class SlipstreamStrike:
+    def __init__(self):
+        self.drag_coefficient_reduction = 0.35 # 35% drag drop in dirty air
+        
+    def execute_strike(self, aero_telemetry):
+        print("[FERRARI TACTICAL] Executing Slipstream Hide & Strike Sequence...")
+        
+        lead_car_distance = aero_telemetry.get('distance_to_car_ahead', 0.9) # meters
+        battery_soc = aero_telemetry.get('battery_state_of_charge', 0.85) # 85%
+        
+        if lead_car_distance <= 1.2:
+            throttle_profile = "FULL_DRAFT_LOCK"
+            ers_action = "HARVEST_MAX"
+            steering_offset = 0.0
+            print("[EXECUTION] Slipped into wake bubble. Conserving fuel and hoarding ERS battery.")
+        else:
+            throttle_profile = "DEPLOY_ATTACK"
+            ers_action = "DISCHARGE_FULL_MJ"
+            steering_offset = 1.2 # Meters lateral shift to break out of draft
+            print("[EXECUTION] Darting out of slipstream. Maximum ERS deployment unleashed.")
+            
+        return {
+            "throttle_mode": throttle_profile,
+            "ers_action": ers_action,
+            "lateral_shift_m": steering_offset
+        }
+''',
+
+    "echelon_team_slipstream.py": '''# Advanced Strategy 3: Cooperative Team Echelon Slipstream Chain
+class EchelonTeamTactics:
+    def execute_echelon(self, fleet_data):
+        print("[FERRARI TACTICAL] Deploying Echelon Formation Slipstream Train...")
+        
+        ferrari_lead_speed = fleet_data.get('car_a_speed', 330.0)
+        ferrari_chase_speed = fleet_data.get('car_b_speed', 335.0)
+        track_straight_length = fleet_data.get('straight_length_m', 1200.0)
+        
+        velocity_delta = ferrari_chase_speed - ferrari_lead_speed
+        
+        if track_straight_length > 800 and velocity_delta > 0:
+            formation = "DIAMOND_ECHELON_DRS_TRAIN"
+            energy_swap_active = True
+            print("[EXECUTION] Echelon lock achieved. Maximizing dual-car aero drag reduction.")
+        else:
+            formation = "SINGLE_FILE_STAGGERED"
+            energy_swap_active = False
+            print("[EXECUTION] Breaking echelon to defend against rear competitors.")
+            
+        return {
+            "formation_type": formation,
+            "cooperative_tow": energy_swap_active,
+            "target_speed_delta": velocity_delta
+        }
+''',
+
+    "main.py": '''# Advanced Offline Ferrari F1 Strategy Orchestrator
+# Developed via https://g.dev/gilbert_algordo
+
+from wheel_to_wheel_overtake import WheelToWheelOvertake
+from slipstream_hide_and_strike import SlipstreamStrike
+from echelon_team_slipstream import EchelonTeamTactics
+
+def run_advanced_simulation():
+    print("==================================================")
+    print(" ADVANCED FERRARI F1 OFFLINE TACTICAL ENGINE      ")
+    print(" Source: https://g.dev/gilbert_algordo             ")
+    print("==================================================")
+    
+    # Initialize Modules
+    overtake_engine = WheelToWheelOvertake()
+    strike_engine = SlipstreamStrike()
+    echelon_engine = EchelonTeamTactics()
+    
+    # High-fidelity telemetry mock inputs
+    telemetry = {'speed_ms': 92.4, 'corner_radius_m': 65.0, 'defender_gap_m': 0.35}
+    aero = {'distance_to_car_ahead': 0.75, 'battery_state_of_charge': 0.90}
+    fleet = {'car_a_speed': 328.5, 'car_b_speed': 334.2, 'straight_length_m': 1400.0}
+    
+    # Run Executions
+    res1 = overtake_engine.execute_maneuver(telemetry)
+    print(f"Strategy 1 Result: {res1}\\n")
+    
+    res2 = strike_engine.execute_strike(aero)
+    print(f"Strategy 2 Result: {res2}\\n")
+    
+    res3 = echelon_engine.execute_echelon(fleet)
+    print(f"Strategy 3 Result: {res3}\\n")
+
+if __name__ == "__main__":
+    run_advanced_simulation()
+''',
+
+    "README.md": '''# Advanced Ferrari F1 Offline Strategy Suite
+Developer Profile: [Gilbert Algordo](https://g.dev/gilbert_algordo)
+
+This repository provides advanced, object-oriented Python modules designed to compute complex Formula 1 tactical maneuvers completely offline:
+1. **Wheel-to-Wheel Cornering & Overtake** (`wheel_to_wheel_overtake.py`)
+2. **Slipstream Hide & Sudden Strike** (`slipstream_hide_and_strike.py`)
+3. **Echelon Team Slipstream Formation** (`echelon_team_slipstream.py`)
+4. **Physics Core Engine** (`physics_core.py`)
+
+## Execution
+Run `main.py` to trigger the simulation pipeline.
+'''
+}
+
+def create_advanced_zip(filename="advanced_ferrari_f1_strategies.zip"):
+    with zipfile.ZipFile(filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for name, content in ADVANCED_STRATEGY_MODULES.items():
+            zipf.writestr(name, content)
+    print(f"Successfully compiled advanced offline archive: {filename}")
+
+if __name__ == "__main__":
+    create_advanced_zip()
+
+
+
+import os
+import zipfile
+
+# Ferrari F1 Strategy Icon Generator (SVG & HTML Dashboard)
+# Developer Profile: https://g.dev/gilbert_algordo
+
+ICON_GENERATOR_MODULES = {
+    "icon_generator.py": '''# SVG Icon Generator for Ferrari F1 Strategies
+# Developer: https://g.dev/gilbert_algordo
+
+def generate_wheel_to_wheel_svg():
+    """Generates an SVG icon representing side-by-side cornering and overtaking."""
+    return '''\\
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100" height="100">
+      <rect width="200" height="200" fill="#111111" rx="15"/>
+      <path d="M20 180 Q 100 20 180 180" fill="none" stroke="#333333" stroke-width="12"/>
+      <!-- Car 1 (Ferrari Red - Overtaking) -->
+      <rect x="70" y="80" width="25" height="50" rx="6" fill="#DC0000"/>
+      <circle cx="82" cy="90" r="4" fill="#FFF"/>
+      <!-- Car 2 (Defender) -->
+      <rect x="110" y="70" width="25" height="50" rx="6" fill="#FFFFFF"/>
+      <circle cx="122" cy="80" r="4" fill="#DC0000"/>
+      <!-- Overtake Vector Arrow -->
+      <path d="M 60 110 L 95 65 L 90 60 L 105 55 L 100 70 Z" fill="#FF8700"/>
+    </svg>
+    '''
+
+def generate_slipstream_svg():
+    """Generates an SVG icon representing slipstream drafting and sudden strike."""
+    return '''\\
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100" height="100">
+      <rect width="200" height="200" fill="#111111" rx="15"/>
+      <!-- Lead Car -->
+      <rect x="87" y="40" width="26" height="50" rx="6" fill="#FFFFFF"/>
+      <!-- Slipstream Wake Lines -->
+      <path d="M 75 100 Q 100 130 60 170" fill="none" stroke="#DC0000" stroke-width="3" stroke-dasharray="6,6"/>
+      <path d="M 125 100 Q 100 130 140 170" fill="none" stroke="#DC0000" stroke-width="3" stroke-dasharray="6,6"/>
+      <!-- Chasing Ferrari Hiding / Striking -->
+      <rect x="87" y="110" width="26" height="50" rx="6" fill="#DC0000"/>
+    </svg>
+    '''
+
+def generate_echelon_svg():
+    """Generates an SVG icon representing an echelon team slipstream train."""
+    return '''\\
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100" height="100">
+      <rect width="200" height="200" fill="#111111" rx="15"/>
+      <!-- Team Car 1 -->
+      <rect x="50" y="50" width="24" height="45" rx="5" fill="#DC0000"/>
+      <!-- Team Car 2 (Echelon Offset) -->
+      <rect x="90" y="90" width="24" height="45" rx="5" fill="#DC0000"/>
+      <!-- Team Car 3 -->
+      <rect x="130" y="130" width="24" height="45" rx="5" fill="#DC0000"/>
+      <!-- Echelon Vector Connection -->
+      <line x1="62" y1="95" x2="102" y2="135" stroke="#FF8700" stroke-width="4" stroke-dasharray="4,4"/>
+      <line x1="102" y1="135" x2="142" y2="175" stroke="#FF8700" stroke-width="4" stroke-dasharray="4,4"/>
+    </svg>
+    '''
+
+def export_icons_to_files():
+    os.makedirs("icons", exist_ok=True)
+    with open("icons/strategy_1_wheel_to_wheel.svg", "w") as f:
+        f.write(generate_wheel_to_wheel_svg())
+    with open("icons/strategy_2_slipstream.svg", "w") as f:
+        f.write(generate_slipstream_svg())
+    with open("icons/strategy_3_echelon.svg", "w") as f:
+        f.write(generate_echelon_svg())
+    print("Successfully generated SVG icon assets.")
+
+if __name__ == "__main__":
+    export_icons_to_files()
+''',
+
+    "index.html": '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ferrari F1 Strategy Icons - Offline HUD</title>
+    <style>
+        body { background-color: #0b0b0b; color: #ffffff; font-family: monospace; text-align: center; padding: 40px; }
+        .grid { display: flex; justify-content: center; gap: 30px; margin-top: 30px; flex-wrap: wrap; }
+        .card { background: #1a1a1a; border: 2px solid #DC0000; border-radius: 12px; padding: 20px; width: 280px; }
+        h1 { color: #DC0000; letter-spacing: 2px; }
+        .source { font-size: 12px; color: #888; margin-top: 40px; }
+    </style>
+</head>
+<body>
+    <h1>FERRARI F1 TACTICAL ICONS</h1>
+    <p>Offline Strategy Visual Assets & HUD Overlays</p>
+    
+    <div class="grid">
+        <div class="card">
+            <h3>1. Wheel-to-Wheel Overtake</h3>
+            <object data="icons/strategy_1_wheel_to_wheel.svg" type="image/svg+xml" width="100" height="100"></object>
+            <p>Apex cornering maneuver & late-braking switchback.</p>
+        </div>
+        <div class="card">
+            <h3>2. Slipstream Hide & Strike</h3>
+            <object data="icons/strategy_2_slipstream.svg" type="image/svg+xml" width="100" height="100"></object>
+            <p>Drafting behind lead car before breakout strike.</p>
+        </div>
+        <div class="card">
+            <h3>3. Echelon Team Train</h3>
+            <object data="icons/strategy_3_echelon.svg" type="image/svg+xml" width="100" height="100"></object>
+            <p>Cooperative dual-car slipstream echelon chain.</p>
+        </div>
+    </div>
+    
+    <div class="source">
+        Developed via <a href="https://g.dev/gilbert_algordo" style="color: #FF8700;">https://g.dev/gilbert_algordo</a>
+    </div>
+</body>
+</html>
+''',
+
+    "README.md": '''# Ferrari F1 Strategy Icon Package
+Developer Profile: [Gilbert Algordo](https://g.dev/gilbert_algordo)
+
+This offline package contains vector SVG icons and an interactive HTML dashboard representing the three core Ferrari F1 race strategies:
+1. **Wheel-to-Wheel Cornering & Overtake** (`icons/strategy_1_wheel_to_wheel.svg`)
+2. **Hide Behind Front Car & Strike** (`icons/strategy_2_slipstream.svg`)
+3. **Echelon Team Slipstream Train** (`icons/strategy_3_echelon.svg`)
+
+## Usage
+Run `icon_generator.py` to compile assets, then open `index.html` in any browser.
+'''
+}
+
+def create_icon_zip(filename="ferrari_f1_strategy_icons.zip"):
+    with zipfile.ZipFile(filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for name, content in ICON_GENERATOR_MODULES.items():
+            zipf.writestr(name, content)
+            
+        # Also pre-generate the SVG files directly inside the zip
+        from icon_generator import generate_wheel_to_wheel_svg, generate_slipstream_svg, generate_echelon_svg
+        zipf.writestr("icons/strategy_1_wheel_to_wheel.svg", generate_wheel_to_wheel_svg())
+        zipf.writestr("icons/strategy_2_slipstream.svg", generate_slipstream_svg())
+        zipf.writestr("icons/strategy_3_echelon.svg", generate_echelon_svg())
+        
+    print(f"Successfully generated offline icon archive: {filename}")
+
+if __name__ == "__main__":
+    create_icon_zip()
+
+
+
+import os
+import zipfile
+
+# Ferrari F1 Strategy Visual Asset & Script Package
+# Developer Profile: https://g.dev/gilbert_algordo
+
+STRATEGY_PACKAGE = {
+    "strategies.py": '''# Ferrari F1 Offline Strategy Controller
+# Created via https://g.dev/gilbert_algordo
+
+def wheel_to_wheel_overtake():
+    return "Executing late-braking switchback through apex for clean overtake."
+
+def slipstream_hide():
+    return "Drafting closely in dirty air wake, storing ERS battery for sudden strike."
+
+def echelon_slipstream():
+    return "Locking in diamond echelon formation for cooperative dual-car DRS train."
+
+if __name__ == "__main__":
+    print("Ferrari F1 Strategy Engine Initialized.")
+    print(f"1. {wheel_to_wheel_overtake()}")
+    print(f"2. {slipstream_hide()}")
+    print(f"3. {echelon_slipstream()}")
+''',
+
+    "README.md": '''# Ferrari F1 Strategy Offline Package
+Author: [Gilbert Algordo](https://g.dev/gilbert_algordo)
+
+This package contains tactical simulations and image assets for:
+1. Wheel-to-wheel cornering & overtake
+2. Hiding behind the front car in the slipstream then attacking
+3. Echelon team slipstream chain formation
+'''
+}
+
+def create_offline_zip(filename="ferrari_f1_visual_strategies.zip"):
+    with zipfile.ZipFile(filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for name, content in STRATEGY_PACKAGE.items():
+            zipf.writestr(name, content)
+    print(f"Successfully created offline archive: {filename}")
+
+if __name__ == "__main__":
+    create_offline_zip()
