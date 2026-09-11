@@ -1,0 +1,1916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPhone 19 Blueprint & Structural Model (1D & Y Layers)</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: rgba(16, 24, 40, 0.85);
+            --border-color: #1e293b;
+            --accent-cyan: #00f0ff;
+            --accent-red: #ff3344;
+            --accent-hue: #7928ca;
+            --text-main: #f1f5f9;
+            --text-dim: #94a3b8;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            letter-spacing: 2px;
+            margin: 0 0 5px 0;
+            color: var(--accent-cyan);
+            text-transform: uppercase;
+        }
+
+        p.subtitle {
+            margin: 0;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .viewport-wrapper {
+            position: relative;
+            background: radial-gradient(circle at center, #141c2e 0%, #080c14 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            height: 680px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        #canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .controls-overlay {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        button {
+            background: var(--panel-bg);
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        button:hover {
+            background: var(--accent-cyan);
+            color: var(--bg-color);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+        }
+
+        .info-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            height: 640px;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+        }
+
+        .info-panel h2 {
+            font-size: 1.1rem;
+            margin: 0;
+            color: #fff;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        .spec-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .spec-item {
+            font-size: 0.85rem;
+            line-height: 1.4;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-cyan);
+        }
+
+        .spec-item.red { border-left-color: var(--accent-red); }
+        .spec-item.hue { border-left-color: var(--accent-hue); }
+
+        .spec-item strong {
+            color: #fff;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .hud-legend {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: none;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .legend-item:last-child { margin-bottom: 0; }
+        .color-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+            .viewport-wrapper { height: 500px; }
+            .info-panel { height: auto; }
+        }
+    </style>
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <header>
+        <h1>iPhone 19 Structural Blueprint</h1>
+        <p.subtitle>1D & Y-Layer Active Architecture | 1:1 Scale CAD Wireframe</p.subtitle>
+    </header>
+
+    <div class="container">
+        <div class="viewport-wrapper">
+            <div class="controls-overlay">
+                <button onclick="toggleExplodedView()">Explode Y-Layers</button>
+                <button onclick="toggleHueRGB()">Toggle Active Hue LED</button>
+                <button onclick="resetCamera()">Reset View</button>
+            </div>
+            <div id="canvas"></div>
+            <div class="hud-legend">
+                <div class="legend-item"><span class="color-dot" style="background: #00f0ff;"></span> Titanium & Glass Structure</div>
+                <div class="legend-item"><span class="color-dot" style="background: #ff3344;"></span> Advanced Red Motherboard</div>
+                <div class="legend-item"><span class="color-dot" style="background: #00ffaa;"></span> Mini Quantum Battery</div>
+                <div class="legend-item"><span class="color-dot" style="background: #ff00ff;"></span> Active Hue Indicators</div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <h2>Technical Specifications</h2>
+
+            <div class="spec-group">
+                <div class="spec-item">
+                    <strong>1. Quad Rear Camera System</strong>
+                    Dual 19MP sensors + 3D depth mapping camera + Telephoto array. Bordered mesh corners with integrated LED flashlight.
+                </div>
+
+                <div class="spec-item">
+                    <strong>2. Quad Front Camera System</strong>
+                    Dual 19MP front lenses + FaceID 3D mapping sensor. Integrated left Active Hue light indicator.
+                </div>
+
+                <div class="spec-item">
+                    <strong>3. Storage & Connectivity</strong>
+                    MicroSD card placement alongside Dual Nano-SIM independent modular card slot.
+                </div>
+
+                <div class="spec-item red">
+                    <strong>4. Red Motherboard & Circuitry</strong>
+                    Advanced red PCB design with dedicated micro-channel liquid cooling for high-performance communication circuits.
+                </div>
+
+                <div class="spec-item">
+                    <strong>5. Power & Processing</strong>
+                    Slim form-factor Mini Quantum Battery powering an advanced Apple Microchip & dedicated BLE processing chip.
+                </div>
+
+                <div class="spec-item hue">
+                    <strong>6. Exterior Chassis & Secret Button</strong>
+                    Carbon fiber rear panel with titanium siding, edge-to-edge Gorilla Glass, illuminated Apple logo, and a programmable extra secret action button.
+                </div>
+
+                <div class="spec-item">
+                    <strong>7. Ergonomic Sizing</strong>
+                    Form-fit width optimized for single-handed grip balance.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Three.js Interactive Setup ---
+        let scene, camera, renderer;
+        let phoneGroup, layers = {};
+        let isExploded = false;
+        let hueActive = true;
+        let hueLights = [];
+
+        // Dimensions (mm scale)
+        const WIDTH = 71.5;
+        const HEIGHT = 146.7;
+        const THICKNESS = 7.6;
+
+        function init() {
+            const container = document.getElementById('canvas');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0b0f19);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 1, 1000);
+            camera.position.set(120, 100, 220);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0x00f0ff, 0.8);
+            dirLight.position.set(100, 150, 100);
+            scene.add(dirLight);
+
+            const pointLight = new THREE.PointLight(0xffffff, 0.5);
+            pointLight.position.set(-100, -100, -100);
+            scene.add(pointLight);
+
+            // Main Group
+            phoneGroup = new THREE.Group();
+            scene.add(phoneGroup);
+
+            // Build Layers (Y-Layers along Z-axis explosion)
+            createTitaniumFrame();
+            createGorillaGlass();
+            createRedMotherboard();
+            createQuantumBattery();
+            createRearCameraModule();
+            createFrontCameraModule();
+            createCarbonFiberBack();
+
+            // Grid Floor
+            const grid = new THREE.GridHelper(300, 30, 0x00f0ff, 0x1e293b);
+            grid.position.y = -90;
+            scene.add(grid);
+
+            // Render loop
+            animate();
+
+            // Resize listener
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        // --- Model Components ---
+
+        function createTitaniumFrame() {
+            const group = new THREE.Group();
+            
+            // Outer Frame
+            const geometry = new THREE.BoxGeometry(WIDTH, HEIGHT, THICKNESS);
+            const edges = new THREE.EdgesGeometry(geometry);
+            const lineMat = new THREE.LineBasicMaterial({ color: 0x00f0ff });
+            const wireframe = new THREE.LineSegments(edges, lineMat);
+            group.add(wireframe);
+
+            // Secret Action Button on Siding
+            const btnGeo = new THREE.BoxGeometry(1.5, 10, 2);
+            const btnMat = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+            const secretBtn = new THREE.Mesh(btnGeo, btnMat);
+            secretBtn.position.set(-WIDTH / 2 - 0.75, 20, 0);
+            group.add(secretBtn);
+
+            // Dual SIM / SD Slot Tray
+            const trayGeo = new THREE.BoxGeometry(1.5, 18, 1);
+            const trayMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+            const tray = new THREE.Mesh(trayGeo, trayMat);
+            tray.position.set(WIDTH / 2 + 0.75, -20, 0);
+            group.add(tray);
+
+            layers.frame = group;
+            phoneGroup.add(group);
+        }
+
+        function createGorillaGlass() {
+            const group = new THREE.Group();
+            const geometry = new THREE.PlaneGeometry(WIDTH - 2, HEIGHT - 2);
+            const mat = new THREE.MeshBasicMaterial({ 
+                color: 0x00f0ff, 
+                transparent: true, 
+                opacity: 0.15,
+                side: THREE.DoubleSide
+            });
+            const glass = new THREE.Mesh(geometry, mat);
+            glass.position.z = THICKNESS / 2 + 0.5;
+
+            // Wireframe border
+            const edges = new THREE.EdgesGeometry(geometry);
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x00f0ff }));
+            line.position.z = THICKNESS / 2 + 0.5;
+            
+            group.add(glass);
+            group.add(line);
+            layers.glass = group;
+            phoneGroup.add(group);
+        }
+
+        function createRedMotherboard() {
+            const group = new THREE.Group();
+
+            // Advanced Red Motherboard PCB
+            const pcbGeo = new THREE.BoxGeometry(WIDTH - 12, HEIGHT - 30, 1);
+            const pcbMat = new THREE.MeshPhongMaterial({ color: 0xff2233, wireframe: false });
+            const pcb = new THREE.Mesh(pcbGeo, pcbMat);
+            pcb.position.set(0, -10, 0);
+            group.add(pcb);
+
+            // Advanced Apple Microchip (Center)
+            const chipGeo = new THREE.BoxGeometry(16, 16, 1.5);
+            const chipMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+            const chip = new THREE.Mesh(chipGeo, chipMat);
+            chip.position.set(0, 10, 1);
+            group.add(chip);
+
+            // Advanced BLE Chip
+            const bleGeo = new THREE.BoxGeometry(8, 8, 1.2);
+            const bleMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+            const ble = new THREE.Mesh(bleGeo, bleMat);
+            ble.position.set(-15, -20, 1);
+            group.add(ble);
+
+            // Cooling Circuitry Traces
+            const coolGeo = new THREE.BufferGeometry();
+            const points = [
+                new THREE.Vector3(-20, 30, 0.8), new THREE.Vector3(-20, -40, 0.8),
+                new THREE.Vector3(20, 30, 0.8), new THREE.Vector3(20, -40, 0.8)
+            ];
+            coolGeo.setFromPoints(points);
+            const coolMat = new THREE.LineBasicMaterial({ color: 0x00ffff });
+            const cooling = new THREE.LineSegments(coolGeo, coolMat);
+            group.add(cooling);
+
+            layers.motherboard = group;
+            phoneGroup.add(group);
+        }
+
+        function createQuantumBattery() {
+            const group = new THREE.Group();
+            
+            // Mini Quantum Battery (Slim profile)
+            const batGeo = new THREE.BoxGeometry(WIDTH - 16, HEIGHT - 50, 2);
+            const batMat = new THREE.MeshPhongMaterial({ 
+                color: 0x00ffaa, 
+                transparent: true, 
+                opacity: 0.4,
+                wireframe: true 
+            });
+            const battery = new THREE.Mesh(batGeo, batMat);
+            battery.position.set(0, -10, -1.8);
+
+            group.add(battery);
+            layers.battery = group;
+            phoneGroup.add(group);
+        }
+
+        function createRearCameraModule() {
+            const group = new THREE.Group();
+
+            // Sleek Mesh Camera Bump Base
+            const baseGeo = new THREE.BoxGeometry(32, 32, 2);
+            const baseMat = new THREE.MeshBasicMaterial({ color: 0x222222, wireframe: true });
+            const base = new THREE.Mesh(baseGeo, baseMat);
+            base.position.set(-14, 45, -THICKNESS / 2 - 1);
+            group.add(base);
+
+            // 4 Quad Rear Lenses (Dual 19MP + 3D Mapping Sensor + Flash)
+            const lensPositions = [
+                { x: -20, y: 51 }, { x: -8, y: 51 },
+                { x: -20, y: 39 }, { x: -8, y: 39 }
+            ];
+
+            lensPositions.forEach((pos, idx) => {
+                const lensGeo = new THREE.CylinderGeometry(4, 4, 2, 16);
+                const lensMat = new THREE.MeshBasicMaterial({ 
+                    color: idx === 3 ? 0xffff00 : 0x00f0ff // 4th is 3D depth/sensor
+                });
+                const lens = new THREE.Mesh(lensGeo, lensMat);
+                lens.rotation.x = Math.PI / 2;
+                lens.position.set(pos.x, pos.y, -THICKNESS / 2 - 2);
+                group.add(lens);
+            });
+
+            // Rear Active Hue LED Indicator
+            const hueGeo = new THREE.RingGeometry(1, 2.5, 16);
+            const hueMat = new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.DoubleSide });
+            const rearHue = new THREE.Mesh(hueGeo, hueMat);
+            rearHue.position.set(-14, 63, -THICKNESS / 2 - 1.1);
+            group.add(rearHue);
+            hueLights.push(rearHue);
+
+            layers.rearCamera = group;
+            phoneGroup.add(group);
+        }
+
+        function createFrontCameraModule() {
+            const group = new THREE.Group();
+
+            // Dual Front 19MP Cameras + 3D Mapping Sensors (Quad Array)
+            for (let i = 0; i < 4; i++) {
+                const lensGeo = new THREE.CircleGeometry(1.8, 12);
+                const lensMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, side: THREE.DoubleSide });
+                const lens = new THREE.Mesh(lensGeo, lensMat);
+                lens.position.set(-12 + (i * 6), 62, THICKNESS / 2 + 0.6);
+                group.add(lens);
+            }
+
+            // Front Left Active Hue LED Indicator
+            const frontHueGeo = new THREE.CircleGeometry(1.2, 12);
+            const frontHueMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide });
+            const frontHue = new THREE.Mesh(frontHueGeo, frontHueMat);
+            frontHue.position.set(-24, 62, THICKNESS / 2 + 0.6);
+            group.add(frontHue);
+            hueLights.push(frontHue);
+
+            layers.frontCamera = group;
+            phoneGroup.add(group);
+        }
+
+        function createCarbonFiberBack() {
+            const group = new THREE.Group();
+
+            // Carbon Fiber Back Cover Plane
+            const backGeo = new THREE.PlaneGeometry(WIDTH - 1, HEIGHT - 1);
+            const backMat = new THREE.MeshBasicMaterial({ 
+                color: 0x111622, 
+                side: THREE.DoubleSide,
+                wireframe: true
+            });
+            const back = new THREE.Mesh(backGeo, backMat);
+            back.position.z = -THICKNESS / 2 - 0.2;
+            group.add(back);
+
+            // Apple Logo with Active Hue Light
+            const logoGeo = new THREE.CircleGeometry(6, 16);
+            const logoMat = new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.DoubleSide });
+            const logo = new THREE.Mesh(logoGeo, logoMat);
+            logo.position.set(0, 5, -THICKNESS / 2 - 0.3);
+            group.add(logo);
+            hueLights.push(logo);
+
+            layers.backCover = group;
+            phoneGroup.add(group);
+        }
+
+        // --- Interaction Logic ---
+
+        function toggleExplodedView() {
+            isExploded = !isExploded;
+            
+            const targetZ = {
+                glass: isExploded ? 40 : 0,
+                frontCamera: isExploded ? 30 : 0,
+                frame: 0,
+                motherboard: isExploded ? -15 : 0,
+                battery: isExploded ? -35 : 0,
+                rearCamera: isExploded ? -55 : 0,
+                backCover: isExploded ? -70 : 0
+            };
+
+            for (const [key, zVal] of Object.entries(targetZ)) {
+                if (layers[key]) {
+                    layers[key].position.z = zVal;
+                }
+            }
+        }
+
+        function toggleHueRGB() {
+            hueActive = !hueActive;
+            hueLights.forEach(light => {
+                light.visible = hueActive;
+            });
+        }
+
+        function resetCamera() {
+            camera.position.set(120, 100, 220);
+            camera.lookAt(0, 0, 0);
+            phoneGroup.rotation.set(0, 0, 0);
+            if (isExploded) toggleExplodedView();
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        // --- Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Subtle continuous rotation for 3D visualization
+            phoneGroup.rotation.y += 0.005;
+
+            // Pulse Hue Lights
+            if (hueActive) {
+                const time = Date.now() * 0.003;
+                hueLights.forEach((light, i) => {
+                    const r = Math.sin(time + i) * 0.5 + 0.5;
+                    const g = Math.cos(time * 0.8 + i) * 0.5 + 0.5;
+                    light.material.color.setRGB(r, g, 1.0);
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPhone 19 Advanced CAD & Y-Layer Interactive Engine</title>
+    <style>
+        :root {
+            --bg-dark: #070a10;
+            --panel-bg: rgba(13, 19, 33, 0.88);
+            --border-glow: #00f0ff;
+            --accent-red: #ff2a4b;
+            --accent-quantum: #00ffaa;
+            --text-light: #e2e8f0;
+            --text-muted: #64748b;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #app-container {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #viewport {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 40% 50%, #111a2e 0%, #05070c 100%);
+        }
+
+        #webgl-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* HUD & Controls Overlay */
+        .hud-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            color: var(--border-glow);
+            text-transform: uppercase;
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+        }
+
+        .hud-header p {
+            margin: 4px 0 0 0;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+
+        .toolbar {
+            position: absolute;
+            bottom: 25px;
+            left: 20px;
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+        }
+
+        .btn {
+            background: var(--panel-bg);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            color: var(--border-glow);
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn:hover {
+            background: var(--border-glow);
+            color: var(--bg-dark);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.8);
+            transform: translateY(-2px);
+        }
+
+        .btn.active {
+            background: var(--border-glow);
+            color: var(--bg-dark);
+        }
+
+        /* Sidebar Inspector */
+        .sidebar {
+            background: var(--panel-bg);
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            gap: 20px;
+            overflow-y: auto;
+            z-index: 10;
+            box-shadow: -5px 0 25px rgba(0,0,0,0.6);
+        }
+
+        .sidebar h2 {
+            font-size: 1.1rem;
+            margin: 0;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .slider-group label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type=range] {
+            width: 100%;
+            accent-color: var(--border-glow);
+            background: #1e293b;
+            height: 4px;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        .spec-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .spec-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-left: 3px solid var(--border-glow);
+            padding: 10px 14px;
+            border-radius: 4px;
+            font-size: 0.78rem;
+            line-height: 1.45;
+        }
+
+        .spec-card.red-arch { border-left-color: var(--accent-red); }
+        .spec-card.quantum { border-left-color: var(--accent-quantum); }
+
+        .spec-card strong {
+            color: #fff;
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        /* Status Telemetry */
+        .telemetry {
+            font-family: monospace;
+            font-size: 0.7rem;
+            color: var(--border-glow);
+            background: rgba(0,0,0,0.5);
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        @media (max-width: 960px) {
+            #app-container { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+    </style>
+    <!-- Three.js & OrbitControls via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <div id="app-container">
+        <!-- Main 3D Viewport -->
+        <div id="viewport">
+            <div class="hud-header">
+                <h1>iPhone 19 CAD Engine</h1>
+                <p>Real-Size Architecture | 1D & Y-Layer Dynamic Stack</p>
+            </div>
+
+            <div class="toolbar">
+                <button class="btn" onclick="toggleExplode()">Explode Y-Layers</button>
+                <button class="btn" onclick="toggleHueEffect()">Toggle Active Hue</button>
+                <button class="btn" onclick="resetView()">Reset Camera</button>
+            </div>
+
+            <canvas id="webgl-canvas"></canvas>
+        </div>
+
+        <!-- System Architecture Inspector Sidebar -->
+        <div class="sidebar">
+            <h2>Layer Telemetry & Specs</h2>
+
+            <div class="telemetry">
+                STATUS: ACTIVE_CAD_ENGINE<br>
+                FORM_FACTOR: 146.7 x 71.5 x 7.6 mm<br>
+                SCALE: 1:1 REAL SIZE PROJECTION
+            </div>
+
+            <div class="slider-group">
+                <label><span>Y-Layer Spacing</span><span id="explode-val">0 mm</span></label>
+                <input type="range" id="explode-slider" min="0" max="100" value="0" oninput="updateExplode(this.value)">
+            </div>
+
+            <div class="slider-group">
+                <label><span>Rotation Speed</span><span id="speed-val">0.5x</span></label>
+                <input type="range" id="speed-slider" min="0" max="20" value="5" oninput="updateSpeed(this.value)">
+            </div>
+
+            <div class="spec-list">
+                <div class="spec-card">
+                    <strong>1. Quad Rear Optics System</strong>
+                    Dual 19MP sensors + 1x 3D depth-mapping array + Telephoto optics. Sleek mesh corner borders with quad-LED strobe. Active Hue LED perimeter.
+                </div>
+
+                <div class="spec-card">
+                    <strong>2. Quad Front Optics System</strong>
+                    Dual 19MP front lenses + dual 3D mapping depth sensors. Integrated left-side Active Hue LED indicator.
+                </div>
+
+                <div class="spec-card">
+                    <strong>3. Modular Storage & SIM</strong>
+                    Integrated dual nano-SIM tray + dedicated high-speed MicroSD card expander slot.
+                </div>
+
+                <div class="spec-card red-arch">
+                    <strong>4. Advanced Red Motherboard</strong>
+                    High-density red PCB substrates. Active micro-fluidic cooling channels integrated directly into high-speed communication circuitry.
+                </div>
+
+                <div class="spec-card quantum">
+                    <strong>5. Mini Quantum Powercell</strong>
+                    Ultra-thin solid-state Mini Quantum battery module driving primary Apple Microchip & dedicated BLE processing core.
+                </div>
+
+                <div class="spec-card">
+                    <strong>6. Carbon-Titanium Chassis</strong>
+                    Woven carbon-fiber backplate, grade-5 titanium sidings, Gorilla Glass front, illuminated Apple Hue logo, and programmable secret action button.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Core Architectural Constants (Real-size 1:1 Scale in mm) ---
+        const PHONE_W = 71.5;
+        const PHONE_H = 146.7;
+        const PHONE_D = 7.6;
+
+        // Three.js Globals
+        let scene, camera, renderer, controls;
+        let mainGroup;
+        let layers = {};
+        let hueLights = [];
+        let rotSpeed = 0.005;
+        let isExploded = false;
+
+        function initEngine() {
+            const container = document.getElementById('viewport');
+            const canvas = document.getElementById('webgl-canvas');
+
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x070a10);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 1, 2000);
+            camera.position.set(160, 120, 240);
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+
+            // Orbit Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Ambient & Structural Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const dirLight1 = new THREE.DirectionalLight(0x00f0ff, 0.8);
+            dirLight1.position.set(150, 200, 150);
+            scene.add(dirLight1);
+
+            const dirLight2 = new THREE.DirectionalLight(0xff2a4b, 0.4);
+            dirLight2.position.set(-150, -100, -150);
+            scene.add(dirLight2);
+
+            // Grid Floor Blueprint Context
+            const grid = new THREE.GridHelper(400, 40, 0x00f0ff, 0x1e293b);
+            grid.position.y = -100;
+            scene.add(grid);
+
+            // Assembly Root Group
+            mainGroup = new THREE.Group();
+            scene.add(mainGroup);
+
+            // Build iPhone 19 Layer Architecture
+            buildTitaniumFrame();
+            buildGorillaGlass();
+            buildRedMotherboard();
+            buildQuantumBattery();
+            buildRearCameraModule();
+            buildFrontCameraModule();
+            buildCarbonFiberBack();
+
+            // Render loop & resize listeners
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        // --- Layer Builders ---
+
+        function buildTitaniumFrame() {
+            const group = new THREE.Group();
+            
+            // Outer Siding Box
+            const geo = new THREE.BoxGeometry(PHONE_W, PHONE_H, PHONE_D);
+            const edges = new THREE.EdgesGeometry(geo);
+            const lineMat = new THREE.LineBasicMaterial({ color: 0x00f0ff, linewidth: 1.5 });
+            const frameWire = new THREE.LineSegments(edges, lineMat);
+            group.add(frameWire);
+
+            // Titanium Side Metal Finish Mesh (Transparent structure)
+            const mat = new THREE.MeshPhongMaterial({ color: 0x334155, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
+            const mesh = new THREE.Mesh(geo, mat);
+            group.add(mesh);
+
+            // Extra Secret Action Button (Left Siding)
+            const btnGeo = new THREE.BoxGeometry(1.2, 12, 1.8);
+            const btnMat = new THREE.MeshStandardMaterial({ color: 0xff00ff, roughness: 0.2 });
+            const secretBtn = new THREE.Mesh(btnGeo, btnMat);
+            secretBtn.position.set(-PHONE_W / 2 - 0.6, 25, 0);
+            group.add(secretBtn);
+
+            // Combined Dual Nano-SIM + MicroSD Card Slot (Right Siding)
+            const slotGeo = new THREE.BoxGeometry(1.2, 22, 1.2);
+            const slotMat = new THREE.MeshStandardMaterial({ color: 0x00f0ff, roughness: 0.3 });
+            const slot = new THREE.Mesh(slotGeo, slotMat);
+            slot.position.set(PHONE_W / 2 + 0.6, -15, 0);
+            group.add(slot);
+
+            layers.frame = { group: group, baseZ: 0 };
+            mainGroup.add(group);
+        }
+
+        function buildGorillaGlass() {
+            const group = new THREE.Group();
+            const zPos = PHONE_D / 2 + 0.5;
+
+            const geo = new THREE.PlaneGeometry(PHONE_W - 1, PHONE_H - 1);
+            const mat = new THREE.MeshPhysicalMaterial({
+                color: 0x00f0ff,
+                transparent: true,
+                opacity: 0.25,
+                roughness: 0.1,
+                transmission: 0.9,
+                side: THREE.DoubleSide
+            });
+            const glass = new THREE.Mesh(geo, mat);
+            glass.position.z = zPos;
+
+            const edges = new THREE.EdgesGeometry(geo);
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x00f0ff }));
+            line.position.z = zPos;
+
+            group.add(glass);
+            group.add(line);
+
+            layers.glass = { group: group, baseZ: 0 };
+            mainGroup.add(group);
+        }
+
+        function buildRedMotherboard() {
+            const group = new THREE.Group();
+
+            // Advanced Red PCB Substrate
+            const pcbGeo = new THREE.BoxGeometry(PHONE_W - 10, PHONE_H - 24, 1);
+            const pcbMat = new THREE.MeshStandardMaterial({ color: 0xcc1128, roughness: 0.4, metalness: 0.2 });
+            const pcb = new THREE.Mesh(pcbGeo, pcbMat);
+            pcb.position.set(0, 0, 0);
+            group.add(pcb);
+
+            // Advanced Apple Microchip (CPU/GPU)
+            const chipGeo = new THREE.BoxGeometry(18, 18, 1.4);
+            const chipMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.2 });
+            const chip = new THREE.Mesh(chipGeo, chipMat);
+            chip.position.set(0, 20, 1);
+            group.add(chip);
+
+            // Dedicated Advanced BLE Chip
+            const bleGeo = new THREE.BoxGeometry(8, 8, 1.2);
+            const bleMat = new THREE.MeshStandardMaterial({ color: 0x00f0ff, roughness: 0.2 });
+            const ble = new THREE.Mesh(bleGeo, bleMat);
+            ble.position.set(-16, -25, 1);
+            group.add(ble);
+
+            // Communication Circuitry with Cooling Channel Traces
+            const coolGeo = new THREE.BufferGeometry();
+            const points = [
+                new THREE.Vector3(-22, 45, 0.8), new THREE.Vector3(-22, -45, 0.8),
+                new THREE.Vector3(22, 45, 0.8), new THREE.Vector3(22, -45, 0.8),
+                new THREE.Vector3(-22, 0, 0.8), new THREE.Vector3(22, 0, 0.8)
+            ];
+            coolGeo.setFromPoints(points);
+            const coolMat = new THREE.LineBasicMaterial({ color: 0x00ffaa, linewidth: 2 });
+            const cooling = new THREE.LineSegments(coolGeo, coolMat);
+            group.add(cooling);
+
+            layers.motherboard = { group: group, baseZ: 0 };
+            mainGroup.add(group);
+        }
+
+        function buildQuantumBattery() {
+            const group = new THREE.Group();
+            
+            // Slim Mini Quantum Battery Module
+            const batGeo = new THREE.BoxGeometry(PHONE_W - 14, PHONE_H - 45, 2.2);
+            const batMat = new THREE.MeshPhongMaterial({ 
+                color: 0x00ffaa, 
+                transparent: true, 
+                opacity: 0.35,
+                wireframe: true 
+            });
+            const battery = new THREE.Mesh(batGeo, batMat);
+            battery.position.set(0, -12, 0);
+
+            group.add(battery);
+            layers.battery = { group: group, baseZ: 0 };
+            mainGroup.add(group);
+        }
+
+        function buildRearCameraModule() {
+            const group = new THREE.Group();
+            const zPos = -PHONE_D / 2 - 1;
+
+            // Sleek Mesh Camera Plate Base
+            const baseGeo = new THREE.BoxGeometry(34, 34, 2);
+            const baseMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, wireframe: true });
+            const base = new THREE.Mesh(baseGeo, baseMat);
+            base.position.set(-14, 46, zPos);
+            group.add(base);
+
+            // 4 Rear Quad Cameras (Dual 19MP + 1x 3D Mapping + 1x Telephoto/Flash)
+            const lensPositions = [
+                { x: -22, y: 54 }, { x: -6, y: 54 },
+                { x: -22, y: 38 }, { x: -6, y: 38 }
+            ];
+
+            lensPositions.forEach((pos, idx) => {
+                const lensGeo = new THREE.CylinderGeometry(4.5, 4.5, 2.5, 24);
+                const lensMat = new THREE.MeshStandardMaterial({ 
+                    color: idx === 2 ? 0x00ffaa : 0x0f172a, // 3D mapping sensor highlighted
+                    metalness: 0.8, roughness: 0.2 
+                });
+                const lens = new THREE.Mesh(lensGeo, lensMat);
+                lens.rotation.x = Math.PI / 2;
+                lens.position.set(pos.x, pos.y, zPos - 1.2);
+                group.add(lens);
+            });
+
+            // Quad-LED Flashlight Ring
+            const flashGeo = new THREE.CylinderGeometry(2, 2, 2.2, 16);
+            const flashMat = new THREE.MeshBasicMaterial({ color: 0xfffbcc });
+            const flash = new THREE.Mesh(flashGeo, flashMat);
+            flash.rotation.x = Math.PI / 2;
+            flash.position.set(-14, 46, zPos - 1);
+            group.add(flash);
+
+            // Active Hue LED Perimeter Ring (Rear)
+            const rearHueGeo = new THREE.RingGeometry(18, 19.5, 32);
+            const rearHueMat = new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.DoubleSide });
+            const rearHue = new THREE.Mesh(rearHueGeo, rearHueMat);
+            rearHue.position.set(-14, 46, zPos - 2.1);
+            group.add(rearHue);
+            hueLights.push(rearHue);
+
+            layers.rearCamera = { group: group, baseZ: 0 };
+            mainGroup.add(group);
+        }
+
+        function buildFrontCameraModule() {
+            const group = new THREE.Group();
+            const zPos = PHONE_D / 2 + 0.8;
+
+            // Front Quad Array (Dual 19MP Lenses + Dual 3D Depth Mapping Sensors)
+            for (let i = 0; i < 4; i++) {
+                const lensGeo = new THREE.CircleGeometry(2, 20);
+                const lensMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, side: THREE.DoubleSide });
+                const lens = new THREE.Mesh(lensGeo, lensMat);
+                lens.position.set(-12 + (i * 7), 62, zPos);
+                group.add(lens);
+            }
+
+            // Left Active Hue LED Indicator (Front)
+            const frontHueGeo = new THREE.CircleGeometry(1.5, 16);
+            const frontHueMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide });
+            const frontHue = new THREE.Mesh(frontHueGeo, frontHueMat);
+            frontHue.position.set(-25, 62, zPos);
+            group.add(frontHue);
+            hueLights.push(frontHue);
+
+            layers.frontCamera = { group: group, baseZ: 0 };
+            mainGroup.add(group);
+        }
+
+        function buildCarbonFiberBack() {
+            const group = new THREE.Group();
+            const zPos = -PHONE_D / 2 - 0.4;
+
+            // Carbon Fiber Backplate Wireframe Geometry
+            const backGeo = new THREE.PlaneGeometry(PHONE_W - 0.5, PHONE_H - 0.5, 20, 40);
+            const backMat = new THREE.MeshStandardMaterial({ 
+                color: 0x0f172a, 
+                wireframe: true,
+                side: THREE.DoubleSide
+            });
+            const back = new THREE.Mesh(backGeo, backMat);
+            back.position.z = zPos;
+            group.add(back);
+
+            // Illuminated Apple Logo Hue Light Indicator
+            const logoGeo = new THREE.CircleGeometry(7, 24);
+            const logoMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, side: THREE.DoubleSide });
+            const logo = new THREE.Mesh(logoGeo, logoMat);
+            logo.position.set(0, 8, zPos - 0.2);
+            group.add(logo);
+            hueLights.push(logo);
+
+            layers.backCover = { group: group, baseZ: 0 };
+            mainGroup.add(group);
+        }
+
+        // --- Interaction & Telemetry Controls ---
+
+        function updateExplode(val) {
+            const offset = parseFloat(val);
+            document.getElementById('explode-val').innerText = `${offset} mm`;
+
+            layers.glass.group.position.z = offset * 0.8;
+            layers.frontCamera.group.position.z = offset * 0.6;
+            layers.motherboard.group.position.z = -offset * 0.3;
+            layers.battery.group.position.z = -offset * 0.6;
+            layers.rearCamera.group.position.z = -offset * 0.9;
+            layers.backCover.group.position.z = -offset * 1.2;
+        }
+
+        function toggleExplode() {
+            isExploded = !isExploded;
+            const slider = document.getElementById('explode-slider');
+            slider.value = isExploded ? 65 : 0;
+            updateExplode(slider.value);
+        }
+
+        function updateSpeed(val) {
+            rotSpeed = (parseFloat(val) / 10) * 0.01;
+            document.getElementById('speed-val').innerText = `${(parseFloat(val) / 10).toFixed(1)}x`;
+        }
+
+        function toggleHueEffect() {
+            hueLights.forEach(light => {
+                light.visible = !light.visible;
+            });
+        }
+
+        function resetView() {
+            camera.position.set(160, 120, 240);
+            controls.target.set(0, 0, 0);
+            controls.update();
+            mainGroup.rotation.set(0, 0, 0);
+            document.getElementById('explode-slider').value = 0;
+            updateExplode(0);
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('viewport');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        // --- Animation Loop ---
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Smooth Auto-Rotation
+            mainGroup.rotation.y += rotSpeed;
+
+            // Dynamic Active Hue Spectrum Cycle
+            const time = Date.now() * 0.0025;
+            hueLights.forEach((light, i) => {
+                if (light.visible) {
+                    const r = Math.sin(time + i) * 0.5 + 0.5;
+                    const g = Math.cos(time * 0.7 + i) * 0.5 + 0.5;
+                    const b = Math.sin(time * 1.3 + i) * 0.5 + 0.5;
+                    light.material.color.setRGB(r, g, b);
+                }
+            });
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.onload = initEngine;
+    </script>
+</body>
+</html>
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPhone 19 Blueprint & Icon Suite (1D / Y-Layers)</title>
+    <style>
+        :root {
+            --bg-dark: #07090e;
+            --panel-bg: rgba(13, 18, 30, 0.92);
+            --border-glow: #00f0ff;
+            --accent-red: #ff2a4b;
+            --accent-quantum: #00ffaa;
+            --accent-hue: #d946ef;
+            --text-light: #f8fafc;
+            --text-muted: #64748b;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #app-container {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #viewport {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 45% 50%, #111a2e 0%, #05070c 100%);
+        }
+
+        #webgl-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* HUD Headers & Controls */
+        .hud-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-header h1 {
+            margin: 0;
+            font-size: 1.4rem;
+            letter-spacing: 2px;
+            color: var(--border-glow);
+            text-transform: uppercase;
+            text-shadow: 0 0 12px rgba(0, 240, 255, 0.5);
+        }
+
+        .hud-header p {
+            margin: 4px 0 0 0;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+
+        .toolbar {
+            position: absolute;
+            bottom: 25px;
+            left: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .btn {
+            background: var(--panel-bg);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            color: var(--border-glow);
+            padding: 9px 16px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn:hover {
+            background: var(--border-glow);
+            color: var(--bg-dark);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.8);
+            transform: translateY(-2px);
+        }
+
+        /* Sidebar & Icon Grid */
+        .sidebar {
+            background: var(--panel-bg);
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(14px);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            gap: 16px;
+            overflow-y: auto;
+            z-index: 10;
+            box-shadow: -5px 0 25px rgba(0,0,0,0.6);
+        }
+
+        .sidebar h2 {
+            font-size: 1rem;
+            margin: 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .slider-group label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type=range] {
+            width: 100%;
+            accent-color: var(--border-glow);
+            background: #1e293b;
+            height: 4px;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        /* SVG Vector Icon Grid (11 Spec Icons) */
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .icon-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .icon-card:hover {
+            border-color: var(--border-glow);
+            background: rgba(0, 240, 255, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .icon-card svg {
+            width: 34px;
+            height: 34px;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .icon-card span {
+            font-size: 0.7rem;
+            line-height: 1.2;
+            color: #cbd5e1;
+            font-weight: 500;
+        }
+
+        .telemetry {
+            font-family: monospace;
+            font-size: 0.68rem;
+            color: var(--border-glow);
+            background: rgba(0,0,0,0.5);
+            padding: 8px 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            line-height: 1.4;
+        }
+
+        @media (max-width: 960px) {
+            #app-container { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+    </style>
+    <!-- Three.js & OrbitControls via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <div id="app-container">
+        <!-- Main CAD Viewport -->
+        <div id="viewport">
+            <div class="hud-header">
+                <h1>iPhone 19 Vector & CAD System</h1>
+                <p>1:1 Scale Architecture | 1D & Y-Layer Icon Blueprint</p>
+            </div>
+
+            <div class="toolbar">
+                <button class="btn" onclick="toggleExplode()">Explode Y-Layers</button>
+                <button class="btn" onclick="toggleHueEffect()">Toggle Active Hue</button>
+                <button class="btn" onclick="resetView()">Reset View</button>
+            </div>
+
+            <canvas id="webgl-canvas"></canvas>
+        </div>
+
+        <!-- Component Icons & Inspector Panel -->
+        <div class="sidebar">
+            <h2>Feature Icon Matrix (11 Specs)</h2>
+
+            <div class="telemetry">
+                SYSTEM: ACTIVE_BLUEPRINT_CAD<br>
+                SIZE: 146.7 x 71.5 x 7.6 mm (Ergonomic 1-Hand)<br>
+                Y-LAYERS: EXPLODABLE STACK
+            </div>
+
+            <div class="slider-group">
+                <label><span>Y-Layer Spacing</span><span id="explode-val">0 mm</span></label>
+                <input type="range" id="explode-slider" min="0" max="100" value="0" oninput="updateExplode(this.value)">
+            </div>
+
+            <!-- Vector SVG Icon Grid -->
+            <div class="icon-grid">
+                <!-- 1. Quad Rear Cameras -->
+                <div class="icon-card" onclick="highlightLayer('rearCamera')">
+                    <svg viewBox="0 0 24 24" stroke="#00f0ff" stroke-width="1.5">
+                        <rect x="2" y="2" width="20" height="20" rx="5" stroke-dasharray="2 2"/>
+                        <circle cx="7.5" cy="7.5" r="2.5"/>
+                        <circle cx="16.5" cy="7.5" r="2.5"/>
+                        <circle cx="7.5" cy="16.5" r="2.5"/>
+                        <circle cx="16.5" cy="16.5" r="2.5"/>
+                    </svg>
+                    <span>1. Rear Quad Array (Dual 19MP + 3D)</span>
+                </div>
+
+                <!-- 2. MicroSD Card Placement -->
+                <div class="icon-card" onclick="highlightLayer('frame')">
+                    <svg viewBox="0 0 24 24" stroke="#00ffaa" stroke-width="1.5">
+                        <path d="M6 2h9l5 5v15H6z"/>
+                        <path d="M9 6v4M12 6v4M15 6v4"/>
+                    </svg>
+                    <span>2. MicroSD Slot Placement</span>
+                </div>
+
+                <!-- 3. Dual SIM -->
+                <div class="icon-card" onclick="highlightLayer('frame')">
+                    <svg viewBox="0 0 24 24" stroke="#00f0ff" stroke-width="1.5">
+                        <rect x="3" y="4" width="8" height="14" rx="1.5"/>
+                        <rect x="13" y="6" width="8" height="14" rx="1.5"/>
+                    </svg>
+                    <span>3. Dual SIM Architecture</span>
+                </div>
+
+                <!-- 4. Slim Quantum Battery -->
+                <div class="icon-card" onclick="highlightLayer('battery')">
+                    <svg viewBox="0 0 24 24" stroke="#00ffaa" stroke-width="1.5">
+                        <rect x="6" y="4" width="12" height="17" rx="2"/>
+                        <path d="M10 2h4M12 8v8M9 12h6"/>
+                    </svg>
+                    <span>4. Slim Mini Quantum Battery</span>
+                </div>
+
+                <!-- 5. Advanced Apple Microchip -->
+                <div class="icon-card" onclick="highlightLayer('motherboard')">
+                    <svg viewBox="0 0 24 24" stroke="#ff2a4b" stroke-width="1.5">
+                        <rect x="6" y="6" width="12" height="12" rx="2"/>
+                        <path d="M9 10h6v4H9zM3 9h3M3 15h3M18 9h3M18 15h3M9 3v3M15 3v3M9 18v3M15 18v3"/>
+                    </svg>
+                    <span>5. Advance Apple Micro Chip</span>
+                </div>
+
+                <!-- 6. Dual Front Cameras -->
+                <div class="icon-card" onclick="highlightLayer('frontCamera')">
+                    <svg viewBox="0 0 24 24" stroke="#d946ef" stroke-width="1.5">
+                        <rect x="3" y="7" width="18" height="10" rx="3"/>
+                        <circle cx="8" cy="12" r="2"/>
+                        <circle cx="14" cy="12" r="2"/>
+                        <circle cx="19" cy="12" r="1" fill="#d946ef"/>
+                    </svg>
+                    <span>6. Dual 19MP Front + Hue LED</span>
+                </div>
+
+                <!-- 7. Carbon Cover & Secret Button -->
+                <div class="icon-card" onclick="highlightLayer('backCover')">
+                    <svg viewBox="0 0 24 24" stroke="#00f0ff" stroke-width="1.5">
+                        <rect x="4" y="2" width="16" height="20" rx="3"/>
+                        <path d="M4 6l16 12M4 12l16 -6M2 8v4" stroke="#d946ef" stroke-width="2"/>
+                    </svg>
+                    <span>7. Carbon Back & Secret Action Button</span>
+                </div>
+
+                <!-- 8. Advance BLE Chip -->
+                <div class="icon-card" onclick="highlightLayer('motherboard')">
+                    <svg viewBox="0 0 24 24" stroke="#00f0ff" stroke-width="1.5">
+                        <path d="M7 12l10 7-5 4V1l5 4-10 7z"/>
+                    </svg>
+                    <span>8. Advance BLE Connectivity Chip</span>
+                </div>
+
+                <!-- 9. Advance Gorilla Glass -->
+                <div class="icon-card" onclick="highlightLayer('glass')">
+                    <svg viewBox="0 0 24 24" stroke="#00f0ff" stroke-width="1.5">
+                        <rect x="5" y="2" width="14" height="20" rx="3"/>
+                        <path d="M2 17l5 5M17 2l5 5"/>
+                    </svg>
+                    <span>9. Advance Edge Gorilla Glass</span>
+                </div>
+
+                <!-- 10. Red Motherboard & Cooling -->
+                <div class="icon-card" onclick="highlightLayer('motherboard')">
+                    <svg viewBox="0 0 24 24" stroke="#ff2a4b" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <path d="M7 7h4v4H7zM13 13h4v4h-4zM7 15l10-6"/>
+                    </svg>
+                    <span>10. Red Board & Cooling Circuit</span>
+                </div>
+
+                <!-- 11. Ergonomic One-Hand Grip -->
+                <div class="icon-card" style="grid-column: span 2;" onclick="resetView()">
+                    <svg viewBox="0 0 24 24" stroke="#00ffaa" stroke-width="1.5">
+                        <rect x="7" y="2" width="10" height="20" rx="3"/>
+                        <path d="M3 12h4M17 12h4M12 2v4M12 18v4"/>
+                    </svg>
+                    <span>11. Ergonomic One-Hand Hold Form Factor</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Real-size iPhone Dimensions (1:1 mm)
+        const PHONE_W = 71.5;
+        const PHONE_H = 146.7;
+        const PHONE_D = 7.6;
+
+        let scene, camera, renderer, controls;
+        let mainGroup;
+        let layers = {};
+        let hueLights = [];
+        let rotSpeed = 0.003;
+        let isExploded = false;
+
+        function initEngine() {
+            const container = document.getElementById('viewport');
+            const canvas = document.getElementById('webgl-canvas');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x07090e);
+
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 1, 2000);
+            camera.position.set(150, 110, 230);
+
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Lighting
+            scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+            
+            const dirLight1 = new THREE.DirectionalLight(0x00f0ff, 0.8);
+            dirLight1.position.set(150, 200, 150);
+            scene.add(dirLight1);
+
+            const dirLight2 = new THREE.DirectionalLight(0xff2a4b, 0.4);
+            dirLight2.position.set(-150, -100, -150);
+            scene.add(dirLight2);
+
+            // Grid Floor Blueprint Context
+            const grid = new THREE.GridHelper(400, 40, 0x00f0ff, 0x1e293b);
+            grid.position.y = -100;
+            scene.add(grid);
+
+            mainGroup = new THREE.Group();
+            scene.add(mainGroup);
+
+            // Construct 1D/Y-Layer Components
+            buildTitaniumFrame();
+            buildGorillaGlass();
+            buildRedMotherboard();
+            buildQuantumBattery();
+            buildRearCameraModule();
+            buildFrontCameraModule();
+            buildCarbonFiberBack();
+
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        // --- Layer Construction Methods ---
+
+        function buildTitaniumFrame() {
+            const group = new THREE.Group();
+            
+            const geo = new THREE.BoxGeometry(PHONE_W, PHONE_H, PHONE_D);
+            const edges = new THREE.EdgesGeometry(geo);
+            const lineMat = new THREE.LineBasicMaterial({ color: 0x00f0ff, linewidth: 1.5 });
+            group.add(new THREE.LineSegments(edges, lineMat));
+
+            const mat = new THREE.MeshPhongMaterial({ color: 0x334155, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
+            group.add(new THREE.Mesh(geo, mat));
+
+            // Extra Secret Action Button
+            const btnGeo = new THREE.BoxGeometry(1.2, 12, 1.8);
+            const secretBtn = new THREE.Mesh(btnGeo, new THREE.MeshStandardMaterial({ color: 0xd946ef }));
+            secretBtn.position.set(-PHONE_W / 2 - 0.6, 25, 0);
+            group.add(secretBtn);
+
+            // Dual SIM / MicroSD Tray
+            const trayGeo = new THREE.BoxGeometry(1.2, 22, 1.2);
+            const tray = new THREE.Mesh(trayGeo, new THREE.MeshStandardMaterial({ color: 0x00ffaa }));
+            tray.position.set(PHONE_W / 2 + 0.6, -15, 0);
+            group.add(tray);
+
+            layers.frame = group;
+            mainGroup.add(group);
+        }
+
+        function buildGorillaGlass() {
+            const group = new THREE.Group();
+            const zPos = PHONE_D / 2 + 0.5;
+
+            const geo = new THREE.PlaneGeometry(PHONE_W - 1, PHONE_H - 1);
+            const mat = new THREE.MeshPhysicalMaterial({
+                color: 0x00f0ff,
+                transparent: true,
+                opacity: 0.2,
+                roughness: 0.1,
+                side: THREE.DoubleSide
+            });
+            const glass = new THREE.Mesh(geo, mat);
+            glass.position.z = zPos;
+            group.add(glass);
+
+            const edges = new THREE.EdgesGeometry(geo);
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x00f0ff }));
+            line.position.z = zPos;
+            group.add(line);
+
+            layers.glass = group;
+            mainGroup.add(group);
+        }
+
+        function buildRedMotherboard() {
+            const group = new THREE.Group();
+
+            // Advanced Red Motherboard PCB
+            const pcbGeo = new THREE.BoxGeometry(PHONE_W - 10, PHONE_H - 24, 1);
+            const pcbMat = new THREE.MeshStandardMaterial({ color: 0xcc1128, roughness: 0.4 });
+            const pcb = new THREE.Mesh(pcbGeo, pcbMat);
+            group.add(pcb);
+
+            // Advance Apple Micro Chip
+            const chipGeo = new THREE.BoxGeometry(18, 18, 1.4);
+            const chip = new THREE.Mesh(chipGeo, new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+            chip.position.set(0, 20, 1);
+            group.add(chip);
+
+            // Advance BLE Chip
+            const bleGeo = new THREE.BoxGeometry(8, 8, 1.2);
+            const ble = new THREE.Mesh(bleGeo, new THREE.MeshStandardMaterial({ color: 0x00f0ff }));
+            ble.position.set(-16, -25, 1);
+            group.add(ble);
+
+            // Cooling Circuit Trace Overlay
+            const coolGeo = new THREE.BufferGeometry();
+            const points = [
+                new THREE.Vector3(-22, 45, 0.8), new THREE.Vector3(-22, -45, 0.8),
+                new THREE.Vector3(22, 45, 0.8), new THREE.Vector3(22, -45, 0.8)
+            ];
+            coolGeo.setFromPoints(points);
+            group.add(new THREE.LineSegments(coolGeo, new THREE.LineBasicMaterial({ color: 0x00ffaa })));
+
+            layers.motherboard = group;
+            mainGroup.add(group);
+        }
+
+        function buildQuantumBattery() {
+            const group = new THREE.Group();
+            const batGeo = new THREE.BoxGeometry(PHONE_W - 14, PHONE_H - 45, 2.2);
+            const batMat = new THREE.MeshPhongMaterial({ color: 0x00ffaa, transparent: true, opacity: 0.35, wireframe: true });
+            const battery = new THREE.Mesh(batGeo, batMat);
+            battery.position.set(0, -12, 0);
+
+            group.add(battery);
+            layers.battery = group;
+            mainGroup.add(group);
+        }
+
+        function buildRearCameraModule() {
+            const group = new THREE.Group();
+            const zPos = -PHONE_D / 2 - 1;
+
+            // Sleek Mesh Base Plate
+            const baseGeo = new THREE.BoxGeometry(34, 34, 2);
+            const base = new THREE.Mesh(baseGeo, new THREE.MeshStandardMaterial({ color: 0x1e293b, wireframe: true }));
+            base.position.set(-14, 46, zPos);
+            group.add(base);
+
+            // 4 Quad Rear Cameras
+            const lensPositions = [
+                { x: -22, y: 54 }, { x: -6, y: 54 },
+                { x: -22, y: 38 }, { x: -6, y: 38 }
+            ];
+
+            lensPositions.forEach((pos, idx) => {
+                const lensGeo = new THREE.CylinderGeometry(4.5, 4.5, 2.5, 24);
+                const lensMat = new THREE.MeshStandardMaterial({ color: idx === 2 ? 0x00ffaa : 0x0f172a });
+                const lens = new THREE.Mesh(lensGeo, lensMat);
+                lens.rotation.x = Math.PI / 2;
+                lens.position.set(pos.x, pos.y, zPos - 1.2);
+                group.add(lens);
+            });
+
+            // Rear Active Hue Indicator Ring
+            const rearHueGeo = new THREE.RingGeometry(18, 19.5, 32);
+            const rearHueMat = new THREE.MeshBasicMaterial({ color: 0xd946ef, side: THREE.DoubleSide });
+            const rearHue = new THREE.Mesh(rearHueGeo, rearHueMat);
+            rearHue.position.set(-14, 46, zPos - 2.1);
+            group.add(rearHue);
+            hueLights.push(rearHue);
+
+            layers.rearCamera = group;
+            mainGroup.add(group);
+        }
+
+        function buildFrontCameraModule() {
+            const group = new THREE.Group();
+            const zPos = PHONE_D / 2 + 0.8;
+
+            // Dual Front 19MP Lenses + 3D Sensors
+            for (let i = 0; i < 4; i++) {
+                const lens = new THREE.Mesh(
+                    new THREE.CircleGeometry(2, 20),
+                    new THREE.MeshBasicMaterial({ color: 0x00f0ff, side: THREE.DoubleSide })
+                );
+                lens.position.set(-12 + (i * 7), 62, zPos);
+                group.add(lens);
+            }
+
+            // Front Left Active Hue Indicator
+            const frontHue = new THREE.Mesh(
+                new THREE.CircleGeometry(1.5, 16),
+                new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide })
+            );
+            frontHue.position.set(-25, 62, zPos);
+            group.add(frontHue);
+            hueLights.push(frontHue);
+
+            layers.frontCamera = group;
+            mainGroup.add(group);
+        }
+
+        function buildCarbonFiberBack() {
+            const group = new THREE.Group();
+            const zPos = -PHONE_D / 2 - 0.4;
+
+            const back = new THREE.Mesh(
+                new THREE.PlaneGeometry(PHONE_W - 0.5, PHONE_H - 0.5, 20, 40),
+                new THREE.MeshStandardMaterial({ color: 0x0f172a, wireframe: true, side: THREE.DoubleSide })
+            );
+            back.position.z = zPos;
+            group.add(back);
+
+            // Apple Logo Hue Indicator
+            const logo = new THREE.Mesh(
+                new THREE.CircleGeometry(7, 24),
+                new THREE.MeshBasicMaterial({ color: 0x00f0ff, side: THREE.DoubleSide })
+            );
+            logo.position.set(0, 8, zPos - 0.2);
+            group.add(logo);
+            hueLights.push(logo);
+
+            layers.backCover = group;
+            mainGroup.add(group);
+        }
+
+        // --- Controls & Logic ---
+
+        function updateExplode(val) {
+            const offset = parseFloat(val);
+            document.getElementById('explode-val').innerText = `${offset} mm`;
+
+            layers.glass.position.z = offset * 0.8;
+            layers.frontCamera.position.z = offset * 0.6;
+            layers.motherboard.position.z = -offset * 0.3;
+            layers.battery.position.z = -offset * 0.6;
+            layers.rearCamera.position.z = -offset * 0.9;
+            layers.backCover.position.z = -offset * 1.2;
+        }
+
+        function toggleExplode() {
+            isExploded = !isExploded;
+            const slider = document.getElementById('explode-slider');
+            slider.value = isExploded ? 65 : 0;
+            updateExplode(slider.value);
+        }
+
+        function toggleHueEffect() {
+            hueLights.forEach(light => { light.visible = !light.visible; });
+        }
+
+        function highlightLayer(key) {
+            if (!isExploded) toggleExplode();
+            if (layers[key]) {
+                const targetZ = layers[key].position.z;
+                camera.position.set(0, 0, targetZ + 150);
+                controls.target.set(0, 0, targetZ);
+            }
+        }
+
+        function resetView() {
+            camera.position.set(150, 110, 230);
+            controls.target.set(0, 0, 0);
+            controls.update();
+            mainGroup.rotation.set(0, 0, 0);
+            document.getElementById('explode-slider').value = 0;
+            updateExplode(0);
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('viewport');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            mainGroup.rotation.y += rotSpeed;
+
+            // Spectrum Hue Light Animation
+            const time = Date.now() * 0.0025;
+            hueLights.forEach((light, i) => {
+                if (light.visible) {
+                    const r = Math.sin(time + i) * 0.5 + 0.5;
+                    const g = Math.cos(time * 0.7 + i) * 0.5 + 0.5;
+                    const b = Math.sin(time * 1.3 + i) * 0.5 + 0.5;
+                    light.material.color.setRGB(r, g, b);
+                }
+            });
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.onload = initEngine;
+    </script>
+</body>
+</html>
