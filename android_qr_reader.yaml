@@ -1,0 +1,864 @@
+dependencies {
+    // CameraX core libraries
+    implementation("androidx.camera:camera-core:1.4.2")
+    implementation("androidx.camera:camera-camera2:1.4.2")
+    implementation("androidx.camera:camera-lifecycle:1.4.[span_0](start_span)Building a modern, cross-device QR code reader with **Active AI capabilities** on Android involves combining **CameraX** (for camera hardware abstraction across all devices), **Google ML Kit Barcode Scanning** (on-device machine learning for lightning-fast, offline QR detection), and an **AI Intent Analyzer layer** to intelligently process, categorize, and extract structured data from scanned payloads.[span_0](end_span)
+
+---
+
+### Step 1: Add Dependencies
+Add the following dependencies to your app-level `build.gradle.kts` file:
+
+```kotlin
+dependencies {
+    // Jetpack Compose & Lifecycle
+    implementation("androidx.activity:activity-compose:1.9.3")
+    implementation(platform("androidx.compose:compose-bom:2024.09.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
+
+    // CameraX dependencies
+    val cameraxVersion = "1.4.2"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+
+    // Google ML Kit Barcode Scanning (On-Device AI)
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+}
+
+
+
+<uses-feature android:name="android.hardware.camera.any" />
+<uses-permission android:name="android.permission.CAMERA" />
+
+<application ...>
+    <activity
+        android:name=".MainActivity"
+        android:exported="true"
+        android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+    </activity>
+</application>
+
+
+
+
+package com.example.qrreader
+
+import androidx.camera.core.ExperimentalGetImage
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.common.InputImage
+
+data-class AIProcessedResult(
+    val rawValue: String,
+    val category: String,
+    val smartActionPrompt: String
+)
+
+class ActiveAIQRCodeAnalyzer(
+    private val onQRCodeDetected: (AIProcessedResult) -> Unit
+) : ImageAnalysis.Analyzer {
+
+    private val scanner = BarcodeScanning.getClient()
+    private var isProcessing = false
+
+    @OptIn(ExperimentalGetImage::class)
+    override fun analyze(imageProxy: ImageProxy) {
+        val mediaImage = imageProxy.image
+        if (mediaImage == null) {
+            imageProxy.close()
+            return
+        }
+
+        if (isProcessing) {
+            imageProxy.close()
+            return
+        }
+
+        isProcessing = true
+        val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+
+        scanner.process(image)
+            .addOnSuccessListener { barcodes ->
+                for (barcode in barcodes) {
+                    barcode.rawValue?.let { rawValue ->
+                        val aiResult = processWithActiveAI(barcode, rawValue)
+                        onQRCodeDetected(aiResult)
+                        break
+                    }
+                }
+            }
+            .addOnFailureListener {
+                // Handle parsing failure gracefully
+            }
+            .addOnCompleteListener {
+                isProcessing = false
+                imageProxy.close()
+            }
+    }
+
+    // Active AI Intent & Entity Extraction Simulation
+    private fun processWithActiveAI(barcode: Barcode, rawValue: String): AIProcessedResult {
+        return when (barcode.valueType) {
+            Barcode.TYPE_URL -> AIProcessedResult(
+                rawValue = rawValue,
+                category = "Web Link",
+                smartActionPrompt = "Open Secure Browser"
+            )
+            Barcode.TYPE_WIFI -> AIProcessedResult(
+                rawValue = rawValue,
+                category = "Wi-Fi Configuration",
+                smartActionPrompt = "Connect to Network"
+            )
+            Barcode.TYPE_CONTACT_INFO -> AIProcessedResult(
+                rawValue = rawValue,
+                category = "Digital Business Card",
+                smartActionPrompt = "Add to Contacts"
+            )
+            Barcode.TYPE_PHONE -> AIProcessedResult(
+                rawValue = rawValue,
+                category = "Phone Number",
+                smartActionPrompt = "Initiate Call"
+            )
+            else -> AIProcessedResult(
+                rawValue = rawValue,
+                category = "General Text / Data",
+                smartActionPrompt = "Copy & Analyze"
+            )
+        }
+    }
+}
+
+
+
+
+package com.example.qrreader
+
+import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import java.util.concurrent.Executors
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun QRScannerScreen() {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
+
+    var hasCameraPermission by remember { mutableStateOf(false) }
+    var scannedResult by remember { mutableStateOf<AIProcessedResult?>(null) }
+    var showBottomSheet by remember { mutableStateOf(false) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasCameraPermission = granted
+    }
+
+    LaunchedEffect(Unit) {
+        permissionLauncher.launch(Manifest.permission.CAMERA)
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (hasCameraPermission) {
+            AndroidView(
+                factory = { ctx ->
+                    val previewView = PreviewView(ctx)
+                    val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+
+                    cameraProviderFuture.addListener({
+                        val cameraProvider = cameraProviderFuture.get()
+                        val preview = Preview.Builder().build().also {
+                            it.setSurfaceProvider(previewView.surfaceProvider)
+                        }
+
+                        val imageAnalyzer = ImageAnalysis.Builder()
+                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                            .build()
+                            .also {
+                                it.setAnalyzer(
+                                    cameraExecutor,
+                                    ActiveAIQRCodeAnalyzer { result ->
+                                        if (!showBottomSheet) {
+                                            scannedResult = result
+                                            showBottomSheet = true
+                                        }
+                                    }
+                                )
+                            }
+
+                        try {
+                            cameraProvider.unbindAll()
+                            cameraProvider.bindToLifecycle(
+                                lifecycleOwner,
+                                CameraSelector.DEFAULT_BACK_CAMERA,
+                                preview,
+                                imageAnalyzer
+                            )
+                        } catch (exc: Exception) {
+                            // Catch binding exceptions safely
+                        }
+                    }, ContextCompat.getMainExecutor(ctx))
+
+                    previewView
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Scanning Viewfinder Target Overlay
+            Box(
+                modifier = Modifier
+                    .size(260.dp)
+                    .align(Alignment.Center),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Transparent)
+                ) {
+                    // Custom overlay borders can be drawn here
+                }
+            }
+        } else {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(text = "Camera permission is required to run the AI QR Reader.")
+            }
+        }
+
+        // Active AI Result Bottom Sheet
+        if (showBottomSheet && scannedResult != null) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    showBottomSheet = false
+                    scannedResult = null
+                }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    Text(
+                        text = "✨ Active AI Insight",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = scannedResult!!.category,
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = scannedResult!!.rawValue,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val clip = ClipData.newPlainText("Scanned QR", scannedResult!!.rawValue)
+                                clipboard.setPrimaryClip(clip)
+                                Toast.makeText(context, "Copied to Clipboard", Toast.LENGTH_SHORT).show()
+                                showBottomSheet = false
+                            }
+                        ) {
+                            Text("Copy Content")
+                        }
+
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                Toast.makeText(context, "Executing: ${scannedResult!!.smartActionPrompt}", Toast.LENGTH_SHORT).show()
+                                showBottomSheet = false
+                            }
+                        ) {
+                            Text(scannedResult!!.smartActionPrompt)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
+            }
+        }
+    }
+}
+
+
+
+
+package com.example.qrreader
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MaterialTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    QRScannerScreen()
+                }
+            }
+        }
+    }
+}
+
+
+
+
+dependencies {
+    implementation("androidx.activity:activity-compose:1.9.3")
+    implementation(platform("androidx.compose:compose-bom:2024.09.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
+
+    // CameraX Core + Lifecycle + View
+    val cameraxVersion = "1.4.2"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+
+    // Google ML Kit Barcode Scanning
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+}
+
+
+
+
+package com.example.advancedqr.ai
+
+import android.graphics.Rect
+import com.google.mlkit.vision.barcode.common.Barcode
+
+data class AIEntityInsight(
+    val rawValue: String,
+    val category: String,
+    val securityRiskScore: Float, // 0.0 (Safe) to 1.0 (High Risk)
+    val parsedDetails: Map<String, String>,
+    val primaryActionLabel: String,
+    val boundingBox: Rect?
+)
+
+class ActiveAIIntelligentParser {
+
+    fun analyze(barcode: Barcode): AIEntityInsight {
+        val raw = barcode.rawValue ?: "Unknown Data"
+        val bounds = barcode.boundingBox
+
+        return when (barcode.valueType) {
+            Barcode.TYPE_URL -> {
+                val isHttps = raw.startsWith("https://", ignoreCase = true)
+                AIEntityInsight(
+                    rawValue = raw,
+                    category = "Secure Web URL",
+                    securityRiskScore = if (isHttps) 0.0f else 0.4f,
+                    parsedDetails = mapOf("Domain" to (raw.split("/").getOrNull(2) ?: raw)),
+                    primaryActionLabel = "Launch Browser",
+                    boundingBox = bounds
+                )
+            }
+            Barcode.TYPE_WIFI -> {
+                val ssid = barcode.wifi?.ssid ?: "Hidden Network"
+                val type = when (barcode.wifi?.encryptionType) {
+                    Barcode.WiFi.TYPE_WEP -> "WEP"
+                    Barcode.WiFi.TYPE_WPA -> "WPA/WPA2"
+                    else -> "Open"
+                }
+                AIEntityInsight(
+                    rawValue = raw,
+                    category = "Wi-Fi Configuration",
+                    securityRiskScore = if (type == "Open") 0.7f else 0.1f,
+                    parsedDetails = mapOf("SSID" to ssid, "Security" to type),
+                    primaryActionLabel = "Connect Network",
+                    boundingBox = bounds
+                )
+            }
+            Barcode.TYPE_GEO -> {
+                val lat = barcode.geoPoint?.lat ?: 0.0
+                val lng = barcode.geoPoint?.lng ?: 0.0
+                AIEntityInsight(
+                    rawValue = raw,
+                    category = "Geographic Coordinates",
+                    securityRiskScore = 0.0f,
+                    parsedDetails = mapOf("Latitude" to "$lat", "Longitude" to "$lng"),
+                    primaryActionLabel = "Open in Maps",
+                    boundingBox = bounds
+                )
+            }
+            Barcode.TYPE_CONTACT_INFO -> {
+                val name = barcode.contactInfo?.formattedName ?: "Unnamed Contact"
+                val phone = barcode.contactInfo?.phones?.firstOrNull()?.number ?: "No Phone"
+                AIEntityInsight(
+                    rawValue = raw,
+                    category = "Digital vCard Contact",
+                    securityRiskScore = 0.0f,
+                    parsedDetails = mapOf("Name" to name, "Phone" to phone),
+                    primaryActionLabel = "Save to Contacts",
+                    boundingBox = bounds
+                )
+            }
+            else -> {
+                AIEntityInsight(
+                    rawValue = raw,
+                    category = "Plain Text / Metadata",
+                    securityRiskScore = 0.2f,
+                    parsedDetails = mapOf("Length" to "${raw.length} chars"),
+                    primaryActionLabel = "Copy Text",
+                    boundingBox = bounds
+                )
+            }
+        }
+    }
+}
+
+
+
+
+package com.example.advancedqr.camera
+
+import androidx.camera.core.ExperimentalGetImage
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
+import com.example.advancedqr.ai.AIEntityInsight
+import com.example.advancedqr.ai.ActiveAIIntelligentParser
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.common.InputImage
+
+class QRImageAnalyzer(
+    private val onQRCodeAnalyzed: (AIEntityInsight) -> Unit
+) : ImageAnalysis.Analyzer {
+
+    private val scanner = BarcodeScanning.getClient()
+    private val parser = ActiveAIIntelligentParser()
+    private var isLocked = false
+
+    @OptIn(ExperimentalGetImage::class)
+    override fun analyze(imageProxy: ImageProxy) {
+        val mediaImage = imageProxy.image
+        if (mediaImage == null || isLocked) {
+            imageProxy.close()
+            return
+        }
+
+        isLocked = true
+        val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+
+        scanner.process(image)
+            .addOnSuccessListener { barcodes ->
+                val barcode = barcodes.firstOrNull()
+                if (barcode != null) {
+                    val insight = parser.analyze(barcode)
+                    onQRCodeAnalyzed(insight)
+                } else {
+                    isLocked = false
+                }
+            }
+            .addOnFailureListener {
+                isLocked = false
+            }
+            .addOnCompleteListener {
+                imageProxy.close()
+            }
+    }
+
+    fun resetLock() {
+        isLocked = false
+    }
+}
+
+
+
+
+package com.example.advancedqr.ui
+
+import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.Camera
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FlashlightOff
+import androidx.compose.material.icons.filled.FlashlightOn
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import com.example.advancedqr.ai.AIEntityInsight
+import com.example.advancedqr.camera.QRImageAnalyzer
+import java.util.concurrent.Executors
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AdvancedQRScannerScreen() {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
+
+    var hasPermission by remember { mutableStateOf(false) }
+    var activeInsight by remember { mutableStateOf<AIEntityInsight?>(null) }
+    var showBottomSheet by remember { mutableStateOf(false) }
+    var isTorchOn by remember { mutableStateOf(false) }
+    var cameraInstance by remember { mutableStateOf<Camera?>(null) }
+
+    val analyzer = remember {
+        QRImageAnalyzer { insight ->
+            // Trigger Haptic Feedback
+            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+
+            activeInsight = insight
+            showBottomSheet = true
+        }
+    }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted -> hasPermission = granted }
+
+    LaunchedEffect(Unit) {
+        launcher.launch(Manifest.permission.CAMERA)
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (hasPermission) {
+            AndroidView(
+                factory = { ctx ->
+                    val previewView = PreviewView(ctx)
+                    val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+
+                    cameraProviderFuture.addListener({
+                        val cameraProvider = cameraProviderFuture.get()
+                        val preview = Preview.Builder().build().also {
+                            it.setSurfaceProvider(previewView.surfaceProvider)
+                        }
+
+                        val imageAnalysis = ImageAnalysis.Builder()
+                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                            .build()
+                            .also { it.setAnalyzer(cameraExecutor, analyzer) }
+
+                        try {
+                            cameraProvider.unbindAll()
+                            cameraInstance = cameraProvider.bindToLifecycle(
+                                lifecycleOwner,
+                                CameraSelector.DEFAULT_BACK_CAMERA,
+                                preview,
+                                imageAnalysis
+                            )
+                        } catch (e: Exception) {
+                            // Catch camera initialization binding exceptions safely
+                        }
+                    }, ContextCompat.getMainExecutor(ctx))
+
+                    previewView
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Real-time Bounding Box Canvas Overlay
+            activeInsight?.boundingBox?.let { box ->
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawRect(
+                        color = Color.Green,
+                        topLeft = Offset(box.left.toFloat(), box.top.toFloat()),
+                        size = Size(box.width().toFloat(), box.height().toFloat()),
+                        style = Stroke(width = 8f)
+                    )
+                }
+            }
+
+            // Top Floating Control Bar (Torch Toggle)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+                    .align(Alignment.TopCenter),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(
+                    onClick = {
+                        isTorchOn = !isTorchOn
+                        cameraInstance?.cameraControl?.enableTorch(isTorchOn)
+                    },
+                    colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Icon(
+                        imageVector = if (isTorchOn) Icons.Default.FlashlightOn else Icons.Default.FlashlightOff,
+                        contentDescription = "Toggle Torch"
+                    )
+                }
+            }
+        } else {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Camera permission is required to run the AI engine.")
+            }
+        }
+
+        // Active AI Intelligence Bottom Sheet
+        if (showBottomSheet && activeInsight != null) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    showBottomSheet = false
+                    activeInsight = null
+                    analyzer.resetLock()
+                }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🛡️ Active AI Intelligence",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        
+                        val riskColor = if (activeInsight!!.securityRiskScore > 0.5f) Color.Red else Color.Green
+                        Surface(color = riskColor.copy(alpha = 0.2f), shape = MaterialTheme.shapes.small) {
+                            Text(
+                                text = if (activeInsight!!.securityRiskScore > 0.5f) "Risk Detected" else "Verified Safe",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = riskColor
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = activeInsight!!.category, style = MaterialTheme.typography.headlineMedium)
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Dynamic Parsed Key-Value Parameters
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            activeInsight!!.parsedDetails.forEach { (key, value) ->
+                                Text(text = "$key: $value", style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("QR Payload", activeInsight!!.rawValue))
+                                Toast.makeText(context, "Copied payload to clipboard", Toast.LENGTH_SHORT).show()
+                                showBottomSheet = false
+                                analyzer.resetLock()
+                            }
+                        ) {
+                            Text("Copy Raw")
+                        }
+
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                Toast.makeText(context, "Executing Action: ${activeInsight!!.primaryActionLabel}", Toast.LENGTH_SHORT).show()
+                                showBottomSheet = false
+                                analyzer.resetLock()
+                            }
+                        ) {
+                            Text(activeInsight!!.primaryActionLabel)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
+            }
+        }
+    }
+}
+
+
+
+
+package com.example.advancedqr
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
+import com.example.advancedqr.ui.AdvancedQRScannerScreen
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MaterialTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    AdvancedQRScannerScreen()
+                }
+            }
+        }
+    }
+}
+
+
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    
+    <!-- Outer Scanner Frame Corners -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#6750A4"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M3,7V5a2,2 0 0,1 2,-2h2M17,3h2a2,2 0 0,1 2,2v2M21,17v2a2,2 0 0,1 -2,2h-2M7,21H5a2,2 0 0,1 -2,-2v-2" />
+
+    <!-- Central AI Sparkle / Intelligence Core -->
+    <path
+        android:fillColor="#6750A4"
+        android:pathData="M12,7l1.15,2.65L15.8,10.8l-2.65,1.15L12,14.6l-1.15,-2.65L8.2,10.8l2.65,-1.15z" />
+    
+    <path
+        android:fillColor="#D0BCFF"
+        android:pathData="M17,14l0.6,1.4L19,16l-1.4,0.6L17,18l-0.6,-1.4L15,16l1.4,-0.6z" />
+</vector>
+
+
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    
+    <!-- Shield Background Base -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M12,2L4,5v6.09c0,5.05 3.41,9.76 8,10.91 4.59,-1.15 8,-5.86 8,-10.91V5l-8,-3z" />
+    
+    <!-- Verification Checkmark -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M10,15.5l-3.5,-3.5 1.4,-1.4 2.1,2.1 5.6,-5.6 1.4,1.4z" />
+</vector>
+
+
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+// Ensure you replace 'com.example.advancedqr' with your actual package name
+import com.example.advancedqr.R
+
+@Composable
+fun QRAIIconHeader() {
+    Image(
+        painter = painterResource(id = R.drawable.ic_qr_ai_lens),
+        contentDescription = "Active AI QR Lens Icon",
+        modifier = Modifier.size(48.dp)
+    )
+}
+
+@Composable
+fun VerifiedSecurityBadge() {
+    Image(
+        painter = painterResource(id = R.drawable.ic_ai_shield),
+        contentDescription = "Verified Secure Code",
+        modifier = Modifier.size(24.dp)
+    )
+}
