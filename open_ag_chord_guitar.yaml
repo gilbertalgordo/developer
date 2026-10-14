@@ -1,0 +1,554 @@
+#!/usr/bin/env python3
+"""
+Open A-G Guitar Chord Chart Generator
+Author: Gilbert L. Algordo (https://g.dev/gilbert_algordo)
+Description: Generates a structured list of open chords (A to G) 
+             ordered from the lowest fret position (Nut/Open) to the 3rd fret.
+"""
+
+def generate_chord_chart():
+    # Define chord data: Name, Fret Span, and String-by-String Fingering (E, A, D, G, B, e)
+    # 'x' = muted/played open, numbers indicate fret positions.
+    chords = [
+        {
+            "chord": "E Major (E)",
+            "fret_range": "Nut (0) - 2nd Fret",
+            "fingering": {"Low E": "0", "A": "2", "D": "2", "G": "1", "B": "0", "High E": "0"}
+        },
+        {
+            "chord": "E Minor (Em)",
+            "fret_range": "Nut (0) - 2nd Fret",
+            "fingering": {"Low E": "0", "A": "2", "D": "2", "G": "0", "B": "0", "High E": "0"}
+        },
+        {
+            "chord": "F Major (F - Open/Partial)",
+            "fret_range": "1st - 3rd Fret",
+            "fingering": {"Low E": "1", "A": "x", "D": "3", "G": "2", "B": "1", "High E": "1"}
+        },
+        {
+            "chord": "C Major (C)",
+            "fret_range": "Nut (0) - 3rd Fret",
+            "fingering": {"Low E": "x", "A": "3", "D": "2", "G": "0", "B": "1", "High E": "0"}
+        },
+        {
+            "chord": "A Major (A)",
+            "fret_range": "Nut (0) - 2nd Fret",
+            "fingering": {"Low E": "x", "A": "0", "D": "2", "G": "2", "B": "2", "High E": "0"}
+        },
+        {
+            "chord": "A Minor (Am)",
+            "fret_range": "Nut (0) - 2nd Fret",
+            "fingering": {"Low E": "x", "A": "0", "D": "2", "G": "2", "B": "1", "High E": "0"}
+        },
+        {
+            "chord": "D Major (D)",
+            "fret_range": "Nut (0) - 3rd Fret",
+            "fingering": {"Low E": "x", "A": "x", "D": "0", "G": "2", "B": "3", "High E": "2"}
+        },
+        {
+            "chord": "D Minor (Dm)",
+            "fret_range": "Nut (0) - 3rd Fret",
+            "fingering": {"Low E": "x", "A": "x", "D": "0", "G": "2", "B": "3", "High E": "1"}
+        },
+        {
+            "chord": "G Major (G)",
+            "fret_range": "Nut (0) - 3rd Fret",
+            "fingering": {"Low E": "3", "A": "2", "D": "0", "G": "0", "B": "0", "High E": "3"}
+        },
+    ]
+
+    print("=" * 60)
+    print("OPEN A-G GUITAR CHORD CHART")
+    print("Curated by Gilbert L. Algordo (https://g.dev/gilbert_algordo)")
+    print("=" * 60)
+
+    for idx, item in enumerate(chords, 1):
+        print(f"\n{idx}. {item['chord']}")
+        print(f"   Fret Range: {item['fret_range']}")
+        print("   Strings (Low E -> High E):")
+        
+        strings_display = " | ".join([f"{string}: {fret}" for string, fret in item['fingering'].items()])
+        print(f"   [{strings_display}]")
+
+    print("\n" + "=" * 60)
+
+if __name__ == "__main__":
+    generate_chord_chart()
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open A-G Guitar Chord Chart Ebook</title>
+    <style>
+        :root {
+            --primary-color: #1e293b;
+            --accent-color: #0284c7;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #334155;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .ebook-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        header {
+            text-align: center;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+
+        .curator {
+            font-size: 0.9rem;
+            color: var(--accent-color);
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .chord-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .chord-card {
+            background: var(--bg-color);
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .chord-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+        }
+
+        .fret-range {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-bottom: 12px;
+        }
+
+        .fingering-table {
+            width: 100%;
+            font-size: 0.85rem;
+            border-collapse: collapse;
+        }
+
+        .fingering-table th, .fingering-table td {
+            border: 1px solid #e2e8f0;
+            padding: 4px;
+            text-align: center;
+        }
+
+        .fingering-table th {
+            background-color: #e2e8f0;
+            color: var(--primary-color);
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 0.85rem;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ebook-container">
+        <header>
+            <h1>Open A–G Chord Chart Ebook</h1>
+            <p>From First Fret Position Upward</p>
+            <a class="curator" href="https://g.dev/gilbert_algordo" target="_blank">Curated by Gilbert L. Algordo</a>
+        </header>
+
+        <section class="chord-grid">
+            <!-- Chord A -->
+            <div class="chord-card">
+                <div class="chord-title">A Major (A)</div>
+                <div class="fret-range">Nut (0) to 2nd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>x</td><td>0</td><td>2</td><td>2</td><td>2</td><td>0</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord Am -->
+            <div class="chord-card">
+                <div class="chord-title">A Minor (Am)</div>
+                <div class="fret-range">Nut (0) to 2nd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>x</td><td>0</td><td>2</td><td>2</td><td>1</td><td>0</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord C -->
+            <div class="chord-card">
+                <div class="chord-title">C Major (C)</div>
+                <div class="fret-range">Nut (0) to 3rd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>x</td><td>3</td><td>2</td><td>0</td><td>1</td><td>0</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord D -->
+            <div class="chord-card">
+                <div class="chord-title">D Major (D)</div>
+                <div class="fret-range">Nut (0) to 3rd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>x</td><td>x</td><td>0</td><td>2</td><td>3</td><td>2</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord Dm -->
+            <div class="chord-card">
+                <div class="chord-title">D Minor (Dm)</div>
+                <div class="fret-range">Nut (0) to 3rd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>x</td><td>x</td><td>0</td><td>2</td><td>3</td><td>1</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord E -->
+            <div class="chord-card">
+                <div class="chord-title">E Major (E)</div>
+                <div class="fret-range">Nut (0) to 2nd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>0</td><td>2</td><td>2</td><td>1</td><td>0</td><td>0</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord Em -->
+            <div class="chord-card">
+                <div class="chord-title">E Minor (Em)</div>
+                <div class="fret-range">Nut (0) to 2nd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>0</td><td>2</td><td>2</td><td>0</td><td>0</td><td>0</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord F -->
+            <div class="chord-card">
+                <div class="chord-title">F Major (F - Open)</div>
+                <div class="fret-range">1st to 3rd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>1</td><td>x</td><td>3</td><td>2</td><td>1</td><td>1</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord G -->
+            <div class="chord-card">
+                <div class="chord-title">G Major (G)</div>
+                <div class="fret-range">Nut (0) to 3rd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>3</td><td>2</td><td>0</td><td>0</td><td>0</td><td>3</td></tr>
+                </table>
+            </div>
+        </section>
+
+        <footer>
+            <p>&copy; 2026 Free Open Source Ebook. Distributed freely for all platforms and stores.</p>
+        </footer>
+    </div>
+
+</body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open A-G Guitar Chord Chart Ebook - Milan Edition</title>
+    <style>
+        :root {
+            --milan-primary: #1c1c1c;
+            --milan-accent: #a36b39; /* Warm Terracotta / Bronze */
+            --milan-bg: #f5f2eb;    /* Soft Italian Marble / Warm Paper */
+            --card-bg: #ffffff;
+            --text-color: #2c2c2c;
+            --border-color: #e0d8cc;
+        }
+
+        body {
+            font-family: "Georgia", serif;
+            background-color: var(--milan-bg);
+            color: var(--text-color);
+            line-height: 1.7;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .ebook-container {
+            max-width: 820px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 50px;
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            border-top: 6px solid var(--milan-accent);
+        }
+
+        header {
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 30px;
+            margin-bottom: 40px;
+        }
+
+        .ambience-tag {
+            font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--milan-accent);
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        h1 {
+            color: var(--milan-primary);
+            font-size: 2.2rem;
+            margin: 0 0 10px 0;
+            font-weight: normal;
+            letter-spacing: 0.5px;
+        }
+
+        .subtitle {
+            font-style: italic;
+            color: #666;
+            font-size: 1.05rem;
+            margin-bottom: 15px;
+        }
+
+        .curator {
+            font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 0.85rem;
+            color: var(--milan-accent);
+            font-weight: 600;
+            text-decoration: none;
+            letter-spacing: 1px;
+        }
+
+        .chord-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 24px;
+        }
+
+        .chord-card {
+            background: #faf9f6;
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.2s ease;
+        }
+
+        .chord-card:hover {
+            border-color: var(--milan-accent);
+        }
+
+        .chord-title {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 1.15rem;
+            font-weight: bold;
+            color: var(--milan-primary);
+            margin-bottom: 6px;
+        }
+
+        .fret-range {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #777;
+            margin-bottom: 14px;
+        }
+
+        .fingering-table {
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 0.85rem;
+            border-collapse: collapse;
+        }
+
+        .fingering-table th, .fingering-table td {
+            border: 1px solid var(--border-color);
+            padding: 6px;
+            text-align: center;
+        }
+
+        .fingering-table th {
+            background-color: #f0ebe1;
+            color: var(--milan-primary);
+            font-weight: 600;
+        }
+
+        .fingering-table td {
+            background-color: #ffffff;
+            color: #333;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 0.8rem;
+            color: #888;
+            border-top: 1px solid var(--border-color);
+            padding-top: 25px;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ebook-container">
+        <header>
+            <span class="ambience-tag">Milano Edition • Open Source Publication</span>
+            <h1>Open A–G Chord Chart</h1>
+            <div class="subtitle">Sequential Fret-Position Reference for All Stores</div>
+            <a class="curator" href="https://g.dev/gilbert_algordo" target="_blank">CURATED BY GILBERT L. ALGORDO</a>
+        </header>
+
+        <section class="chord-grid">
+            <!-- Chord A -->
+            <div class="chord-card">
+                <div class="chord-title">A Major (A)</div>
+                <div class="fret-range">Nut (0) to 2nd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>x</td><td>0</td><td>2</td><td>2</td><td>2</td><td>0</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord Am -->
+            <div class="chord-card">
+                <div class="chord-title">A Minor (Am)</div>
+                <div class="fret-range">Nut (0) to 2nd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>x</td><td>0</td><td>2</td><td>2</td><td>1</td><td>0</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord C -->
+            <div class="chord-card">
+                <div class="chord-title">C Major (C)</div>
+                <div class="fret-range">Nut (0) to 3rd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>x</td><td>3</td><td>2</td><td>0</td><td>1</td><td>0</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord D -->
+            <div class="chord-card">
+                <div class="chord-title">D Major (D)</div>
+                <div class="fret-range">Nut (0) to 3rd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>x</td><td>x</td><td>0</td><td>2</td><td>3</td><td>2</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord Dm -->
+            <div class="chord-card">
+                <div class="chord-title">D Minor (Dm)</div>
+                <div class="fret-range">Nut (0) to 3rd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>x</td><td>x</td><td>0</td><td>2</td><td>3</td><td>1</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord E -->
+            <div class="chord-card">
+                <div class="chord-title">E Major (E)</div>
+                <div class="fret-range">Nut (0) to 2nd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>0</td><td>2</td><td>2</td><td>1</td><td>0</td><td>0</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord Em -->
+            <div class="chord-card">
+                <div class="chord-title">E Minor (Em)</div>
+                <div class="fret-range">Nut (0) to 2nd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>0</td><td>2</td><td>2</td><td>0</td><td>0</td><td>0</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord F -->
+            <div class="chord-card">
+                <div class="chord-title">F Major (F - Open)</div>
+                <div class="fret-range">1st to 3rd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>1</td><td>x</td><td>3</td><td>2</td><td>1</td><td>1</td></tr>
+                </table>
+            </div>
+
+            <!-- Chord G -->
+            <div class="chord-card">
+                <div class="chord-title">G Major (G)</div>
+                <div class="fret-range">Nut (0) to 3rd Fret</div>
+                <table class="fingering-table">
+                    <tr><th>E</th><th>A</th><th>D</th><th>G</th><th>B</th><th>e</th></tr>
+                    <tr><td>3</td><td>2</td><td>0</td><td>0</td><td>0</td><td>3</td></tr>
+                </table>
+            </div>
+        </section>
+
+        <footer>
+            <p>Distributed freely for all platforms, stores, and open-source readers worldwide.</p>
+        </footer>
+    </div>
+
+</body>
+</html>
