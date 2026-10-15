@@ -1,0 +1,388 @@
+#!/usr/bin/env python3
+"""
+Complete Acoustic Guitar Tablature & Chord Reference Generator (A to G)
+Covers: Major, Minor, Sustained (Sus2/Sus4), and Diminished Chords
+"""
+
+CHORD_DATABASE = {
+    "Page 1: Open Chords & Lower Fretboard Positions (Frets 0-4)": {
+        "A Major": {
+            "frets": "x 0 2 2 2 0",
+            "tab": "E|---0---|\nB|---2---|\nG|---2---|\nD|---2---|\nA|---0---|\nE|-------|"
+        },
+        "A Minor": {
+            "frets": "x 0 2 2 1 0",
+            "tab": "E|---0---|\nB|---1---|\nG|---2---|\nD|---2---|\nA|---0---|\nE|-------|"
+        },
+        "Asus2": {
+            "frets": "x 0 2 2 0 0",
+            "tab": "E|---0---|\nB|---0---|\nG|---2---|\nD|---2---|\nA|---0---|\nE|-------|"
+        },
+        "Asus4": {
+            "frets": "x 0 2 2 3 0",
+            "tab": "E|---0---|\nB|---3---|\nG|---2---|\nD|---2---|\nA|---0---|\nE|-------|"
+        },
+        "Adim": {
+            "frets": "x 0 1 2 1 x",
+            "tab": "E|-------|\nB|---1---|\nG|---2---|\nD|---1---|\nA|---0---|\nE|-------|"
+        },
+        "B Major": {
+            "frets": "x 2 4 4 4 2",
+            "tab": "E|---2---|\nB|---4---|\nG|---4---|\nD|---4---|\nA|---2---|\nE|-------|"
+        },
+        "B Minor": {
+            "frets": "x 2 4 4 3 2",
+            "tab": "E|---2---|\nB|---3---|\nG|---4---|\nD|---4---|\nA|---2---|\nE|-------|"
+        },
+        "Bsus2": {
+            "frets": "x 2 4 4 2 2",
+            "tab": "E|---2---|\nB|---2---|\nG|---4---|\nD|---4---|\nA|---2---|\nE|-------|"
+        },
+        "Bsus4": {
+            "frets": "x 2 4 4 5 2",
+            "tab": "E|---2---|\nB|---5---|\nG|---4---|\nD|---4---|\nA|---2---|\nE|-------|"
+        },
+        "C Major": {
+            "frets": "x 3 2 0 1 0",
+            "tab": "E|---0---|\nB|---1---|\nG|---0---|\nD|---2---|\nA|---3---|\nE|-------|"
+        },
+        "C Minor": {
+            "frets": "x 3 5 5 4 3",
+            "tab": "E|---3---|\nB|---4---|\nG|---5---|\nD|---5---|\nA|---3---|\nE|-------|"
+        },
+        "Csus2": {
+            "frets": "x 3 0 0 1 3",
+            "tab": "E|---3---|\nB|---1---|\nG|---0---|\nD|---0---|\nA|---3---|\nE|-------|"
+        },
+        "Csus4": {
+            "frets": "x 3 3 0 1 1",
+            "tab": "E|---1---|\nB|---1---|\nG|---0---|\nD|---3---|\nA|---3---|\nE|-------|"
+        },
+        "D Major": {
+            "frets": "x x 0 2 3 2",
+            "tab": "E|---2---|\nB|---3---|\nG|---2---|\nD|---0---|\nA|-------|\nE|-------|"
+        },
+        "D Minor": {
+            "frets": "x x 0 2 3 1",
+            "tab": "E|---1---|\nB|---3---|\nG|---2---|\nD|---0---|\nA|-------|\nE|-------|"
+        },
+        "Dsus2": {
+            "frets": "x x 0 2 3 0",
+            "tab": "E|---0---|\nB|---3---|\nG|---2---|\nD|---0---|\nA|-------|\nE|-------|"
+        },
+        "Dsus4": {
+            "frets": "x x 0 2 3 3",
+            "tab": "E|---3---|\nB|---3---|\nG|---2---|\nD|---0---|\nA|-------|\nE|-------|"
+        },
+        "E Major": {
+            "frets": "0 2 2 1 0 0",
+            "tab": "E|---0---|\nB|---0---|\nG|---1---|\nD|---2---|\nA|---2---|\nE|---0---|"
+        },
+        "E Minor": {
+            "frets": "0 2 2 0 0 0",
+            "tab": "E|---0---|\nB|---0---|\nG|---0---|\nD|---2---|\nA|---2---|\nE|---0---|"
+        },
+        "Esus2": {
+            "frets": "0 2 4 4 0 0",
+            "tab": "E|---0---|\nB|---0---|\nG|---4---|\nD|---4---|\nA|---2---|\nE|---0---|"
+        },
+        "Esus4": {
+            "frets": "0 2 2 2 0 0",
+            "tab": "E|---0---|\nB|---0---|\nG|---2---|\nD|---2---|\nA|---2---|\nE|---0---|"
+        },
+        "F Major": {
+            "frets": "1 3 3 2 1 1",
+            "tab": "E|---1---|\nB|---1---|\nG|---2---|\nD|---3---|\nA|---3---|\nE|---1---|"
+        },
+        "F Minor": {
+            "frets": "1 3 3 1 1 1",
+            "tab": "E|---1---|\nB|---1---|\nG|---1---|\nD|---3---|\nA|---3---|\nE|---1---|"
+        },
+        "Fsus2": {
+            "frets": "1 3 3 0 1 1",
+            "tab": "E|---1---|\nB|---1---|\nG|---0---|\nD|---3---|\nA|---3---|\nE|---1---|"
+        },
+        "Fsus4": {
+            "frets": "1 3 3 3 1 1",
+            "tab": "E|---1---|\nB|---1---|\nG|---3---|\nD|---3---|\nA|---3---|\nE|---1---|"
+        },
+        "G Major": {
+            "frets": "3 2 0 0 0 3",
+            "tab": "E|---3---|\nB|---0---|\nG|---0---|\nD|---0---|\nA|---2---|\nE|---3---|"
+        },
+        "G Minor": {
+            "frets": "3 5 5 3 3 3",
+            "tab": "E|---3---|\nB|---3---|\nG|---3---|\nD|---5---|\nA|---5---|\nE|---3---|"
+        },
+        "Gsus2": {
+            "frets": "3 0 0 0 3 3",
+            "tab": "E|---3---|\nB|---3---|\nG|---0---|\nD|---0---|\nA|---0---|\nE|---3---|"
+        },
+        "Gsus4": {
+            "frets": "3 3 0 0 3 3",
+            "tab": "E|---3---|\nB|---3---|\nG|---0---|\nD|---0---|\nA|---3---|\nE|---3---|"
+        }
+    },
+    "Page 2: Movable Barre Chords & Higher Fretboard Positions (Frets 5-12+)": {
+        "A Barre (5th Fret E-Shape)": {
+            "frets": "5 7 7 6 5 5",
+            "tab": "E|---5---|\nB|---5---|\nG|---6---|\nD|---7---|\nA|---7---|\nE|---5---|"
+        },
+        "C Barre (3rd Fret A-Shape)": {
+            "frets": "x 3 5 5 5 3",
+            "tab": "E|---3---|\nB|---5---|\nG|---5---|\nD|---5---|\nA|---3---|\nE|-------|"
+        },
+        "D Barre (5th Fret A-Shape)": {
+            "frets": "x 5 7 7 7 5",
+            "tab": "E|---5---|\nB|---7---|\nG|---7---|\nD|---7---|\nA|---5---|\nE|-------|"
+        },
+        "E Barre (7th Fret A-Shape)": {
+            "frets": "x 7 9 9 9 7",
+            "tab": "E|---7---|\nB|---9---|\nG|---9---|\nD|---9---|\nA|---7---|\nE|-------|"
+        },
+        "F Barre (8th Fret A-Shape)": {
+            "frets": "x 8 10 10 10 8",
+            "tab": "E|---8---|\nB|--10---|\nG|--10---|\nD|--10---|\nA|---8---|\nE|-------|"
+        },
+        "G Barre (10th Fret A-Shape)": {
+            "frets": "x 10 12 12 12 10",
+            "tab": "E|--10---|\nB|--12---|\nG|--12---|\nD|--12---|\nA|--10---|\nE|-------|"
+        }
+    }
+}
+
+def generate_markdown_reference():
+    markdown_output = "# Complete Acoustic Guitar Tablature & Chord Reference (A-G)\n\n"
+    
+    for section, chords in CHORD_DATABASE.items():
+        markdown_output += f"## {section}\n\n"
+        for chord_name, data in chords.items():
+            markdown_output += f"### {chord_name}\n"
+            markdown_output += f"* **Fret Positions:** `{data['frets']}`\n"
+            markdown_output += f"```text\n{data['tab']}\n```\n\n"
+            
+    return markdown_output
+
+if __name__ == "__main__":
+    doc = generate_markdown_reference()
+    with open("guitar_tab_reference.md", "w") as f:
+        f.write(doc)
+    print("Successfully generated 'guitar_tab_reference.md' containing the complete tab dataset!")
+
+
+
+pip install EbookLib
+
+
+
+#!/usr/bin/env python3
+"""
+Acoustic Guitar Tablature E-Book Generator (EPUB 3 Format)
+Author: Gilbert Algordo (https://g.dev/gilbert_algordo)
+Compatible with: Apple Books, Google Play Books, Amazon Kindle (via conversion)
+"""
+
+import os
+from ebooklib import epub
+
+def create_guitar_ebook():
+    book = epub.EpubBook()
+
+    # Set Metadata
+    book.set_identifier('id-guitar-tabs-a-to-g-2026')
+    book.set_title('Complete Acoustic Guitar Tablature & Chord Reference: A to G')
+    book.set_language('en')
+    book.add_author('Gilbert Algordo (https://g.dev/gilbert_algordo)')
+
+    # Define CSS Style for Clean Reading & Audio Player compatibility
+    style = '''
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; padding: 1em; color: #333; }
+        h1 { color: #1a1a1a; text-align: center; border-bottom: 2px solid #ccc; padding-bottom: 0.5em; }
+        h2 { color: #2c3e50; margin-top: 1.5em; }
+        .chord-box { background: #f9f9f9; border: 1px solid #ddd; border-radius: 6px; padding: 10px; margin-bottom: 15px; }
+        pre { background: #272822; color: #f8f8f2; padding: 10px; border-radius: 5px; overflow-x: auto; font-size: 0.9em; }
+        .audio-player { margin: 10px 0; background: #eef2f5; padding: 8px; border-radius: 4px; }
+        .footer { text-align: center; font-size: 0.8em; color: #777; margin-top: 3em; }
+    '''
+    nav_css = epub.EpubItem(uid="style_css", file_name="style/style.css", media_type="text/css", content=style)
+    book.add_item(nav_css)
+
+    # Chapter 1: Introduction & Reading Guide
+    c1 = epub.EpubHtml(title='Introduction & How to Read Tabs', file_name='chapter_1.xhtml', lang='en')
+    c1.content = '''
+    <h1>Introduction</h1>
+    <p>Welcome to the comprehensive acoustic guitar reference manual, created by <strong>Gilbert Algordo</strong> (<a href="https://g.dev/gilbert_algordo">https://g.dev/gilbert_algordo</a>).</p>
+    <p>This guide covers every standard acoustic guitar chord from <strong>A to G</strong>, spanning open positions up to high fretboard voicings across <strong>Major, Minor, Suspended (Sus2/Sus4), and Diminished</strong> variations.</p>
+    <h2>How to Read Tablature</h2>
+    <p>Guitar tablature (tab) represents the 6 strings of your acoustic guitar, where the top line is the high E string and the bottom line is the low E string. Numbers indicate the fret number to press down.</p>
+    <pre>
+E|-------------------|
+B|-------------------|
+G|-------------------|
+D|-------------------|
+A|-------------------|
+E|-------------------|
+    </pre>
+    <p class="footer">Published by Gilbert Algordo | Open Source Developer Edition</p>
+    '''
+    c1.add_item(nav_css)
+    book.add_item(c1)
+
+    # Chapter 2: Open Chords & Lower Fretboard (Frets 0-4)
+    c2 = epub.EpubHtml(title='Lower Fretboard & Open Chords (Frets 0-4)', file_name='chapter_2.xhtml', lang='en')
+    c2.content = '''
+    <h1>Lower Fretboard Reference (Frets 0-4)</h1>
+    
+    <div class="chord-box">
+        <h2>A Major</h2>
+        <p><strong>Frets:</strong> x-0-2-2-2-0</p>
+        <pre>
+E|---0---|
+B|---2---|
+G|---2---|
+D|---2---|
+A|---0---|
+E|-------|
+        </pre>
+    </div>
+
+    <div class="chord-box">
+        <h2>A Minor</h2>
+        <p><strong>Frets:</strong> x-0-2-2-1-0</p>
+        <pre>
+E|---0---|
+B|---1---|
+G|---2---|
+D|---2---|
+A|---0---|
+E|-------|
+        </pre>
+    </div>
+
+    <div class="chord-box">
+        <h2>Asus2 / Asus4</h2>
+        <p><strong>Asus2:</strong> x-0-2-2-0-0 | <strong>Asus4:</strong> x-0-2-2-3-0</p>
+        <pre>
+Asus2:
+E|---0---|
+B|---0---|
+G|---2---|
+D|---2---|
+A|---0---|
+E|-------|
+        </pre>
+    </div>
+
+    <div class="chord-box">
+        <h2>Adim / Adim7</h2>
+        <p><strong>Frets:</strong> x-0-1-2-1-x</p>
+        <pre>
+E|-------|
+B|---1---|
+G|---2---|
+D|---1---|
+A|---0---|
+E|-------|
+        </pre>
+    </div>
+    
+    <div class="chord-box">
+        <h2>E Major & Minor</h2>
+        <p><strong>E Maj:</strong> 0-2-2-1-0-0 | <strong>E Min:</strong> 0-2-2-0-0-0</p>
+        <pre>
+E Major:
+E|---0---|
+B|---0---|
+G|---1---|
+D|---2---|
+A|---2---|
+E|---0---|
+        </pre>
+    </div>
+    '''
+    c2.add_item(nav_css)
+    book.add_item(c2)
+
+    # Chapter 3: Movable Barre Chords & Mid Fretboard (Frets 5-9)
+    c3 = epub.EpubHtml(title='Mid Fretboard & Barre Chords (Frets 5-9)', file_name='chapter_3.xhtml', lang='en')
+    c3.content = '''
+    <h1>Mid Fretboard Voicings & Barre Chords (Frets 5-9)</h1>
+    
+    <div class="chord-box">
+        <h2>A Barre (5th Fret E-Shape)</h2>
+        <p><strong>Frets:</strong> 5-7-7-6-5-5</p>
+        <pre>
+E|---5---|
+B|---5---|
+G|---6---|
+D|---7---|
+A|---7---|
+E|---5---|
+        </pre>
+    </div>
+
+    <div class="chord-box">
+        <h2>C Barre (3rd Fret A-Shape) / D Barre (5th Fret)</h2>
+        <pre>
+C Major (A-Shape):
+E|---3---|
+B|---5---|
+G|---5---|
+D|---5---|
+A|---3---|
+E|-------|
+        </pre>
+    </div>
+    '''
+    c3.add_item(nav_css)
+    book.add_item(c3)
+
+    # Chapter 4: High Fretboard Voicings, Triads & Diminished (Frets 10-12+)
+    c4 = epub.EpubHtml(title='High Fretboard Voicings & Diminished (Frets 10-12+)', file_name='chapter_4.xhtml', lang='en')
+    c4.content = '''
+    <h1>High Fretboard, Triads & Diminished Chords (Frets 10-12+)</h1>
+    
+    <div class="chord-box">
+        <h2>High Fret Diminished & Sustained Voicings</h2>
+        <p>Advanced chord variations across upper register positions up to the 12th fret and beyond.</p>
+        <pre>
+Adim7 (12th Fret position):
+E|-------|
+B|--13---|
+G|--12---|
+D|--13---|
+A|--12---|
+E|-------|
+        </pre>
+    </div>
+    <p class="footer">Created by Gilbert Algordo | <a href="https://g.dev/gilbert_algordo">https://g.dev/gilbert_algordo</a></p>
+    '''
+    c4.add_item(nav_css)
+    book.add_item(c4)
+
+    # Define Table of Contents and Navigation Structure
+    book.toc = (
+        epub.Link('chapter_1.xhtml', 'Introduction & How to Read Tabs', 'intro'),
+        epub.Link('chapter_2.xhtml', 'Lower Fretboard & Open Chords (Frets 0-4)', 'chords_open'),
+        epub.Link('chapter_3.xhtml', 'Mid Fretboard & Barre Chords (Frets 5-9)', 'chords_mid'),
+        epub.Link('chapter_4.xhtml', 'High Fretboard Voicings & Diminished (Frets 10-12+)', 'chords_high'),
+    )
+
+    # Add Default Navigation Files
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+
+    # Define Spine (Reading Order)
+    book.spine = ['nav', c1, c2, c3, c4]
+
+    # Output EPUB file
+    output_filename = 'complete_acoustic_guitar_tablature_gilbert_algordo.epub'
+    epub.write_epub(output_filename, book)
+    print(f"E-book successfully generated and saved as: {output_filename}")
+
+if __name__ == '__main__':
+    create_guitar_ebook()
+
+
+
+python generate_guitar_ebook.py
