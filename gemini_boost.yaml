@@ -372,3 +372,164 @@ if __name__ == "__main__":
         asyncio.run(main_async_loop())
     except KeyboardInterrupt:
         print("\n[*] Shutting down Google AI System Booster. Goodbye!")
+
+
+
+pip install Pillow
+
+
+
+import tkinter as tk
+from tkinter import ttk, messagebox
+from PIL import Image, ImageTk
+import os
+
+# --- Configuration & Styling ---
+APP_TITLE = "Google AI System Booster for Gemini"
+WINDOW_SIZE = "1100x850"
+BG_COLOR = "#F4F7F9"  # Light grey metallic background simulation
+FONT_TITLE = ("Helvetica", 22, "bold")
+FONT_STATUS = ("Helvetica", 12)
+ICON_SIZE = (280, 280) # Size of individual icon segments
+
+# Mapping indices of the 3x2 grid to specific app functions
+ICON_MAP = {
+    0: {"name": "Gemini Online", "desc": "Connects to Cloud AI API", "mode": "Online"},
+    1: {"name": "Active AI Booster", "desc": "System-wide Optimization", "mode": "Online"},
+    2: {"name": "Multi-OS Sync", "desc": "Cross-Device Harmony", "mode": "Online"},
+    3: {"name": "Gemini Offline", "desc": "Local Model Execution", "mode": "Offline"},
+    4: {"name": "Offline AI Engine", "desc": "Local Performance Engine", "mode": "Offline"},
+    5: {"name": "Local Cache Sync", "desc": "Offline Data Management", "mode": "Offline"}
+}
+
+class GeminiBoosterApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title(APP_TITLE)
+        self.root.geometry(WINDOW_SIZE)
+        self.root.configure(bg=BG_COLOR)
+        
+        # Load and process the source image grid
+        self.load_icons()
+        
+        # --- UI Construction ---
+        self.create_header()
+        self.create_icon_grid()
+        self.create_status_bar()
+
+    def load_icons(self):
+        """Loads the composite image and crops it into six individual icons."""
+        base_path = os.path.dirname(__file__)
+        img_path = os.path.join(base_path, 'image_0.png')
+        
+        try:
+            full_img = Image.open(img_path)
+            
+            # Source image is a 3x2 grid of icons
+            grid_cols = 3
+            grid_rows = 2
+            
+            # Calculate coordinates for cropping
+            w, h = full_img.size
+            crop_w = w // grid_cols
+            crop_h = h // grid_rows
+            
+            self.icon_images = []
+            
+            # Crop 6 individual icons and resize for the GUI
+            for row in range(grid_rows):
+                for col in range(grid_cols):
+                    left = col * crop_w
+                    top = row * crop_h
+                    right = left + crop_w
+                    bottom = top + crop_h
+                    
+                    cropped = full_img.crop((left, top, right, bottom))
+                    resized = cropped.resize(ICON_SIZE, Image.Resampling.LANCZOS)
+                    self.icon_images.append(ImageTk.PhotoImage(resized))
+            
+        except FileNotFoundError:
+            messagebox.showerror("Error", f"Could not find 'image_0.png'. Please ensure the file is in the same directory.")
+            self.root.destroy()
+            return
+
+    def create_header(self):
+        """Creates the main application title header."""
+        header_frame = tk.Frame(self.root, bg=BG_COLOR, pady=20)
+        header_frame.pack(fill=tk.X)
+        
+        title_label = tk.Label(header_frame, text=APP_TITLE, font=FONT_TITLE, bg=BG_COLOR, fg="#202124")
+        title_label.pack()
+        
+        subtitle_label = tk.Label(header_frame, text="Active AI for All OS and Devices", font=("Helvetica", 14), bg=BG_COLOR, fg="#5f6368")
+        subtitle_label.pack()
+
+    def create_icon_grid(self):
+        """Generates the interactive grid displaying the generated icons."""
+        grid_frame = tk.Frame(self.root, bg=BG_COLOR, padx=40, pady=20)
+        grid_frame.pack(expand=True)
+
+        for i in range(6):
+            # Container frame for icon + text labels
+            icon_container = tk.Frame(grid_frame, bg=BG_COLOR, bd=2, relief=tk.FLAT, padx=15, pady=15)
+            # Use grid geometry manager for the 3x2 layout
+            icon_container.grid(row=i // 3, column=i % 3, padx=20, pady=20)
+            
+            # The Icon Image Label (acts as the button)
+            img_label = tk.Label(icon_container, image=self.icon_images[i], bg=BG_COLOR, cursor="hand2")
+            img_label.pack()
+            
+            # Visual feedback on hover
+            img_label.bind("<Enter>", lambda e, k=i, c=icon_container: self.on_hover(e, k, c))
+            img_label.bind("<Leave>", lambda e, c=icon_container: self.on_leave(e, c))
+            img_label.bind("<Button-1>", lambda e, k=i: self.on_icon_click(k))
+            
+            # --- Text Labels beneath the icon ---
+            app_data = ICON_MAP.get(i)
+            name_label = tk.Label(icon_container, text=app_data['name'], font=("Helvetica", 14, "bold"), bg=BG_COLOR, fg="#3c4043")
+            name_label.pack(pady=(15, 0))
+            
+            desc_label = tk.Label(icon_container, text=app_data['desc'], font=("Helvetica", 11), bg=BG_COLOR, fg="#70757a")
+            desc_label.pack()
+            
+            mode_color = "#1a73e8" if app_data['mode'] == "Online" else "#d93025"
+            mode_label = tk.Label(icon_container, text=f"MODE: {app_data['mode']}", font=("Helvetica", 10, "bold"), bg=BG_COLOR, fg=mode_color)
+            mode_label.pack(pady=(5, 0))
+
+    def create_status_bar(self):
+        """Creates a modern status bar at the bottom."""
+        status_frame = tk.Frame(self.root, bg="#FFFFFF", bd=1, relief=tk.SUNKEN)
+        status_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        self.status_text = tk.StringVar()
+        self.status_text.set("System Booster Idle | Active AI Core Ready (v1.0)")
+        
+        status_label = tk.Label(status_frame, textvariable=self.status_text, font=FONT_STATUS, bg="#FFFFFF", fg="#5f6368", anchor=tk.W, padx=20, pady=8)
+        status_label.pack(side=tk.LEFT)
+        
+        os_label = tk.Label(status_frame, text=f"OS: {os.name.upper()} | All Devices", font=FONT_STATUS, bg="#FFFFFF", fg="#5f6368", padx=20)
+        os_label.pack(side=tk.RIGHT)
+
+    def on_hover(self, event, icon_index, container):
+        """Visual feedback when hovering over an icon."""
+        container.config(relief=tk.RAISED, bg="#E8F0FE") # Highlight background
+        app_name = ICON_MAP[icon_index]['name']
+        self.status_text.set(f"Ready to activate: {app_name}...")
+
+    def on_leave(self, event, container):
+        """Restore visuals when mouse leaves an icon."""
+        container.config(relief=tk.FLAT, bg=BG_COLOR)
+        self.status_text.set("System Booster Idle | Active AI Core Ready (v1.0)")
+
+    def on_icon_click(self, icon_index):
+        """Simulates activating the specific booster function."""
+        app_data = ICON_MAP[icon_index]
+        messagebox.showinfo("Activation", f"Activating {app_data['name']} Booster...\n({app_data['mode']} Mode Enabled)")
+
+# --- Main Execution ---
+if __name__ == "__main__":
+    root = tk.Tk()
+    # Set app icon if available (standard tk icon is default)
+    # root.iconbitmap("path/to/icon.ico") 
+    app = GeminiBoosterApp(root)
+    root.mainloop()
