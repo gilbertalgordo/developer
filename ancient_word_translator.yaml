@@ -1,0 +1,809 @@
+ancient-translator/
+├── backend/
+│   ├── main.py
+│   ├── requirements.txt
+│   └── .env
+└── frontend/
+    └── index.html
+
+
+
+fastapi==0.110.0
+uvicorn==0.28.0
+google-generativeai==0.4.1
+pydantic==2.6.4
+python-dotenv==1.0.1
+
+
+
+import os
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Configure Gemini API
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+app = FastAPI(title="Ancient Word & Scripture Translator AI")
+
+# Enable CORS for frontend communication
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class TranslationRequest(BaseModel):
+    text: str
+    source_language: str  # e.g., "Hebrew", "Koine Greek", "Latin", "Sanskrit", "Hieroglyphs"
+    target_language: str  # e.g., "English", "Spanish"
+
+class TranslationResponse(BaseModel):
+    original_text: str
+    transliteration: str
+    literal_translation: str
+    contextual_translation: str
+    etymology_and_morphology: str
+    historical_cultural_context: str
+
+SYSTEM_PROMPT = """
+You are an expert ancient linguist, epigrapher, and scriptural scholar fluent in Biblical Hebrew, Koine Greek, Classical Latin, Sanskrit, Akkadian, Old Church Slavonic, and Ancient Egyptian hieroglyphs. 
+
+When a user provides a word, verse, or scripture passage along with its source and target language, you must respond strictly in a structured JSON format containing:
+1. "transliteration": The phonetic pronunciation or transliteration into the target alphabet.
+2. "literal_translation": A word-for-word gloss/translation.
+3. "contextual_translation": A fluid, accurate translation matching the cultural and theological context of the era.
+4. "etymology_and_morphology": Root words, grammatical forms, tense, voice, mood, and semantic shifts over time.
+5. "historical_cultural_context": Background on who wrote it, the historical epoch, and the cultural or theological implications of the phrasing.
+
+Return ONLY valid JSON with these exact keys. No markdown blocks outside of the JSON if possible, or standard clean JSON.
+"""
+
+@app.post("/api/translate", response_model=TranslationResponse)
+async def translate_ancient_text(request: TranslationRequest):
+    try:
+        # Use gemini-2.5-flash for fast, structured linguistic analysis
+        model = genai.GenerativeModel(
+            model_name="gemini-2.5-flash",
+            system_instruction=SYSTEM_PROMPT
+        )
+        
+        prompt = f"""
+        Translate and analyze the following ancient text:
+        Source Language: {request.source_language}
+        Text: {request.text}
+        Target Language: {request.target_language}
+        """
+
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                response_mime_type="application/json"
+            )
+        )
+        
+        import json
+        result_data = json.loads(response.text)
+        
+        return TranslationResponse(
+            original_text=request.text,
+            transliteration=result_data.get("transliteration", "N/A"),
+            literal_translation=result_data.get("literal_translation", "N/A"),
+            contextual_translation=result_data.get("contextual_translation", "N/A"),
+            etymology_and_morphology=result_data.get("etymology_and_morphology", "N/A"),
+            historical_cultural_context=result_data.get("historical_cultural_context", "N/A")
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ancient Word & Scripture Translator AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center py-10 px-4">
+
+    <div class="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 md:p-8">
+        <header class="mb-6 text-center">
+            <h1 class="text-3xl font-bold tracking-wide text-amber-400">📜 Ancient Word & Scripture AI</h1>
+            <p class="text-slate-400 text-sm mt-1">Deep linguistic, etymological, and contextual translation for ancient texts.</p>
+        </header>
+
+        <!-- Input Form -->
+        <div class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Source Language / Script</label>
+                    <select id="sourceLang" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-slate-200 focus:outline-none focus:border-amber-400">
+                        <option value="Biblical Hebrew">Biblical Hebrew (עברית מקראית)</option>
+                        <option value="Koine Greek">Koine Greek (Ἑλληνική)</option>
+                        <option value="Classical Latin">Classical Latin (Latīna)</option>
+                        <option value="Sanskrit">Sanskrit (संस्कृतम्)</option>
+                        <option value="Akkadian Cuneiform">Akkadian (Cuneiform transliteration)</option>
+                        <option value="Ancient Egyptian Hieroglyphs">Ancient Egyptian (Hieroglyph transliteration)</option>
+                        <option value="Old Church Slavonic">Old Church Slavonic</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Target Output Language</label>
+                    <input type="text" id="targetLang" value="English" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-slate-200 focus:outline-none focus:border-amber-400">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Ancient Text / Scripture / Word</label>
+                <textarea id="inputText" rows="3" placeholder="Enter verse, word, or phrase (e.g., בְּרֵאשִׁית בָּרָא אֱלֹהִים or Ἐν ἀρχῇ ἦν ὁ λόγος)..." class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-slate-200 focus:outline-none focus:border-amber-400"></textarea>
+            </div>
+
+            <button onclick="translateText()" id="submitBtn" class="w-full bg-amber-500 hover:bg-amber-600 font-semibold text-slate-950 py-3 rounded-lg transition shadow-lg">
+                Translate & Analyze
+            </button>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loader" class="hidden text-center py-10">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-amber-400 border-t-transparent"></div>
+            <p class="text-slate-400 text-sm mt-2">Consulting ancient codexes and lexicons...</p>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results" class="hidden mt-8 space-y-6 border-t border-slate-800 pt-6">
+            <div>
+                <span class="text-xs uppercase tracking-wider text-amber-400 font-semibold">Transliteration</span>
+                <p id="resTransliteration" class="text-lg font-mono mt-1 text-slate-200 bg-slate-950 p-3 rounded-lg border border-slate-800"></p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-slate-950 p-4 rounded-lg border border-slate-800">
+                    <span class="text-xs uppercase tracking-wider text-amber-400 font-semibold">Literal Gloss</span>
+                    <p id="resLiteral" class="text-sm mt-2 text-slate-300 leading-relaxed"></p>
+                </div>
+                <div class="bg-slate-950 p-4 rounded-lg border border-slate-800">
+                    <span class="text-xs uppercase tracking-wider text-amber-400 font-semibold">Contextual Translation</span>
+                    <p id="resContextual" class="text-sm mt-2 text-slate-300 leading-relaxed font-medium"></p>
+                </div>
+            </div>
+
+            <div class="bg-slate-950 p-4 rounded-lg border border-slate-800">
+                <span class="text-xs uppercase tracking-wider text-amber-400 font-semibold">Etymology & Morphology</span>
+                <p id="resEtymology" class="text-sm mt-2 text-slate-300 leading-relaxed"></p>
+            </div>
+
+            <div class="bg-slate-950 p-4 rounded-lg border border-slate-800">
+                <span class="text-xs uppercase tracking-wider text-amber-400 font-semibold">Historical & Cultural Context</span>
+                <p id="resContext" class="text-sm mt-2 text-slate-300 leading-relaxed"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function translateText() {
+            const sourceLang = document.getElementById('sourceLang').value;
+            const targetLang = document.getElementById('targetLang').value;
+            const text = document.getElementById('inputText').value;
+
+            if (!text.trim()) {
+                alert('Please enter text to translate.');
+                return;
+            }
+
+            const loader = document.getElementById('loader');
+            const results = document.getElementById('results');
+            const submitBtn = document.getElementById('submitBtn');
+
+            loader.classList.remove('hidden');
+            results.classList.add('hidden');
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source_language: sourceLang, target_language: targetLang, text: text })
+                });
+
+                if (!response.ok) throw new Error('Failed to retrieve translation from AI.');
+
+                const data = await response.json();
+
+                document.getElementById('resTransliteration').innerText = data.transliteration;
+                document.getElementById('resLiteral').innerText = data.literal_translation;
+                document.getElementById('resContextual').innerText = data.contextual_translation;
+                document.getElementById('resEtymology').innerText = data.etymology_and_morphology;
+                document.getElementById('resContext').innerText = data.historical_cultural_context;
+
+                results.classList.remove('hidden');
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                loader.classList.add('hidden');
+                submitBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+
+GEMINI_API_KEY=your_actual_gemini_api_key_here
+
+
+
+
+cd backend
+pip install -r requirements.txt
+python main.py
+
+
+
+advanced-ancient-translator/
+├── backend/
+│   ├── main.py
+│   ├── lexicon_store.py
+│   ├── requirements.txt
+│   └── .env
+└── frontend/
+    └── index.html
+
+
+
+fastapi==0.110.0
+uvicorn==0.28.0
+google-generativeai==0.4.1
+pydantic==2.6.4
+python-dotenv==1.0.1
+faiss-cpu==1.8.0
+numpy==1.26.4
+
+
+
+import numpy as np
+
+class AncientLexiconStore:
+    """Simulates a localized vector/lexicon database for strict linguistic anchoring."""
+    def __init__(self):
+        # Sample rooted dictionary entries for grounding
+        self.lexicons = {
+            "BERESHIT": {
+                "strong_code": "H7225",
+                "original": "בְּרֵאשִׁית",
+                "transliteration": "bərêshîyth",
+                "definition": "From re'shiyth; the first, in place, time, order or rank (beginning, chief, choice, first fruit).",
+                "morphology": "Noun - feminine singular construct preposition 'bə'."
+            },
+            "LOGOS": {
+                "strong_code": "G3056",
+                "original": "λόγος",
+                "transliteration": "logos",
+                "definition": "From lego; something said (including the thought); by implication, a topic (subject of discourse), also the Divine Expression (i.e. Christ).",
+                "morphology": "Noun - masculine accusative/nominative singular."
+            },
+            "AGAPE": {
+                "strong_code": "G26",
+                "original": "ἀγάπη",
+                "transliteration": "agapē",
+                "definition": "From agapao; love, i.e., affection or benevolence; specifically (plural) a love-feast.",
+                "morphology": "Noun - feminine nominative singular."
+            }
+        }
+
+    def search_lexicon(self, query_term: str):
+        query_upper = query_term.upper().strip()
+        for key, data in self.lexicons.items():
+            if key in query_upper or data["original"] in query_term:
+                return data
+        return None
+
+
+
+import os
+import json
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import google.generativeai as genai
+from dotenv import load_dotenv
+from lexicon_store import AncientLexiconStore
+
+load_dotenv()
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+app = FastAPI(title="Advanced Ancient Scripture Translator AI API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+lexicon_db = AncientLexiconStore()
+
+class AdvancedTranslationRequest(BaseModel):
+    text: str
+    source_language: str  # e.g., "Biblical Hebrew", "Koine Greek"
+    target_language: str  # e.g., "English"
+    include_textual_variants: bool = True
+
+class AdvancedTranslationResponse(BaseModel):
+    original_text: str
+    transliteration: str
+    grounded_lexicon_match: dict | None
+    literal_gloss: str
+    contextual_translation: str
+    morphological_breakdown: list[dict]
+    textual_variants: list[str]
+    historical_theological_context: str
+
+ADVANCED_SYSTEM_PROMPT = """
+You are a world-class epigrapher, textual critic, and ancient languages professor. 
+Analyze the given ancient scripture or word with extreme scholarly rigor.
+
+You must output a strictly valid JSON object matching this schema:
+{
+  "transliteration": "Detailed phonetic reading with diacritics",
+  "literal_gloss": "Rigorous word-for-word translation",
+  "contextual_translation": "Fluid literary translation honoring the epoch's voice",
+  "morphological_breakdown": [
+    {"token": "word part", "part_of_speech": "noun/verb/etc", "parsing": "tense/voice/mood/gender/number"}
+  ],
+  "textual_variants": ["Variant manuscript note 1 (e.g. Codex Sinaiticus vs Textus Receptus)", "Variant note 2 if applicable"],
+  "historical_theological_context": "Deep contextual insight into authorial intent, cultural backdrop, and semantic evolution"
+}
+"""
+
+@app.post("/api/advanced-translate", response_model=AdvancedTranslationResponse)
+async def advanced_translate(request: AdvancedTranslationRequest):
+    try:
+        # Check local vector/lexicon grounding store first
+        grounded_data = lexicon_db.search_lexicon(request.text)
+
+        model = genai.GenerativeModel(
+            model_name="gemini-2.5-flash",
+            system_instruction=ADVANCED_SYSTEM_PROMPT
+        )
+
+        prompt = f"""
+        Source Language: {request.source_language}
+        Target Language: {request.target_language}
+        Target Text/Verse: {request.text}
+        Include Textual Variants Analysis: {request.include_textual_variants}
+        Pre-indexed Lexicon Context (if available): {json.dumps(grounded_data) if grounded_data else "None"}
+        """
+
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                response_mime_type="application/json"
+            )
+        )
+
+        result = json.loads(response.text)
+
+        return AdvancedTranslationResponse(
+            original_text=request.text,
+            transliteration=result.get("transliteration", ""),
+            grounded_lexicon_match=grounded_data,
+            literal_gloss=result.get("literal_gloss", ""),
+            contextual_translation=result.get("contextual_translation", ""),
+            morphological_breakdown=result.get("morphological_breakdown", []),
+            textual_variants=result.get("textual_variants", []),
+            historical_theological_context=result.get("historical_theological_context", "")
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Ancient Word & Scripture AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center py-10 px-4 font-sans">
+
+    <div class="w-full max-w-4xl bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl p-6 md:p-10">
+        <header class="mb-8 text-center border-b border-slate-800 pb-6">
+            <div class="inline-block px-3 py-1 mb-2 text-xs font-semibold tracking-widest text-amber-400 uppercase bg-amber-500/10 rounded-full border border-amber-500/20">
+                Scholarly Engine v2.5
+            </div>
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white">Ancient Word & Scripture Intelligence</h1>
+            <p class="text-slate-400 text-sm mt-2">Corpus-grounded translation, morphological trees, and textual criticism telemetry.</p>
+        </header>
+
+        <!-- Configuration Matrix -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1 font-semibold">Source Language / Tradition</label>
+                <select id="sourceLang" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-slate-200 focus:outline-none focus:border-amber-400">
+                    <option value="Biblical Hebrew">Biblical Hebrew (מִקְרָאִית)</option>
+                    <option value="Koine Greek">Koine Greek (Ἑλληνική)</option>
+                    <option value="Classical Latin">Classical Latin (Latīna)</option>
+                    <option value="Sanskrit">Sanskrit (संस्कृतम्)</option>
+                    <option value="Akkadian">Akkadian Cuneiform</option>
+                    <option value="Old Church Slavonic">Old Church Slavonic</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1 font-semibold">Target Output Language</label>
+                <input type="text" id="targetLang" value="English" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-slate-200 focus:outline-none focus:border-amber-400">
+            </div>
+            <div class="flex flex-col justify-end">
+                <label class="flex items-center space-x-2 cursor-pointer bg-slate-950 border border-slate-700 rounded-lg p-3 h-[46px]">
+                    <input type="checkbox" id="variantsToggle" checked class="rounded border-slate-700 text-amber-500 focus:ring-amber-400 bg-slate-900">
+                    <span class="text-xs text-slate-300 uppercase tracking-wider font-semibold">Analyze Manuscript Variants</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="mb-6">
+            <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1 font-semibold">Source Text / Verse / Lemma</label>
+            <textarea id="inputText" rows="3" placeholder="Paste Hebrew, Greek, or Latin text (e.g., Ἐν ἀρχῇ ἦν ὁ λόγος)..." class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-slate-200 focus:outline-none focus:border-amber-400 font-mono text-lg"></textarea>
+        </div>
+
+        <button onclick="runAdvancedTranslation()" id="submitBtn" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 font-bold text-slate-950 py-3.5 rounded-lg transition shadow-lg tracking-wide uppercase text-sm">
+            Execute Linguistic Telemetry Analysis
+        </button>
+
+        <!-- Loader -->
+        <div id="loader" class="hidden text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-amber-400 border-t-transparent"></div>
+            <p class="text-amber-400 text-sm mt-3 font-mono tracking-wider">Consulting lexicons, Codex variants, and morphology engines...</p>
+        </div>
+
+        <!-- Telemetry Results HUD -->
+        <div id="results" class="hidden mt-8 space-y-6 border-t border-slate-800 pt-8">
+            
+            <!-- Transliteration & Audio -->
+            <div class="flex items-center justify-between bg-slate-950 p-4 rounded-xl border border-slate-800">
+                <div>
+                    <span class="text-xs uppercase tracking-wider text-amber-400 font-semibold">Phonetic Transliteration</span>
+                    <p id="resTransliteration" class="text-xl font-mono text-white mt-0.5"></p>
+                </div>
+                <button onclick="speakTransliteration()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 p-2.5 rounded-lg border border-slate-700 transition text-sm flex items-center space-x-1.5">
+                    <span>🔊 Pronounce</span>
+                </button>
+            </div>
+
+            <!-- Grounded Lexicon Match (If found in vector DB) -->
+            <div id="groundedSection" class="hidden bg-amber-500/5 border border-amber-500/20 p-4 rounded-xl">
+                <span class="text-xs uppercase tracking-wider text-amber-400 font-semibold">Lexicon Database Anchor (Strong's Concordance Match)</span>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-xs font-mono">
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800"><span class="text-slate-500">Code:</span> <span id="gCode" class="text-amber-300"></span></div>
+                    <div class="bg-slate-950 p-2 rounded border border-slate-800"><span class="text-slate-500">Original:</span> <span id="gOriginal" class="text-amber-300"></span></div>
+                    <div class="col-span-2 bg-slate-950 p-2 rounded border border-slate-800"><span class="text-slate-500">Lexicon Def:</span> <span id="gDef" class="text-slate-300"></span></div>
+                </div>
+            </div>
+
+            <!-- Translations Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-slate-950 p-5 rounded-xl border border-slate-800">
+                    <span class="text-xs uppercase tracking-wider text-amber-400 font-semibold">Literal Gloss</span>
+                    <p id="resLiteral" class="text-sm mt-2 text-slate-300 leading-relaxed"></p>
+                </div>
+                <div class="bg-slate-950 p-5 rounded-xl border border-slate-800">
+                    <span class="text-xs uppercase tracking-wider text-amber-400 font-semibold">Contextual Literary Translation</span>
+                    <p id="resContextual" class="text-sm mt-2 text-slate-200 leading-relaxed font-semibold"></p>
+                </div>
+            </div>
+
+            <!-- Morphology Table -->
+            <div class="bg-slate-950 p-5 rounded-xl border border-slate-800">
+                <span class="text-xs uppercase tracking-wider text-amber-400 font-semibold">Morphology Breakdown Matrix</span>
+                <div class="overflow-x-auto mt-3">
+                    <table class="w-full text-left text-xs font-mono">
+                        <thead class="bg-slate-900 text-slate-400 uppercase border-b border-slate-800">
+                            <tr>
+                                <th class="p-2">Token</th>
+                                <th class="p-2">Part of Speech</th>
+                                <th class="p-2">Parsing / Grammar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="morphologyTableBody" class="divide-y divide-slate-900 text-slate-300">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Manuscript Variants -->
+            <div id="variantsContainer" class="bg-slate-950 p-5 rounded-xl border border-slate-800">
+                <span class="text-xs uppercase tracking-wider text-amber-400 font-semibold">Textual Criticism & Manuscript Variants</span>
+                <ul id="resVariants" class="list-disc list-inside text-sm mt-3 space-y-1.5 text-slate-300"></ul>
+            </div>
+
+            <!-- Historical & Theological Context -->
+            <div class="bg-slate-950 p-5 rounded-xl border border-slate-800">
+                <span class="text-xs uppercase tracking-wider text-amber-400 font-semibold">Historical & Theological Backdrops</span>
+                <p id="resContext" class="text-sm mt-2 text-slate-300 leading-relaxed"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTransliterationText = "";
+
+        async function runAdvancedTranslation() {
+            const sourceLang = document.getElementById('sourceLang').value;
+            const targetLang = document.getElementById('targetLang').value;
+            const text = document.getElementById('inputText').value;
+            const includeVariants = document.getElementById('variantsToggle').checked;
+
+            if (!text.trim()) {
+                alert('Please provide text to analyze.');
+                return;
+            }
+
+            const loader = document.getElementById('loader');
+            const results = document.getElementById('results');
+            const submitBtn = document.getElementById('submitBtn');
+
+            loader.classList.remove('hidden');
+            results.classList.add('hidden');
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/advanced-translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source_language: sourceLang,
+                        target_language: targetLang,
+                        text: text,
+                        include_textual_variants: includeVariants
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to retrieve translation telemetry.');
+
+                const data = await response.json();
+
+                currentTransliterationText = data.transliteration;
+                document.getElementById('resTransliteration').innerText = data.transliteration;
+                document.getElementById('resLiteral').innerText = data.literal_gloss;
+                document.getElementById('resContextual').innerText = data.contextual_translation;
+                document.getElementById('resContext').innerText = data.historical_theological_context;
+
+                // Grounded Lexicon View
+                const groundedSec = document.getElementById('groundedSection');
+                if (data.grounded_lexicon_match) {
+                    document.getElementById('gCode').innerText = data.grounded_lexicon_match.strong_code;
+                    document.getElementById('gOriginal').innerText = data.grounded_lexicon_match.original;
+                    document.getElementById('gDef').innerText = data.grounded_lexicon_match.definition;
+                    groundedSec.classList.remove('hidden');
+                } else {
+                    groundedSec.classList.add('hidden');
+                }
+
+                // Morphology Table Population
+                const morphTable = document.getElementById('morphologyTableBody');
+                morphTable.innerHTML = '';
+                if (data.morphological_breakdown && data.morphological_breakdown.length > 0) {
+                    data.morphological_breakdown.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `<td class="p-2 font-bold text-amber-300">${item.token}</td>
+                                         <td class="p-2 text-slate-400">${item.part_of_speech}</td>
+                                         <td class="p-2 text-slate-300">${item.parsing}</td>`;
+                        morphTable.appendChild(row);
+                    });
+                } else {
+                    morphTable.innerHTML = `<tr><td colspan="3" class="p-3 text-center text-slate-500">No morphological sub-tokens parsed.</td></tr>`;
+                }
+
+                // Variants Population
+                const variantsList = document.getElementById('resVariants');
+                variantsList.innerHTML = '';
+                if (data.textual_variants && data.textual_variants.length > 0) {
+                    data.textual_variants.forEach(v => {
+                        const li = document.createElement('li');
+                        li.innerText = v;
+                        variantsList.appendChild(li);
+                    });
+                    document.getElementById('variantsContainer').classList.remove('hidden');
+                } else {
+                    document.getElementById('variantsContainer').classList.add('hidden');
+                }
+
+                results.classList.remove('hidden');
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                loader.classList.add('hidden');
+                submitBtn.disabled = false;
+            }
+        }
+
+        function speakTransliteration() {
+            if (!currentTransliterationText) return;
+            const utterance = new SpeechSynthesisUtterance(currentTransliterationText);
+            utterance.rate = 0.9;
+            window.speechSynthesis.speak(utterance);
+        }
+    </script>
+</body>
+</html>
+
+
+
+GEMINI_API_KEY=your_actual_gemini_api_key_here
+
+
+
+translator-icons/
+├── translator_icons.html   <-- Open this file in your browser
+└── README.md
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ancient Scripture AI Icon Asset Library</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Inter:wght@400;600&display=swap');
+        .icon-card:hover svg { transform: scale(1.1) rotate(-3deg); transition: transform 0.2s ease-in-out; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-8 font-[Inter]">
+
+    <header class="mb-12 border-b border-slate-800 pb-8 text-center">
+        <h1 class="font-[Cinzel] text-4xl font-extrabold text-amber-400">Codex AI</h1>
+        <p class="text-slate-400 mt-2 tracking-wide uppercase text-xs">Asset Library :: Ancient Scripture Translator</p>
+    </header>
+
+    <!-- Main Icon Grid -->
+    <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        <!-- ICON 1: MAIN APP LOGO -->
+        <div class="icon-card bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col items-center shadow-xl">
+            <h3 class="text-xs uppercase text-slate-500 tracking-wider mb-1 font-semibold">Primary Logo Icon</h3>
+            <p class="text-slate-200 text-sm mb-6">Codex & Neural Eye</p>
+            
+            <!-- START SVG ICON: App Logo -->
+            <svg class="w-24 h-24 text-amber-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Outer Ring -->
+                <circle cx="12" cy="12" r="10.5" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/>
+                <!-- Open Codex/Scroll Structure -->
+                <path d="M5 6.5C5 5.11929 6.11929 4 7.5 4H16.5C17.8807 4 19 5.11929 19 6.5V17.5C19 18.8807 17.8807 20 16.5 20H7.5C6.11929 20 5 18.8807 5 17.5V6.5Z" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M12 4V20" stroke="currentColor" stroke-width="1.5"/>
+                <!-- Central Eye (AI) -->
+                <path d="M8 12C8.75 10.5 10.25 9.5 12 9.5C13.75 9.5 15.25 10.5 16 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M16 12C15.25 13.5 13.75 14.5 12 14.5C10.25 14.5 8.75 13.5 8 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <!-- Pupil dot -->
+                <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+            </svg>
+            <!-- END SVG ICON -->
+            
+            <button onclick="copySvg(this)" class="mt-6 bg-amber-500 text-slate-950 px-4 py-2 rounded-md font-semibold text-xs hover:bg-amber-400">Copy SVG Code</button>
+        </div>
+
+        <!-- ICON 2: TRANSLATE ACTION -->
+        <div class="icon-card bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col items-center shadow-xl">
+            <h3 class="text-xs uppercase text-slate-500 tracking-wider mb-1 font-semibold">Primary Action Icon</h3>
+            <p class="text-slate-200 text-sm mb-6">Hebrew Aleph to Greek Alpha</p>
+            
+            <!-- START SVG ICON: Translate -->
+            <svg class="w-24 h-24 text-amber-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Background Arrows (Process) -->
+                <path d="M3.5 12H11.5M11.5 12L7.5 8M11.5 12L7.5 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M20.5 12H12.5M12.5 12L16.5 8M12.5 12L16.5 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                
+                <!-- Inner Glyph: Paleo-Hebrew Aleph -->
+                <path d="M6 7L10 13L10 17" stroke="currentColor" stroke-width="1" stroke-linecap="round" fill="none"/>
+                <path d="M5 11L11 11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+                
+                <!-- Inner Glyph: Koine Greek Alpha -->
+                <path d="M18 10C17 7 14 7 14 10C14 13 17 13 18 10ZM18 10L18 17" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+            </svg>
+            <!-- END SVG ICON -->
+            
+            <button onclick="copySvg(this)" class="mt-6 bg-amber-500 text-slate-950 px-4 py-2 rounded-md font-semibold text-xs hover:bg-amber-400">Copy SVG Code</button>
+        </div>
+
+        <!-- ICON 3: AI GROUNDING / TRUTH -->
+        <div class="icon-card bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col items-center shadow-xl">
+            <h3 class="text-xs uppercase text-slate-500 tracking-wider mb-1 font-semibold">Verification Icon</h3>
+            <p class="text-slate-200 text-sm mb-6">Grounding & Reliability</p>
+            
+            <!-- START SVG ICON: Grounding -->
+            <svg class="w-24 h-24 text-amber-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Anchor Structure -->
+                <path d="M12 3V17M12 17L9 14M12 17L15 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- Codex Base (Grounding) -->
+                <path d="M5 18H19C19.5523 18 20 18.4477 20 19C20 19.5523 19.5523 20 19 20H5C4.44772 20 4 19.5523 4 19C4 18.4477 4.44772 18 5 18Z" stroke="currentColor" stroke-width="1.5"/>
+                <!-- Neural Network Nodes (AI) -->
+                <circle cx="12" cy="7" r="1.5" fill="currentColor"/>
+                <circle cx="9" cy="11" r="1.5" fill="currentColor"/>
+                <circle cx="15" cy="11" r="1.5" fill="currentColor"/>
+                <path d="M12 7L9 11M12 7L15 11" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2"/>
+            </svg>
+            <!-- END SVG ICON -->
+            
+            <button onclick="copySvg(this)" class="mt-6 bg-amber-500 text-slate-950 px-4 py-2 rounded-md font-semibold text-xs hover:bg-amber-400">Copy SVG Code</button>
+        </div>
+
+        <!-- ICON 4: ETHYMOLOGY / ROOTS -->
+        <div class="icon-card bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col items-center shadow-xl">
+            <h3 class="text-xs uppercase text-slate-500 tracking-wider mb-1 font-semibold">Scholarly Feature Icon</h3>
+            <p class="text-slate-200 text-sm mb-6">Lexicon & Root Extraction</p>
+            
+            <!-- START SVG ICON: Ethymology -->
+            <svg class="w-24 h-24 text-amber-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Codex/Dictionary Pages -->
+                <path d="M19 12H5V5C5 4.44772 5.44772 4 6 4H18C18.5523 4 19 4.44772 19 5V12Z" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M12 4V12" stroke="currentColor" stroke-width="1.5"/>
+                <!-- The Core/Root Idea (Neural + Codex) -->
+                <circle cx="12" cy="15" r="2.5" fill="currentColor"/>
+                <!-- AI Connection lines extracting meaning -->
+                <path d="M12 12V12.5M10.5 11H13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M8 8H10M14 8H16" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2"/>
+                <path d="M8 10H10M14 10H16" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2"/>
+            </svg>
+            <!-- END SVG ICON -->
+            
+            <button onclick="copySvg(this)" class="mt-6 bg-amber-500 text-slate-950 px-4 py-2 rounded-md font-semibold text-xs hover:bg-amber-400">Copy SVG Code</button>
+        </div>
+
+        <!-- ICON 5: TEXTUAL CRITICISM / VARIANTS -->
+        <div class="icon-card bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col items-center shadow-xl">
+            <h3 class="text-xs uppercase text-slate-500 tracking-wider mb-1 font-semibold">Scholarly Feature Icon</h3>
+            <p class="text-slate-200 text-sm mb-6">Manuscript Variant Analysis</p>
+            
+            <!-- START SVG ICON: Variants -->
+            <svg class="w-24 h-24 text-amber-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Stack of Codex Pages -->
+                <path d="M4 6V18C4 19.1046 4.89543 20 6 20H18C19.1046 20 20 19.1046 20 18V10" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M20 10H8V6C8 4.89543 8.89543 4 10 4H18C19.1046 4 20 4.89543 20 6V10Z" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M14 4V10" stroke="currentColor" stroke-width="1.5"/>
+                <!-- Highlighting Variances (The AI analysis) -->
+                <path d="M12 14H16M12 16H16" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2"/>
+                <!-- Critical Alert (AI found variant) -->
+                <path d="M8 15L10 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M9 14V16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <!-- END SVG ICON -->
+            
+            <button onclick="copySvg(this)" class="mt-6 bg-amber-500 text-slate-950 px-4 py-2 rounded-md font-semibold text-xs hover:bg-amber-400">Copy SVG Code</button>
+        </div>
+
+    </main>
+
+    <script>
+        function copySvg(button) {
+            const svgCode = button.previousElementSibling.outerHTML;
+            navigator.clipboard.writeText(svgCode).then(() => {
+                button.innerText = 'Copied!';
+                setTimeout(() => button.innerText = 'Copy SVG Code', 2000);
+            });
+        }
+    </script>
+</body>
+</html>
