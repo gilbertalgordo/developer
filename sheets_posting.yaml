@@ -1,0 +1,553 @@
+/**
+ * Adds a custom menu to Google Sheets upon opening.
+ */
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('Sheets Posting')
+      .addItem('Generate Share Links (Selected Row)', 'generateShareLinksForSelectedRow')
+      .addSeparator()
+      .addItem('Post Row to Web App / API', 'postSelectedRowToWebhook')
+      .addToUi();
+}
+
+/**
+ * Reads the selected row, assuming columns are structured as:
+ * Col A: Title / Caption
+ * Col B: URL / Link to share
+ * Col C: Platform (X, Facebook, Reddit, LinkedIn, YouTube, Snapchat)
+ */
+function generateShareLinksForSelectedRow() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var range = sheet.getActiveRange();
+  var row = range.getRow();
+  
+  // Skip header row
+  if (row === 1) {
+    SpreadsheetApp.getUi().alert('Please select a data row below the header.');
+    return;
+  }
+  
+  var text = sheet.getRange(row, 1).getValue(); // Title/Caption
+  var url = sheet.getRange(row, 2).getValue();  // Target URL
+  var platform = sheet.getRange(row, 3).getValue().toString().toLowerCase(); // Platform
+  
+  if (!text && !url) {
+    SpreadsheetApp.getUi().alert('Row is empty. Please add a caption or URL.');
+    return;
+  }
+
+  var encodedText = encodeURIComponent(text);
+  var encodedUrl = encodeURIComponent(url);
+  var shareLink = '';
+
+  switch (platform) {
+    case 'x':
+    case 'twitter':
+      shareLink = 'https://twitter.com/intent/tweet?text=' + encodedText + '&url=' + encodedUrl;
+      break;
+    case 'facebook':
+    case 'fb':
+      shareLink = 'https://www.facebook.com/sharer/sharer.php?u=' + encodedUrl;
+      break;
+    case 'linkedin':
+      shareLink = 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodedUrl;
+      break;
+    case 'reddit':
+      shareLink = 'https://www.reddit.com/submit?url=' + encodedUrl + '&title=' + encodedText;
+      break;
+    case 'whatsapp':
+      shareLink = 'https://api.whatsapp.com/send?text=' + encodedText + '%20' + encodedUrl;
+      break;
+    default:
+      // Generic web intent fallback
+      shareLink = url;
+      break;
+  }
+
+  // Write the generated share link to Column 4 (Col D)
+  sheet.getRange(row, 4).setValue(shareLink);
+  SpreadsheetApp.getUi().alert('Success! Share link generated in Column D:\n\n' + shareLink);
+}
+
+/**
+ * Posts the selected row data to an external web app or automation webhook (e.g., Zapier, Make, or custom API).
+ */
+function postSelectedRowToWebhook() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var range = sheet.getActiveRange();
+  var row = range.getRow();
+
+  if (row === 1) {
+    SpreadsheetApp.getUi().alert('Please select a data row below the header.');
+    return;
+  }
+
+  // Gather data from the row (adjust column mappings as needed)
+  var payloadData = {
+    caption: sheet.getRange(row, 1).getValue(),
+    url: sheet.getRange(row, 2).getValue(),
+    platform: sheet.getRange(row, 3).getValue(),
+    timestamp: new Date().toISOString()
+  };
+
+  // REPLACE THIS with your actual Web App URL (e.g., Zapier Webhook, Make.com, or custom endpoint)
+  var webhookUrl = 'https://your-webhook-endpoint-url.com/api/post';
+
+  var options = {
+    'method': 'post',
+    'contentType': 'application/json',
+    'payload': JSON.stringify(payloadData),
+    'muteHttpExceptions': true
+  };
+
+  try {
+    var response = UrlFetchApp.fetch(webhookUrl, options);
+    var responseCode = response.getResponseCode();
+    
+    if (responseCode === 200 || responseCode === 201) {
+      sheet.getRange(row, 5).setValue('Posted Successfully (' + new Date() + ')');
+      SpreadsheetApp.getUi().alert('Successfully posted row data to the web app webhook!');
+    } else {
+      sheet.getRange(row, 5).setValue('Failed: HTTP ' + responseCode);
+      SpreadsheetApp.getUi().alert('Failed to post. Response code: ' + responseCode);
+    }
+  } catch (error) {
+    SpreadsheetApp.getUi().alert('Error connecting to webhook: ' + error.toString());
+  }
+}
+
+
+
+/**
+ * @fileoverview Sheets Posting - Advanced Social Media Integration & Web App Dispatcher
+ */
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('🚀 Sheets Posting')
+    .addItem('Open Management Sidebar', 'showSidebar')
+    .addSeparator()
+    .addItem('Process Selected Row (Immediate)', 'processSelectedRowAction')
+    .addItem('Batch Process All Queued Rows', 'batchProcessQueue')
+    .addToUi();
+}
+
+function showSidebar() {
+  var html = HtmlService.createHtmlOutputFromFile('Sidebar')
+      .setTitle('Sheets Posting Control Center')
+      .setWidth(400);
+  SpreadsheetApp.getUi().showSidebar(html);
+}
+
+/**
+ * Core Social Poster Class Handling Multi-Platform Serialization & Webhooks
+ */
+class SocialPostingEngine {
+  constructor(row, sheet) {
+    this.row = row;
+    this.sheet = sheet;
+  }
+
+  /**
+   * Reads data from standard schema columns:
+   * Col A: Title/Caption, Col B: Media/URL, Col C: Platform, Col D: Status, Col E: Output Link/Log
+   */
+  fetchRowData() {
+    const data = this.sheet.getRange(this.row, 1, 1, 5).getValues()[0];
+    return {
+      title: data[0] || '',
+      url: data[1] || '',
+      platform: String(data[2] || '').trim().toLowerCase(),
+      status: data[3] || '',
+      output: data[4] || ''
+    };
+  }
+
+  generateShareIntent() {
+    const item = this.fetchRowData();
+    const encText = encodeURIComponent(item.title);
+    const encUrl = encodeURIComponent(item.url);
+    let targetLink = '';
+
+    switch (item.platform) {
+      case 'x':
+      case 'twitter':
+        targetLink = `https://twitter.com/intent/tweet?text=${encText}&url=${encUrl}`;
+        break;
+      case 'facebook':
+      case 'fb':
+        targetLink = `https://www.facebook.com/sharer/sharer.php?u=${encUrl}&quote=${encText}`;
+        break;
+      case 'linkedin':
+        targetLink = `https://www.linkedin.com/sharing/share-offsite/?url=${encUrl}`;
+        break;
+      case 'reddit':
+        targetLink = `https://www.reddit.com/submit?url=${encUrl}&title=${encText}`;
+        break;
+      case 'youtube':
+      case 'yt':
+        // YouTube studio link helper or playlist reference structure
+        targetLink = `https://studio.youtube.com/`; 
+        break;
+      case 'snapchat':
+        targetLink = `https://www.snapchat.com/scan?attachmentUrl=${encUrl}`;
+        break;
+      default:
+        targetLink = item.url;
+        break;
+    }
+
+    // Write generated intent URL back to Column E
+    this.sheet.getRange(this.row, 5).setValue(targetLink);
+    this.sheet.getRange(this.row, 4).setValue('Intent Generated');
+    return { success: true, link: targetLink };
+  }
+
+  postToWebhook(webhookUrl) {
+    const item = this.fetchRowData();
+    if (!webhookUrl) {
+      throw new Error("Webhook endpoint URL is missing.");
+    }
+
+    const payload = {
+      timestamp: new Date().toISOString(),
+      platform: item.platform,
+      caption: item.title,
+      targetUrl: item.url,
+      sourceSheet: this.sheet.getName(),
+      rowId: this.row
+    };
+
+    const options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+
+    try {
+      const response = UrlFetchApp.fetch(webhookUrl, options);
+      const code = response.getResponseCode();
+      
+      if (code >= 200 && code < 300) {
+        this.sheet.getRange(this.row, 4).setValue('Synced / Posted');
+        this.sheet.getRange(this.row, 5).setValue(`Success (HTTP ${code}) - ${new Date().toLocaleTimeString()}`);
+        return { success: true, code: code };
+      } else {
+        this.sheet.getRange(this.row, 4).setValue('Failed');
+        this.sheet.getRange(this.row, 5).setValue(`Error HTTP ${code}: ${response.getContentText().substring(0, 100)}`);
+        return { success: false, code: code };
+      }
+    } catch (err) {
+      this.sheet.getRange(this.row, 4).setValue('Error');
+      this.sheet.getRange(this.row, 5).setValue(err.toString());
+      return { success: false, error: err.toString() };
+    }
+  }
+}
+
+/**
+ * Triggered via UI Menu or Sidebar for active row processing
+ */
+function processSelectedRowAction() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const row = sheet.getActiveRange().getRow();
+  
+  if (row === 1) {
+    SpreadsheetApp.getUi().alert('Please select a data row below the header row.');
+    return;
+  }
+
+  const engine = new SocialPostingEngine(row, sheet);
+  const result = engine.generateShareIntent();
+  SpreadsheetApp.getUi().alert('Processed row ' + row + '\nGenerated Link: ' + result.link);
+}
+
+/**
+ * Batch processing engine scanning rows with 'Queue' status
+ */
+function batchProcessQueue(webhookUrl) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { processed: 0 };
+
+  // Fetch columns A through E (Range: Row 2, Col 1, LastRow-1, 5)
+  const dataRange = sheet.getRange(2, 1, lastRow - 1, 5);
+  const values = dataRange.getValues();
+  let processedCount = 0;
+
+  for (let i = 0; i < values.length; i++) {
+    const currentRow = i + 2;
+    const status = String(values[i][3]).trim().toLowerCase();
+
+    // Check if status specifies queued action
+    if (status === 'queue' || status === 'pending') {
+      const engine = new SocialPostingEngine(currentRow, sheet);
+      if (webhookUrl) {
+        engine.postToWebhook(webhookUrl);
+      } else {
+        engine.generateShareIntent();
+      }
+      processedCount++;
+    }
+  }
+  return { processed: processedCount };
+}
+
+
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+    <style>
+      body { font-family: Roboto, sans-serif; padding: 12px; color: #333; }
+      .card { background: #f8f9fa; border: 1px solid #dadce0; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+      .full-width { width: 100%; box-sizing: border-box; margin-top: 6px; }
+      label { font-weight: 500; font-size: 12px; color: #5f6368; display: block; margin-top: 8px; }
+      input, select { padding: 6px; border: 1px solid #dadce0; border-radius: 4px; }
+      .btn-primary { background: #1a73e8; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 500; }
+      .btn-primary:hover { background: #1557b0; }
+      #statusLog { font-size: 11px; color: #137333; background: #e6f4ea; padding: 8px; border-radius: 4px; margin-top: 10px; display: none; }
+    </style>
+  </head>
+  <body>
+    <h3>🌐 Sheets Posting Hub</h3>
+    
+    <div class="card">
+      <label for="webhookUrl">External Webhook / API Endpoint (Optional for direct posts):</label>
+      <input type="text" id="webhookUrl" class="full-width" placeholder="https://api.zapier.com/v1/hooks/...">
+    </div>
+
+    <div class="card">
+      <h4>Actions</h4>
+      <button class="btn-primary full-width" onclick="runActiveRow()">Generate Intent for Current Row</button>
+      <br><br>
+      <button class="btn-primary full-width" onclick="runBatchQueue()" style="background: #0f9d58;">Process All Queued Rows</button>
+    </div>
+
+    <div id="statusLog"></div>
+
+    <script>
+      function logMessage(msg) {
+        const logBox = document.getElementById('statusLog');
+        logBox.style.display = 'block';
+        logBox.innerText = msg;
+      }
+
+      function runActiveRow() {
+        logMessage("Processing active row...");
+        google.script.run
+          .withSuccessHandler(function(res) {
+            logMessage("Success! Action completed for selected row.");
+          })
+          .withFailureHandler(function(err) {
+            logMessage("Error: " + err.message);
+          })
+          .processSelectedRowAction();
+      }
+
+      function runBatchQueue() {
+        const webhook = document.getElementById('webhookUrl').value;
+        logMessage("Processing queued spreadsheet rows...");
+        google.script.run
+          .withSuccessHandler(function(res) {
+            logMessage("Batch processing complete. Processed " + res.processed + " row(s).");
+          })
+          .withFailureHandler(function(err) {
+            logMessage("Batch error: " + err.message);
+          })
+          .batchProcessQueue(webhook);
+      }
+    </script>
+  </body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+    <style>
+      :root {
+        --primary-color: #1a73e8;
+        --sheet-green: #0f9d58;
+        --bg-card: #f8f9fa;
+        --border-color: #dadce0;
+      }
+      body { 
+        font-family: 'Roboto', sans-serif; 
+        padding: 14px; 
+        color: #202124; 
+        background: #ffffff;
+      }
+      .header-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 14px;
+        color: #1a73e8;
+      }
+      .card { 
+        background: var(--bg-card); 
+        border: 1px solid var(--border-color); 
+        border-radius: 8px; 
+        padding: 12px; 
+        margin-bottom: 12px; 
+      }
+      .full-width { width: 100%; box-sizing: border-box; margin-top: 6px; }
+      label { font-weight: 500; font-size: 11px; color: #5f6368; display: block; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+      input, select { padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 13px; }
+      
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 13px;
+        transition: background 0.2s;
+        margin-top: 6px;
+      }
+      .btn-primary { background: var(--primary-color); color: white; }
+      .btn-primary:hover { background: #1557b0; }
+      .btn-success { background: var(--sheet-green); color: white; }
+      .btn-success:hover { background: #0b8043; }
+
+      /* Platform Icon Grid preview */
+      .platform-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-top: 8px;
+        margin-bottom: 10px;
+      }
+      .platform-badge {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 6px;
+        font-size: 10px;
+        color: #5f6368;
+        gap: 4px;
+      }
+
+      svg { width: 18px; height: 18px; fill: currentColor; }
+      .icon-sheet { fill: #0f9d58; }
+
+      #statusLog { 
+        font-size: 11px; 
+        color: #137333; 
+        background: #e6f4ea; 
+        border: 1px solid #ceead6;
+        padding: 8px; 
+        border-radius: 4px; 
+        margin-top: 10px; 
+        display: none; 
+      }
+    </style>
+  </head>
+  <body>
+    
+    <div class="header-title">
+      <!-- Google Sheets Vector Icon -->
+      <svg class="icon-sheet" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-2h2v2zm0-4H7v-2h2v2zm0-4H7V7h2v2zm4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z"/></svg>
+      Sheets Posting Hub
+    </div>
+
+    <!-- Supported Platforms Quick Reference Grid -->
+    <div class="card">
+      <label>Supported Networks & Channels</label>
+      <div class="platform-grid">
+        <!-- X / Twitter -->
+        <div class="platform-badge">
+          <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          X
+        </div>
+        <!-- Facebook -->
+        <div class="platform-badge" style="color: #1877f2;">
+          <svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          FB
+        </div>
+        <!-- LinkedIn -->
+        <div class="platform-badge" style="color: #0a66c2;">
+          <svg viewBox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>
+          LinkedIn
+        </div>
+        <!-- Reddit -->
+        <div class="platform-badge" style="color: #ff4500;">
+          <svg viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12c0 6.627 5.373 12 12 12 6.627 0 12-5.373 12-12 0-6.627-5.373-12-12-12zm6.066 9.645c.49 0 .888.398.888.888 0 .444-.325.817-.75.877-.208 1.258-1.215 2.25-2.476 2.376-.021.579-.117 1.155-.286 1.714 1.215.176 2.258.98 2.658 2.096-.328.163-.559.497-.559.886 0 .546.444.99.99.99.546 0 .99-.444.99-.99 0-.419-.262-.777-.63-.923.364-1.285.932-3.136.932-4.664 0-1.821-1.392-3.32-3.18-3.486 1.328-1.018 2.196-2.617 2.196-4.421 0-3.088-2.515-5.603-5.603-5.603-3.088 0-5.603 2.515-5.603 5.603 0 1.804.868 3.403 2.196 4.421-1.788.166-3.18 1.665-3.18 3.486 0 1.528.568 3.379.932 4.664-.368.146-.63.504-.63.923 0 .546.444.99.99.99.546 0 .99-.444.99-.99 0-.389-.231-.723-.559-.886.4-1.116 1.443-1.92 2.658-2.096-.169-.559-.265-1.135-.286-1.714-1.261-.126-2.268-1.118-2.476-2.376-.425-.06-.75-.433-.75-.877 0-.49.398-.888.888-.888.354 0 .66.205.811.503 1.01.218 2.203.35 3.444.385 1.241-.035 2.434-.167 3.444-.385.151-.298.457-.503.811-.503z"/></svg>
+          Reddit
+        </div>
+      </div>
+    </div>
+
+    <!-- Webhook Configuration -->
+    <div class="card">
+      <label for="webhookUrl">Web App / API Webhook URL</label>
+      <input type="text" id="webhookUrl" class="full-width" placeholder="https://api.yourdomain.com/v1/hook">
+    </div>
+
+    <!-- Control Actions -->
+    <div class="card">
+      <label>Execution Actions</label>
+      <button class="btn btn-primary" onclick="runActiveRow()">
+        <svg viewBox="0 0 24 24" style="fill:white;"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+        Generate Intent (Active Row)
+      </button>
+      <button class="btn btn-success" onclick="runBatchQueue()">
+        <svg viewBox="0 0 24 24" style="fill:white;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        Process Queued Rows
+      </button>
+    </div>
+
+    <div id="statusLog"></div>
+
+    <script>
+      function logMessage(msg) {
+        const logBox = document.getElementById('statusLog');
+        logBox.style.display = 'block';
+        logBox.innerText = msg;
+      }
+
+      function runActiveRow() {
+        logMessage("Processing active row...");
+        google.script.run
+          .withSuccessHandler(function(res) {
+            logMessage("Success! Action completed for selected row.");
+          })
+          .withFailureHandler(function(err) {
+            logMessage("Error: " + err.message);
+          })
+          .processSelectedRowAction();
+      }
+
+      function runBatchQueue() {
+        const webhook = document.getElementById('webhookUrl').value;
+        logMessage("Processing queued spreadsheet rows...");
+        google.script.run
+          .withSuccessHandler(function(res) {
+            logMessage("Batch processing complete. Processed " + res.processed + " row(s).");
+          })
+          .withFailureHandler(function(err) {
+            logMessage("Batch error: " + err.message);
+          })
+          .batchProcessQueue(webhook);
+      }
+    </script>
+  </body>
+</html>
