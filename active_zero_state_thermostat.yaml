@@ -1,0 +1,344 @@
+import asyncio
+import logging
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Dict, List, Optional
+
+# Configure logging with real-time telemetry output
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] (%(name)s) -> %(message)s"
+)
+logger = logging.getLogger("ActiveThermostatAgent")
+
+@dataclass
+class SensorReading:
+    sensor_id: str
+    sensor_type: str  # 'ambient', 'surface', 'ir_thermal', 'humidity', 'occupancy'
+    value: float
+    unit: str
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+
+class WideRangeSensorHub:
+    """Aggregates multi-vector wide-range telemetry streams."""
+    def __init__(self):
+        self._readings: Dict[str, SensorReading] = {}
+        
+    async def ingest_reading(self, reading: SensorReading):
+        self._readings[reading.sensor_id] = reading
+        
+    def get_all_readings(self) -> List[SensorReading]:
+        return list(self._readings.values())
+        
+    def get_readings_by_type(self, sensor_type: str) -> List[SensorReading]:
+        return [r for r in self._readings.values() if r.sensor_type == sensor_type]
+
+class ThermostatController:
+    """Hardware or API interface for the physical thermostat."""
+    def __init__(self, endpoint: str = "http://local-thermostat.lan/api"):
+        self.endpoint = endpoint
+        self.current_setpoint: float = 22.0
+        self.is_locked: bool = false
+
+    async def set_temperature(self, value: float):
+        self.current_setpoint = max(0.0, value)
+        logger.warning(f"ACTUATOR OVERRIDE: Thermostat setpoint adjusted to {self.current_setpoint}°C.")
+        # Insert asynchronous hardware/API call here (e.g., HTTP POST / MQTT publish)
+        await asyncio.sleep(0.05) # Simulated network latency
+
+class ActiveThermostatAgent:
+    """Active AI Agent monitoring wide-range sensors for safety/efficiency overrides."""
+    def __init__(self, sensor_hub: WideRangeSensorHub, controller: ThermostatController):
+        self.sensor_hub = sensor_hub
+        self.controller = controller
+        self.anomaly_threshold_ambient = 45.0  # Celsius
+        self.anomaly_threshold_surface = 60.0  # Celsius
+        self._active = True
+
+    async def evaluate_environment(self) -> bool:
+        """Evaluates sensor array against safety rules and anomaly thresholds."""
+        readings = self.sensor_hub.get_all_readings()
+        if not readings:
+            return False
+
+        for reading in readings:
+            if reading.sensor_type == 'ambient' and reading.value >= self.anomaly_threshold_ambient:
+                logger.error(f"CRITICAL ANOMALY: Ambient sensor {reading.sensor_id} reported {reading.value}{reading.unit}!")
+                return True
+            if reading.sensor_type == 'surface' and reading.value >= self.anomaly_threshold_surface:
+                logger.error(f"CRITICAL ANOMALY: Surface sensor {reading.sensor_id} reported {reading.value}{reading.unit}!")
+                return True
+            # Add custom multi-sensor tensor/heuristic checks here
+
+        return False
+
+    async def run_monitoring_loop(self, interval_seconds: float = 1.0):
+        """Asynchronous telemetry evaluation loop."""
+        logger.info("Active AI Agent monitoring loop initiated.")
+        while self._active:
+            try:
+                should_zero = await self.evaluate_environment()
+                if should_zero:
+                    if self.controller.current_setpoint > 0.0:
+                        logger.critical("TRIGGER EVENT: Forcing thermostat setpoint to 0 due to wide-range sensor anomaly.")
+                        await self.controller.set_temperature(0.0)
+                await asyncio.sleep(interval_seconds)
+            except Exception as e:
+                logger.exception(f"Error in agent evaluation loop: {e}")
+
+    def stop(self):
+        self._active = False
+
+# ==========================================
+# Simulation / Execution Entrypoint
+# ==========================================
+async def simulate_sensor_stream(hub: WideRangeSensorHub):
+    """Simulates incoming wide-range sensor payloads over time."""
+    await asyncio.sleep(2)
+    # Normal state
+    await hub.ingest_reading(SensorReading("amb_01", "ambient", 24.5, "°C"))
+    await hub.ingest_reading(SensorReading("surf_01", "surface", 28.0, "°C"))
+    
+    await asyncio.sleep(3)
+    # Trigger condition: Spike in ambient/surface sensors
+    logger.info("Simulating thermal anomaly event...")
+    await hub.ingest_reading(SensorReading("amb_01", "ambient", 48.2, "°C"))
+    await hub.ingest_reading(SensorReading("surf_01", "surface", 65.4, "°C"))
+
+async def main():
+    hub = WideRangeSensorHub()
+    controller = ThermostatController()
+    agent = ActiveThermostatAgent(hub, controller)
+
+    # Run agent loop concurrently with sensor simulator
+    agent_task = asyncio.create_task(agent.run_monitoring_loop(interval_seconds=1.0))
+    sim_task = asyncio.create_task(simulate_sensor_stream(hub))
+
+    # Let simulation run for 6 seconds then shut down
+    await asyncio.sleep(6)
+    agent.stop()
+    agent_task.cancel()
+    sim_task.cancel()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+import asyncio
+import logging
+import math
+import time
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Dict, List, Optional, Deque
+from collections import deque
+
+# --- HUD Styling & Logging Configuration ---
+class HUDFormatter(logging.Formatter):
+    """ANSI color-coded formatter for high-performance dark HUD telemetry."""
+    CYAN = "\033[96m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
+
+    FORMATS = {
+        logging.DEBUG: CYAN + "[HUD:DBG] %(asctime)s -> %(message)s" + RESET,
+        logging.INFO: GREEN + "[HUD:SYS] %(asctime)s -> %(message)s" + RESET,
+        logging.WARNING: YELLOW + "[HUD:WARN] %(asctime)s -> %(message)s" + RESET,
+        logging.ERROR: RED + "[HUD:CRIT] %(asctime)s -> %(message)s" + RESET,
+        logging.CRITICAL: RED + BOLD + "[HUD:OVERRIDE] %(asctime)s -> %(message)s" + RESET,
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno, self.FORMATS[logging.INFO])
+        formatter = logging.Formatter(log_fmt, datefmt="%H:%M:%S")
+        return formatter.format(record)
+
+logger = logging.getLogger("AdvancedActiveAgent")
+handler = logging.StreamHandler()
+handler.setFormatter(HUDFormatter())
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+logger.propagate = False
+
+@dataclass
+class TelemetryVector:
+    timestamp: float
+    ambient_temp: float      # °C
+    surface_temp: float      # °C
+    ir_thermal_peak: float   # °C
+    humidity: float          # %
+    voc_index: float         # ppm / scale
+    occupancy_load: float    # count/density
+
+class MultivariateAnomalyDetector:
+    """
+    Edge AI anomaly detector using rolling EWMA (Exponentially Weighted Moving Average)
+    and variance tracking to catch multi-variable thermal anomalies before hard limits hit.
+    """
+    def __init__(self, window_size: int = 50):
+        self.window_size = window_size
+        self.history: Deque[TelemetryVector] = deque(maxlen=window_size)
+        
+    def ingest(self, vector: TelemetryVector):
+        self.history.append(vector)
+        
+    def evaluate_risk(self, current: TelemetryVector) -> float:
+        """Returns a risk score between 0.0 (nominal) and 1.0 (critical hazard)."""
+        if len(self.history) < 5:
+            # Baseline calibration phase, fallback to hard safety rules
+            if current.ambient_temp > 42.0 or current.surface_temp > 55.0 or current.voc_index > 300.0:
+                return 1.0
+            return 0.0
+
+        # Calculate rolling means
+        mean_ambient = sum(h.ambient_temp for h in self.history) / len(self.history)
+        mean_surface = sum(h.surface_temp for h in self.history) / len(self.history)
+        mean_voc = sum(h.voc_index for h in self.history) / len(self.history)
+
+        # Delta deviations (Rate of change and absolute anomaly)
+        amb_delta = current.ambient_temp - mean_ambient
+        surf_delta = current.surface_temp - mean_surface
+        voc_delta = current.voc_index - mean_voc
+
+        # Hard safety floor checks
+        if current.ambient_temp >= 45.0 or current.surface_temp >= 60.0 or current.voc_index >= 400.0:
+            return 1.0
+
+        # Heuristic scoring based on multi-vector variance surge
+        risk_score = 0.0
+        if amb_delta > 5.0: risk_score += 0.4
+        if surf_delta > 8.0: risk_score += 0.4
+        if voc_delta > 50.0: risk_score += 0.3
+        if current.ir_thermal_peak > 70.0: risk_score += 0.5
+
+        return min(1.0, risk_score)
+
+class HardwareActuatorController:
+    """Async interface controlling physical hardware registers / API endpoints."""
+    def __init__(self):
+        self.setpoint: float = 21.5
+        self.state: str = "ACTIVE_HEATING"
+        self._lock = asyncio.Lock()
+
+    async def force_zero(self, reason: str):
+        async with self._lock:
+            self.setpoint = 0.0
+            self.state = "EMERGENCY_SHUTDOWN_ZERO"
+            logger.critical(f"HARDWARE OVERRIDE ENGAGED: Setpoint forced to 0.0°C | Reason: {reason}")
+            # Insert low-level hardware serial/MQTT/GPIO payload transmission here
+            await asyncio.sleep(0.01)
+
+    async def update_setpoint(self, value: float):
+        async with self._lock:
+            if self.state != "EMERGENCY_SHUTDOWN_ZERO":
+                self.setpoint = max(0.0, value)
+                logger.info(f"Setpoint updated to {self.setpoint:.2f}°C")
+
+class WatchdogTimer:
+    """Failsafe watchdog: If the AI control loop hangs or stops updating, forces zero state."""
+    def __init__(self, actuator: HardwareActuatorController, timeout_seconds: float = 3.0):
+        self.actuator = actuator
+        self.timeout_seconds = timeout_seconds
+        self.last_ping = time.time()
+        self._active = True
+
+    def ping(self):
+        self.last_ping = time.time()
+
+    async def monitor(self):
+        while self._active:
+            await asyncio.sleep(0.5)
+            if time.time() - self.last_ping > self.timeout_seconds:
+                logger.error("WATCHDOG TIMEOUT: Active AI control loop unresponsive! Forcing fail-safe zero state.")
+                await self.actuator.force_zero("Watchdog Heartbeat Failure")
+                break
+
+    def stop(self):
+        self._active = False
+
+class ActiveAIControllerAgent:
+    """Core autonomous agent orchestrating telemetry, AI scoring, and actuators."""
+    def __init__(self, event_queue: asyncio.Queue, detector: MultivariateAnomalyDetector, 
+                 actuator: HardwareActuatorController, watchdog: WatchdogTimer):
+        self.event_queue = event_queue
+        self.detector = detector
+        self.actuator = actuator
+        self.watchdog = watchdog
+        self._running = True
+
+    async def run(self):
+        logger.info("Active AI Control Agent initialized and listening on event bus.")
+        while self._running:
+            try:
+                # Fetch incoming wide-range sensor packet with timeout
+                vector: TelemetryVector = await asyncio.wait_for(self.event_queue.get(), timeout=1.0)
+                
+                # Feed anomaly detector
+                self.detector.ingest(vector)
+                risk_score = self.detector.evaluate_risk(vector)
+
+                # HUD telemetry printout
+                logger.debug(f"Telemetry Vector processed | Amb: {vector.ambient_temp}°C | Surf: {vector.surface_temp}°C | Risk Score: {risk_score:.2f}")
+
+                if risk_score >= 0.8:
+                    logger.critical(f"High risk score detected ({risk_score:.2f}). Triggering immediate zero-state override.")
+                    await self.actuator.force_zero(f"Anomaly Risk Threshold Exceeded (Score: {risk_score})")
+
+                # Ping watchdog to confirm loop health
+                self.watchdog.ping()
+                self.event_queue.task_done()
+
+            except asyncio.TimeoutError:
+                # No new events, check watchdog status
+                self.watchdog.ping()
+                continue
+            except Exception as e:
+                logger.error(f"Error in Active AI Agent loop: {e}")
+
+    def stop(self):
+        self._running = False
+
+# ==========================================
+# Execution Simulation Setup
+# ==========================================
+async def sensor_stream_simulator(queue: asyncio.Queue):
+    """Simulates high-frequency wide-range multi-sensor telemetry."""
+    # Phase 1: Normal operational state
+    for _ in range(3):
+        await queue.put(TelemetryVector(time.time(), 22.0, 24.5, 30.0, 45.0, 15.0, 2.0))
+        await asyncio.sleep(0.8)
+
+    # Phase 2: Sudden thermal/VOC anomaly simulation
+    logger.warning("SIMULATION: Injecting anomalous multi-vector sensor spike...")
+    await queue.put(TelemetryVector(time.time(), 46.5, 62.1, 78.4, 20.0, 450.0, 5.0))
+
+async def main():
+    event_queue = asyncio.Queue()
+    detector = MultivariateAnomalyDetector(window_size=20)
+    actuator = HardwareActuatorController()
+    watchdog = WatchdogTimer(actuator, timeout_seconds=4.0)
+    
+    agent = ActiveAIControllerAgent(event_queue, detector, actuator, watchdog)
+
+    # Launch concurrent background tasks
+    agent_task = asyncio.create_task(agent.run())
+    watchdog_task = asyncio.create_task(watchdog.monitor())
+    sim_task = asyncio.create_task(sensor_stream_simulator(event_queue))
+
+    # Allow system to run through simulation steps
+    await asyncio.sleep(5)
+
+    # Graceful shutdown
+    agent.stop()
+    watchdog.stop()
+    agent_task.cancel()
+    watchdog_task.cancel()
+    sim_task.cancel()
+    logger.info("System shut down cleanly.")
+
+if __name__ == "__main__":
+    asyncio.run(main())
