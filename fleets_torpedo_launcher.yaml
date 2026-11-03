@@ -1,0 +1,296 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+# Set up simulation parameters for a fleet
+np.random.seed(42)
+num_units = 15
+
+# Initialize positions (underwater/surface transition)
+# X, Y coordinates for the fleet formation, Z represents depth/altitude (Z=0 is sea level)
+x_pos = np.random.uniform(-50, 50, num_units)
+y_pos = np.random.uniform(-50, 50, num_units)
+z_pos = np.random.uniform(-20, -5, num_units) # Underwater starting depth
+
+# Velocity vectors for ascent and flight
+vx = np.random.uniform(-2, 2, num_units)
+vy = np.random.uniform(-2, 2, num_units)
+vz = np.random.uniform(5, 10, num_units) # Upward thrust speed
+
+# Simulate trajectory steps
+steps = 30
+trajectory_x = np.zeros((steps, num_units))
+trajectory_y = np.zeros((steps, num_units))
+trajectory_z = np.zeros((steps, num_units))
+
+for t in range(steps):
+    # Physics updates: accelerating upwards, breaking the water surface at Z=0
+    trajectory_x[t] = x_pos + vx * t
+    trajectory_y[t] = y_pos + vy * t
+    trajectory_z[t] = z_pos + vz * t + (0.5 * 0.5 * (t**2)) # Gravitational/thrust dynamic
+
+# Plotting the 3D Fleet Maneuver
+fig = plt.figure(figsize=(12, 8))
+ax = fig.add_subplot(111, projection='3d')
+
+# Plot sea level reference plane
+xx, yy = np.meshgrid(np.linspace(-100, 100, 10), np.linspace(-100, 100, 10))
+zz = np.zeros_like(xx)
+ax.plot_surface(xx, yy, zz, color='cyan', alpha=0.2, edgecolor='none')
+
+# Plot trajectories of each hybrid launcher in the fleet
+for i in range(num_units):
+    ax.plot(trajectory_x[:, i], trajectory_y[:, i], trajectory_z[:, i], label=f'Unit {i+1}' if i < 3 else "", color='orange', alpha=0.7)
+    # Scatter current end position
+    ax.scatter(trajectory_x[-1, i], trajectory_y[-1, i], trajectory_z[-1, i], color='red', s=50)
+
+ax.set_title("Fleet Simulation: Hybrid Underwater-Flying Rocket-Torpedo Launchers", fontsize=12, fontweight='bold')
+ax.set_xlabel("X Coordinate (m)")
+ax.set_ylabel("Y Coordinate (m)")
+ax.set_zlabel("Depth / Altitude (m) [Z=0 Sea Level]")
+ax.set_zlim(-30, 150)
+
+plt.tight_layout()
+plt.show()
+
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import time
+
+class HybridUnitState:
+    SUBMERGED_PATROL = 0
+    BREACH_LAUNCH = 1
+    AIRBORNE_FLIGHT = 2
+
+class HybridLauncherUnit:
+    def __init__(self, unit_id, initial_pos):
+        self.id = unit_id
+        self.pos = np.array(initial_pos, dtype=float) # [x, y, z] (z=0 is sea level)
+        self.vel = np.array([0.0, 0.0, 1.0], dtype=float) # Initial low-speed underwater crawl
+        self.accel = np.array([0.0, 0.0, 0.0], dtype=float)
+        self.state = HybridUnitState.SUBMERGED_PATROL
+        self.fuel = 100.0  # Fuel/propellant percentage
+        self.trajectory_history = [self.pos.copy()]
+        
+    def update_physics(self, dt, target_vel):
+        # Constants
+        G = 9.81
+        rho_water = 1000.0
+        rho_air = 1.225
+        area = 1.5 # Cross-sectional area reference
+        
+        # Determine medium and forces based on altitude/depth (z)
+        if self.pos[2] < 0:
+            # Underwater Phase: Supercavitation mode
+            if self.state == HybridUnitState.SUBMERGED_PATROL and self.pos[2] > -2.0:
+                self.state = HybridUnitState.BREACH_LAUNCH
+                
+            current_rho = rho_water
+            cd = 0.05  # Reduced drag coefficient due to supercavitative gas envelope
+            thrust = 450.0 if self.fuel > 0 else 0.0
+        else:
+            # Airborne Phase: Rocket-Torpedo Flight Mode
+            if self.state != HybridUnitState.AIRBORNE_FLIGHT:
+                self.state = HybridUnitState.AIRBORNE_FLIGHT
+                self.vel[2] += 15.0 # Boost kick upon breaking water surface
+                
+            current_rho = rho_air
+            cd = 0.25  # Aerodynamic profile drag
+            thrust = 1200.0 if self.fuel > 0 else 0.0 # High-power rocket motors active
+            
+        # Flocking steering force towards target velocity vector
+        steering = target_vel - self.vel
+        steering = np.clip(steering, -2.0, 2.0)
+        
+        # Drag force: F_d = 0.5 * rho * v^2 * Cd * Area
+        speed = np.linalg.norm(self.vel)
+        drag_force = -0.5 * current_rho * (speed * self.vel) * cd * area
+        
+        # Thrust force vector (aligned with velocity or upward during breach)
+        if speed > 0:
+            unit_vel = self.vel / speed
+        else:
+            unit_vel = np.array([0, 0, 1])
+            
+        thrust_force = thrust * unit_vel
+        
+        # Gravity acting on Z axis
+        gravity_force = np.array([0.0, 0.0, -G * 150.0]) # Mass factored
+        
+        # Net acceleration calculation (F = ma -> a = F/m, assuming mass = 150kg)
+        mass = 150.0
+        net_force = thrust_force + drag_force + gravity_force + (steering * 50.0)
+        self.accel = net_force / mass
+        
+        # Integrate velocity and position (Euler method)
+        self.vel += self.accel * dt
+        self.pos += self.vel * dt
+        
+        # Consume fuel
+        if thrust > 0:
+            self.fuel = max(0.0, self.fuel - (dt * 1.5))
+            
+        # Record trajectory
+        self.trajectory_history.append(self.pos.copy())
+
+class FleetCommander:
+    def __init__(self, num_units=12):
+        self.units = []
+        # Initialize fleet in a tactical grid formation underwater
+        cols = 4
+        for i in range(num_units):
+            row = i // cols
+            col = i % cols
+            start_pos = [(col - cols/2) * 15.0, (row - cols/2) * 15.0, -30.0 - (i * 2.0)]
+            self.units.append(HybridLauncherUnit(i + 1, start_pos))
+            
+    def run_simulation_steps(self, steps=60, dt=0.1):
+        print("[HUD TELEMETRY] Initializing Hybrid Fleet Launch Sequence...")
+        print(f"[HUD TELEMETRY] Active Units Deployed: {len(self.units)}")
+        
+        for step in range(steps):
+            # Command fleet vector: moving forward on X/Y, escalating upward on Z
+            target_vector = np.array([15.0, 5.0, 25.0]) 
+            
+            for unit in self.units:
+                unit.update_physics(dt, target_vector)
+                
+            if step % 15 == 0:
+                active_state_counts = {
+                    "Submerged": sum(1 for u in self.units if u.state == HybridUnitState.SUBMERGED_PATROL),
+                    "Breaching": sum(1 for u in self.units if u.state == HybridUnitState.BREACH_LAUNCH),
+                    "Airborne": sum(1 for u in self.units if u.state == HybridUnitState.AIRBORNE_FLIGHT)
+                }
+                print(f"[STEP {step:02d}] FSM Status -> Submerged: {active_state_counts['Submerged']} | Breaching: {active_state_counts['Breaching']} | Airborne: {active_state_counts['Airborne']}")
+
+# Execute Fleet Simulation Backend
+commander = FleetCommander(num_units=16)
+commander.run_simulation_steps(steps=75, dt=0.1)
+
+# Visualization Setup (HUD Dark Theme)
+fig = plt.figure(figsize=(14, 9))
+ax = fig.add_subplot(111, projection='3d')
+fig.patch.set_facecolor('#0b0f19')
+ax.set_facecolor('#0b0f19')
+
+# Render Ocean Surface Plane (Z = 0)
+xx, yy = np.meshgrid(np.linspace(-100, 200, 20), np.linspace(-100, 100, 20))
+zz = np.zeros_like(xx)
+ax.plot_surface(xx, yy, zz, color='#00f0ff', alpha=0.15, edgecolor='none')
+
+# Plot Trajectories
+for unit in commander.units:
+    traj = np.array(unit.trajectory_history)
+    ax.plot(traj[:, 0], traj[:, 1], traj[:, 2], color='#ff007f', alpha=0.8, linewidth=1.5)
+    ax.scatter(traj[-1, 0], traj[-1, 1], traj[-1, 2], color='#39ff14', s=35) # Current position nodes
+
+ax.set_title("ADVANCED FLEET TELEMETRY: HYBRID UNDERWATER-AIR TORPEDO LAUNCH", color='#ffffff', fontsize=11, fontweight='bold', fontfamily='monospace')
+ax.set_xlabel("X Vector (m)", color='#8a99ad')
+ax.set_ylabel("Y Vector (m)", color='#8a99ad')
+ax.set_zlabel("Depth/Altitude (m) [Z=0 Sea Level]", color='#8a99ad')
+ax.set_zlim(-40, 180)
+
+# Styling axes for a glassmorphic/HUD look
+for dim in [ax.xaxis, ax.yaxis, ax.zaxis]:
+    dim.pane.set_facecolor('#111827')
+    dim.pane.set_edgecolor('#1f2937')
+
+plt.tight_layout()
+plt.show()
+
+
+
+import os
+
+def generate_hybrid_fleet_icon():
+    svg_content = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background & Glass Gradients -->
+    linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0f19"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="cyanNeon" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00f0ff"/>
+      <stop offset="100%" stop-color="#0077ff"/>
+    </linearGradient>
+    <linearGradient id="plasmaThrust" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#ff007f"/>
+      <stop offset="100%" stop-color="#ffcc00"/>
+    </linearGradient>
+    <!-- HUD Glow Filter -->
+    <filter id="hudGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Base Icon Frame (Glassmorphic Rounded Card) -->
+  <rect x="16" y="16" width="480" height="480" rx="40" fill="url(#bgGrad)" stroke="#1f2937" stroke-width="3"/>
+  <rect x="24" y="24" width="464" height="464" rx="32" fill="none" stroke="#00f0ff" stroke-width="1" stroke-opacity="0.3" stroke-dasharray="10 5"/>
+
+  <!-- HUD Telemetry Corners -->
+  <path d="M 48 80 L 48 48 L 80 48" fill="none" stroke="#00f0ff" stroke-width="3" filter="url(#hudGlow)"/>
+  <path d="M 464 80 L 464 48 L 432 48" fill="none" stroke="#00f0ff" stroke-width="3" filter="url(#hudGlow)"/>
+  <path d="M 48 432 L 48 464 L 80 464" fill="none" stroke="#00f0ff" stroke-width="3" filter="url(#hudGlow)"/>
+  <path d="M 464 432 L 464 464 L 432 464" fill="none" stroke="#00f0ff" stroke-width="3" filter="url(#hudGlow)"/>
+
+  <!-- Sea-to-Air Horizon Line -->
+  <line x1="48" y1="280" x2="464" y2="280" stroke="#00f0ff" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.5"/>
+  <text x="56" y="272" fill="#00f0ff" font-family="monospace" font-size="10" opacity="0.7">SEA LEVEL [Z=0]</text>
+
+  <!-- Secondary Background Fleet Silhouettes (Swarm Formation) -->
+  <g opacity="0.3" transform="translate(-40, -30) scale(0.6)">
+    <path d="M 220 250 L 320 230 L 300 270 Z" fill="#8a99ad"/>
+  </g>
+  <g opacity="0.4" transform="translate(120, -40) scale(0.5)">
+    <path d="M 220 250 L 320 230 L 300 270 Z" fill="#8a99ad"/>
+  </g>
+
+  <!-- Primary Hybrid Launcher Craft (Centerpiece) -->
+  <g transform="translate(256, 256) rotate(-25) translate(-256, -256)">
+    <!-- Propulsion Exhaust / Rocket Plume -->
+    <path d="M 140 256 L 90 246 L 60 256 L 90 266 Z" fill="url(#plasmaThrust)" filter="url(#hudGlow)"/>
+    <circle cx="70" cy="256" r="12" fill="#ffcc00" opacity="0.8" filter="url(#hudGlow)"/>
+
+    <!-- Main Torpedo-Rocket Fuselage -->
+    <path d="M 140 240 Q 240 220 360 240 L 400 256 L 360 272 Q 240 292 140 272 Z" fill="#1f2937" stroke="url(#cyanNeon)" stroke-width="2.5"/>
+    
+    <!-- Retractable Aerodynamic Wings -->
+    <path d="M 260 245 L 290 170 L 330 185 L 310 245 Z" fill="#111827" stroke="#00f0ff" stroke-width="1.5"/>
+    <path d="M 260 267 L 290 342 L 330 327 L 310 267 Z" fill="#111827" stroke="#00f0ff" stroke-width="1.5"/>
+
+    <!-- Dorsal Multi-Tube Rocket/Torpedo Launcher Pod -->
+    <rect x="220" y="215" width="80" height="30" rx="6" fill="#374151" stroke="#00f0ff" stroke-width="1.5"/>
+    <circle cx="235" cy="230" r="4" fill="#00f0ff"/>
+    <circle cx="250" cy="230" r="4" fill="#00f0ff"/>
+    <circle cx="265" cy="230" r="4" fill="#00f0ff"/>
+    <circle cx="280" cy="230" r="4" fill="#00f0ff"/>
+
+    <!-- Active Fired Projectile / Micro-Missile -->
+    <path d="M 390 250 L 440 235 L 430 256 L 440 277 Z" fill="url(#plasmaThrust)" filter="url(#hudGlow)"/>
+  </g>
+
+  <!-- HUD Telemetry Metadata Overlay -->
+  <text x="56" y="440" fill="#00f0ff" font-family="monospace" font-size="12" font-weight="bold" letter-spacing="1">FLEET-HYBRID-X01</text>
+  <text x="56" y="460" fill="#8a99ad" font-family="monospace" font-size="10">STATUS: SUB-SURFACE TO AIRBORNE</text>
+  
+  <!-- Target Reticle Center Marker -->
+  <circle cx="256" cy="256" r="140" fill="none" stroke="#00f0ff" stroke-width="0.75" stroke-opacity="0.2"/>
+  <line x1="256" y1="106" x2="256" y2="126" stroke="#00f0ff" stroke-opacity="0.5"/>
+  <line x1="256" y1="386" x2="256" y2="406" stroke="#00f0ff" stroke-opacity="0.5"/>
+  <line x1="106" y1="256" x2="126" y2="256" stroke="#00f0ff" stroke-opacity="0.5"/>
+  <line x1="386" y1="256" x2="406" y2="256" stroke="#00f0ff" stroke-opacity="0.5"/>
+</svg>
+"""
+    
+    file_path = "hybrid_fleet_icon.svg"
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(svg_content)
+    print(f"[SUCCESS] High-tech vector icon generated and saved as '{file_path}'")
+
+generate_hybrid_fleet_icon()
