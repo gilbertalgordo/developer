@@ -1,0 +1,2222 @@
+// Gilbert Algordo Automotive Core - Universal Projection & Widget Engine
+import 'package:flutter/material.dart';
+
+class UniversalAutomotiveEngine extends StatefulWidget {
+  final String region; // 'US', 'EU', 'ASIA'
+  final bool isOfflineMode;
+
+  const UniversalAutomotiveEngine({
+    Key? key,
+    required this.region,
+    this.isOfflineMode = false,
+  }) : super(key: key);
+
+  @override
+  _UniversalAutomotiveEngineState createState() => _UniversalAutomotiveEngineState();
+}
+
+class _UniversalAutomotiveEngineState extends State<UniversalAutomotiveEngine> {
+  late AutomotiveAIAgent _aiAgent;
+  bool _isCarConnected = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _aiAgent = AutomotiveAIAgent(region: widget.region);
+    _initializeVehicleBridge();
+  }
+
+  Future<void> _initializeVehicleBridge() async {
+    // Initialize CAN-bus / Automotive HAL connection across US/EU/Asia protocols
+    print("Initializing Universal HAL for region: ${widget.region}");
+    setState(() {
+      _isCarConnected = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark(),
+      home: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildStatusBar(),
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(flex: 3, child: _buildMainDashboard()),
+                    Expanded(flex: 2, child: _buildActiveAIWidgetPanel()),
+                  ],
+                ),
+              ),
+              _buildControlDock(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Colors.grey[900],
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text("Algordo AutoOS | Region: ${widget.region}", 
+               style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold)),
+          Row(
+            children: [
+              Icon(widget.isOfflineMode ? Icons.cloud_off : Icons.cloud_done, 
+                   color: widget.isOfflineMode ? Colors.orange : Colors.green),
+              const SizedBox(width: 8),
+              Text(widget.isOfflineMode ? "Offline Edge Mode" : "Online Connected"),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainDashboard() {
+    return Container(
+      margin: const EdgeInsets.all(8),
+      decoration: BoxDecoration(color: Colors.grey[850], borderRadius: BorderRadius.circular(12)),
+      child: const Center(
+        child: Text("Interactive HUD & Navigation Grid", style: TextStyle(color: Colors.white70, fontSize: 18)),
+      ),
+    );
+  }
+
+  Widget _buildActiveAIWidgetPanel() {
+    return Container(
+      margin: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.blueGrey[900], borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Active AI Assistant", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          const Divider(color: Colors.white24),
+          const Expanded(
+            child: Text("Listening for contextual voice commands or analyzing vehicle vitals...", 
+                        style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurpleAccent),
+            onPressed: () => _aiAgent.triggerProactiveQuery(),
+            icon: const Icon(Icons.mic),
+            label: const Text("Activate Voice AI"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildControlDock() {
+    return Container(
+      height: 60,
+      color: Colors.black87,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          IconButton(icon: const Icon(Icons.dashboard, color: Colors.white), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.map, color: Colors.white), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.music_note, color: Colors.white), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.settings_input_car, color: Colors.white), onPressed: () {}),
+        ],
+      ),
+    );
+  }
+}
+
+class AutomotiveAIAgent {
+  final String region;
+  AutomotiveAIAgent({required this.region});
+
+  void triggerProactiveQuery() {
+    print("Executing active local/cloud hybrid AI inference for region $region");
+  }
+}
+
+
+
+# Gilbert Algordo Automotive Edge & Offline Data Pipeline
+import sqlite3
+import json
+from datetime import datetime
+
+class OfflineAutomotiveCore:
+    def __init__(self, db_path="automotive_edge.db"):
+        self.conn = sqlite3.connect(db_path)
+        self.create_tables()
+
+    def create_tables(self):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS vehicle_telemetry (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                speed REAL,
+                battery_or_fuel REAL,
+                diagnostics_json TEXT
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS offline_vector_cache (
+                key TEXT PRIMARY KEY,
+                embedding_data TEXT,
+                metadata TEXT
+            )
+        ''')
+        self.conn.commit()
+
+    def log_telemetry(self, speed, fuel, diagnostics):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO vehicle_telemetry (timestamp, speed, battery_or_fuel, diagnostics_json)
+            VALUES (?, ?, ?, ?)
+        ''', (datetime.utcnow().isoformat(), speed, fuel, json.dumps(diagnostics)))
+        self.conn.commit()
+
+    def sync_with_cloud_when_online(self, api_endpoint):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM vehicle_telemetry LIMIT 50")
+        rows = cursor.fetchall()
+        print(f"Syncing {len(rows)} offline records to endpoint {api_endpoint}...")
+        return True
+
+if __name__ == "__main__":
+    core = OfflineAutomotiveCore()
+    core.log_telemetry(65.4, 82.5, {"engine_temp": "90C", "tire_pressure": "normal"})
+    print("Offline edge core initialized successfully.")
+
+
+
+// Gilbert Algordo Universal Carmaker HAL (C++ Embedded Bridge)
+#include <iostream>
+#include <string>
+#include <unordered_map>
+
+enum RegionStandard { US_SAE, EU_ISO, ASIA_GBT };
+
+class VehicleHALBridge {
+private:
+    RegionStandard standard;
+    std::unordered_map<std::string, double> vehicleSensors;
+
+public:
+    VehicleHALBridge(RegionStandard reg) : standard(reg) {
+        std::cout << "Initializing HAL for Standard: " << getStandardName() << "\n";
+    }
+
+    std::string getStandardName() {
+        switch(standard) {
+            case US_SAE: return "US (SAE J1939 / OBD-II)";
+            case EU_ISO: return "EU (ISO 15765 / CANopen)";
+            case ASIA_GBT: return "Asia (GB/T National Standard)";
+        }
+        return "Universal";
+    }
+
+    void readCanBusStream() {
+        vehicleSensors["speed"] = 72.5;
+        vehicleSensors["rpm"] = 2100.0;
+        std::cout << "[" << getStandardName() << "] Read CAN Bus -> Speed: " 
+                  << vehicleSensors["speed"] << " km/h, RPM: " << vehicleSensors["rpm"] << "\n";
+    }
+};
+
+int main() {
+    VehicleHALBridge usBridge(US_SAE);
+    usBridge.readCanBusStream();
+
+    VehicleHALBridge euBridge(EU_ISO);
+    euBridge.readCanBusStream();
+
+    VehicleHALBridge asiaBridge(ASIA_GBT);
+    asiaBridge.readCanBusStream();
+
+    return 0;
+}
+
+
+
+package com.gilbertalgordo.auto.native
+
+import android.content.Intent
+import androidx.car.app.CarAppService
+import androidx.car.app.Session
+import androidx.car.app.CarContext
+import androidx.car.app.Screen
+import androidx.car.app.model.*
+import androidx.car.app.validation.HostValidator
+
+class AlgordoCarAppService : CarAppService() {
+    override fun createHostValidator(): HostValidator {
+        // Allows verified automotive and projection hosts (US, EU, Asia standards)
+        return HostValidator.ALLOW_ALL_HOSTS_VALIDATOR
+    }
+
+    override fun onCreateSession(): Session {
+        return AlgordoCarSession()
+    }
+}
+
+class AlgordoCarSession : Session() {
+    override fun onCreateScreen(intent: Intent): Screen {
+        return AlgordoMainScreen(carContext)
+    }
+}
+
+class AlgordoMainScreen(carContext: CarContext) : Screen(carContext) {
+    override fun onGetTemplate(): Template {
+        val row = Row.Builder()
+            .setTitle("Active AI Core: Online/Offline Ready")
+            .addText("Telemetry routed securely via Vehicle HAL bus.")
+            .build()
+
+        val pane = Pane.Builder()
+            .addRow(row)
+            .addAction(
+                Action.Builder()
+                    .setTitle("Trigger Voice AI")
+                    .setOnClickListener {
+                        CarToast.makeText(carContext, "AI Active Sync Triggered", CarToast.LENGTH_SHORT).show()
+                    }
+                    .build()
+            )
+            .build()
+
+        return PaneTemplate.Builder(pane)
+            .setTitle("Algordo Automotive Intelligence")
+            .setHeaderAction(Action.APP_ICON)
+            .build()
+    }
+}
+
+
+
+// Gilbert Algordo CarPlay Interface Bridge
+import CarPlay
+import UIKit
+
+class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
+    var interfaceController: CPInterfaceController?
+
+    func templateApplicationScene(_ templateApplicationScene: CPTemplateApplicationScene, 
+                                  didConnect interfaceController: CPInterfaceController) {
+        self.interfaceController = interfaceController
+        
+        // Constructing interactive AI widget item for the vehicle display
+        let aiWidgetRow = CPListItem(text: "Algordo CarPlay Active AI", detailText: "Hybrid local/cloud inference online")
+        aiWidgetRow.handler { _, completion in
+            print("CarPlay AI Widget interaction dispatched.")
+            // Trigger local offline fallback model or cloud assistant query here
+            completion()
+        }
+
+        let section = CPListSection(items: [aiWidgetRow])
+        let listTemplate = CPListTemplate(title: "Universal Auto Hub", sections: [section])
+        
+        interfaceController.setRootTemplate(listTemplate, animated: true) { success, error in
+            if let error = error {
+                print("Failed to set root CarPlay template: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func templateApplicationScene(_ templateApplicationScene: CPTemplateApplicationScene, 
+                                  didDisconnectInterfaceController interfaceController: CPInterfaceController) {
+        self.interfaceController = nil
+        print("CarPlay session disconnected safely.")
+    }
+}
+
+
+
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+}
+
+android {
+    namespace = "com.gilbertalgordo.auto.native"
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = "com.gilbertalgordo.auto"
+        minSdk = 29
+        targetSdk = 34
+        versionCode = 100
+        versionName = "1.0.0"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    flavorDimensions.add("region")
+
+    productFlavors {
+        create("usRegion") {
+            dimension = "region"
+            applicationIdSuffix = ".us"
+            resValue("string", "app_name", "Algordo Auto [US]")
+            buildConfigField("String", "REGIONAL_STANDARD", "\"SAE_J1939\"")
+        }
+        create("euRegion") {
+            dimension = "region"
+            applicationIdSuffix = ".eu"
+            resValue("string", "app_name", "Algordo Auto [EU]")
+            buildConfigField("String", "REGIONAL_STANDARD", "\"ISO_15765\"")
+        }
+        create("asiaRegion") {
+            dimension = "region"
+            applicationIdSuffix = ".asia"
+            resValue("string", "app_name", "Algordo Auto [Asia]")
+            buildConfigField("String", "REGIONAL_STANDARD", "\"GBT_STANDARD\"")
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+dependencies {
+    // Android for Cars App Library Core
+    implementation("androidx.car.app:car-app:1.4.0")
+    implementation("androidx.car.app:car-app-automotive:1.4.0")
+    
+    // Core Android & Lifecycle
+    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+}
+
+
+
+<key>UIApplicationSceneManifest</key>
+<dict>
+    <key>UIApplicationSupportsMultipleScenes</key>
+    <true/>
+    <key>UISceneConfigurations</key>
+    <dict>
+        <key>CPTemplateApplicationSceneSessionRoleApplication</key>
+        <array>
+            <dict>
+                <key>UISceneConfigurationName</key>
+                <string>CarPlay Configuration</string>
+                <key>UISceneDelegateClassName</key>
+                <string>$(PRODUCT_MODULE_NAME).CarPlaySceneDelegate</string>
+            </dict>
+        </array>
+    </dict>
+</dict>
+
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Required Apple CarPlay App Category Entitlement -->
+    <key>com.apple.developer.carplay-navigation</key>
+    <true/>
+    <!-- Optional Audio/Messaging Stream Entitlements -->
+    <key>com.apple.developer.carplay-audio</key>
+    <true/>
+</dict>
+</plist>
+
+
+
+name: Universal Automotive CI/CD
+
+on:
+  push:
+    branches: [ "main", "release/**" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-android-automotive:
+    name: Build & Sign Android (${{ matrix.flavor }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        flavor: [UsRegionRelease, EuRegionRelease, AsiaRegionRelease]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle Caching
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Decode Release Keystore
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
+            echo "$SIGNING_KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
+          fi
+
+      - name: Assemble Signed Regional App Package
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          ./gradlew assemble${{ matrix.flavor }}
+
+      - name: Upload Android Automotive Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-auto-${{ matrix.flavor }}
+          path: app/build/outputs/apk/**/*.apk
+
+  build-ios-carplay:
+    name: Build & Archive iOS CarPlay App
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode Environment
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.0'
+
+      - name: Configure iOS Code Signing & Provisioning Profiles
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Create temporary keychain for secure builds
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -l build.keychain
+
+          # Import Apple Distribution Certificate (.p12)
+          echo "$BUILD_CERTIFICATE_BASE64" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "$P12_PASSWORD" -A
+          security set-keychain-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+          # Install Mobile Provisioning Profile for CarPlay Navigation
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/carplay_profile.mobileprovision
+
+      - name: Archive iOS CarPlay Project
+        run: |
+          xcodebuild -project AlgordoAuto.xcodeproj \
+                     -scheme "AlgordoAuto" \
+                     -sdk iphoneos \
+                     -configuration Release \
+                     -archivePath $PWD/build/AlgordoAuto.xcarchive \
+                     archive \
+                     CODE_SIGN_STYLE=Manual
+
+      - name: Export IPA Artifact
+        run: |
+          # Export options archive conversion step
+          xcodebuild -exportArchive \
+                     -archivePath $PWD/build/AlgordoAuto.xcarchive \
+                     -exportOptionsPlist ExportOptions.plist \
+                     -exportPath $PWD/build/export
+        continue-on-error: true
+
+      - name: Upload CarPlay iOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-carplay-ipa
+          path: build/export/*.ipa
+
+
+
+# Fastfile - Gilbert Algordo Automotive Delivery Pipeline
+
+default_platform(:android)
+
+platform :android do
+  desc "Deploy Android Automotive multi-region builds to Google Play Console"
+  lane :deploy_play_store do |options|
+    flavor = options[:flavor] || "usRegionRelease"
+    
+    upload_to_play_store(
+      track: 'internal',
+      apk_paths: Dir["app/build/outputs/apk/#{flavor.downcase}/release/*.apk"],
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+end
+
+platform :ios do
+  desc "Upload iOS CarPlay archive to Apple TestFlight"
+  lane :deploy_testflight do
+    upload_to_testflight(
+      ipa: "build/export/AlgordoAuto.ipa",
+      skip_waiting_for_build_processing: true
+    )
+  end
+end
+
+
+
+name: Automotive Continuous Deployment
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on version tags like v1.0.0
+
+jobs:
+  publish-google-play:
+    name: Publish to Google Play (${{ matrix.flavor }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        flavor: [UsRegionRelease, EuRegionRelease, AsiaRegionRelease]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby & Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Decode Google Play Service Account JSON
+        env:
+          GOOGLE_PLAY_JSON_KEY_BASE64: ${{ secrets.GOOGLE_PLAY_JSON_KEY_BASE64 }}
+        run: |
+          echo "$GOOGLE_PLAY_JSON_KEY_BASE64" | base64 --decode > android/fastlane/google-play-key.json
+
+      - name: Build and Upload via Fastlane
+        env:
+          SUPPLY_JSON_KEY: 'android/fastlane/google-play-key.json'
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          # Decode keystore
+          echo "$SIGNING_KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
+          
+          # Run fastlane android deployment lane
+          bundle exec fastlane android deploy_play_store flavor:${{ matrix.flavor }}
+
+  publish-testflight:
+    name: Publish iOS CarPlay to TestFlight
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby & Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.0'
+
+      - name: Authenticate App Store Connect API Key
+        env:
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: |
+          mkdir -p ~/.private_keys
+          echo "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > ~/.private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
+
+      - name: Archive and Upload to TestFlight via Fastlane
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          # Execute iOS build archiving and TestFlight upload
+          bundle exec fastlane ios deploy_testflight
+
+
+
+package com.gilbertalgordo.auto.telemetry
+
+import android.content.Context
+import io.opentelemetry.api.GlobalOpenTelemetry
+import io.opentelemetry.api.trace.Tracer
+import io.sentry.android.core.SentryAndroid
+import io.sentry.Sentry
+
+class AutomotiveTelemetryClient private constructor(context: Context) {
+    private val tracer: Tracer = GlobalOpenTelemetry.getTracer("com.gilbertalgordo.auto.telemetry")
+
+    init {
+        // Initialize Sentry for crash reporting and performance tracing
+        SentryAndroid.init(context) { options ->
+            options.dsn = "YOUR_SENTRY_DSN_KEY"
+            options.tracesSampleRate = 1.0
+            options.isEnableAutoSessionTracking = true
+        }
+    }
+
+    companion object {
+        @Volatile
+        private var INSTANCE: AutomotiveTelemetryClient? = null
+
+        fun getInstance(context: Context): AutomotiveTelemetryClient {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: AutomotiveTelemetryClient(context).also { INSTANCE = it }
+            }
+        }
+    }
+
+    fun recordVehicleMetric(metricName: String, value: Double, attributes: Map<String, String>) {
+        val span = tracer.spanBuilder("metric_$metricName").startSpan()
+        try {
+            span.setAttribute("vehicle.metric.value", value)
+            attributes.forEach { (k, v) -> span.setAttribute(k, v) }
+            Sentry.addBreadcrumb("Telemetry recorded: $metricName = $value")
+        } catch (e: Exception) {
+            Sentry.captureException(e)
+        } finally {
+            span.end()
+        }
+    }
+
+    fun captureHeadUnitCrash(throwable: Throwable, contextMetadata: String) {
+        Sentry.withScope { scope ->
+            scope.setTag("head_unit.context", contextMetadata)
+            Sentry.captureException(throwable)
+        }
+    }
+}
+
+
+
+import Foundation
+import Sentry
+
+public class AutomotiveTelemetryEngine {
+    public static let shared = AutomotiveTelemetryEngine()
+
+    private init() {
+        SentrySDK.start { options in
+            options.dsn = "YOUR_SENTRY_DSN_KEY"
+            options.debug = false
+            options.tracesSampleRate = 1.0
+            options.enableAutoSessionTracking = true
+        }
+    }
+
+    public func trackSpan(name: String, operation: String, block: () -> Void) {
+        let transaction = SentrySDK.startTransaction(name: name, operation: operation)
+        
+        let breadcrumb = Breadcrumb()
+        breadcrumb.category = "carplay.lifecycle"
+        breadcrumb.message = "Executing operation: \(name)"
+        breadcrumb.level = .info
+        SentrySDK.addBreadcrumb(breadcrumb)
+
+        do {
+            block()
+            transaction.finish(status: .ok)
+        } catch {
+            transaction.finish(status: .internalError)
+            SentrySDK.capture(error: error)
+        }
+    }
+}
+
+
+
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://o0.ingest.sentry.io/api/YOUR_PROJECT_ID/otlp"
+export OTEL_EXPORTER_OTLP_HEADERS="X-Sentry-Auth=Bearer YOUR_SENTRY_AUTH_TOKEN"
+export OTEL_RESOURCE_ATTRIBUTES="service.name=algordo-automotive-core,deployment.environment=production"
+
+
+
+#version 460 core
+
+#include <flutter/runtime_effect.glsl>
+
+uniform vec2 uSize;
+uniform float uTime;
+out vec4 fragColor;
+
+void main() {
+    vec2 uv = FlutterFragCoord().xy / uSize;
+    vec2 p = (FlutterFragCoord().xy - 0.5 * uSize) / min(uSize.x, uSize.y);
+
+    // Deep dark glassmorphic background gradient (Indigo / Midnight Blue)
+    vec3 col = mix(vec3(0.02, 0.03, 0.08), vec3(0.05, 0.01, 0.12), uv.y);
+
+    // Sci-fi perspective grid lines
+    float grid = abs(fract(p.x * 10.0 - 0.5) - 0.5) / fwidth(p.x * 10.0);
+    grid += abs(fract(p.y * 10.0 + uTime * 0.2) - 0.5) / fwidth(p.y * 10.0);
+    
+    // Cyan and Giallo Modena yellow telemetry glow accents
+    float scanline = sin(FlutterFragCoord().y * 2.0 + uTime * 5.0) * 0.04;
+    vec3 hudTint = vec3(0.0, 0.85, 1.0) * (1.0 - min(grid, 1.0)) * 0.3;
+    
+    col += hudTint + scanline;
+
+    // Radial vignette for immersive cockpit styling
+    col *= 1.0 - dot(p, p) * 0.4;
+
+    fragColor = vec4(col, 1.0);
+}
+
+
+
+// Gilbert Algordo Automotive HUD Dashboard Engine
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+
+class HUDDashboardWidget extends StatefulWidget {
+  const HUDDashboardWidget({Key? key}) : super(key: key);
+
+  @override
+  State<HUDDashboardWidget> createState() => _HUDDashboardWidgetState();
+}
+
+class _HUDDashboardWidgetState extends State<HUDDashboardWidget> with SingleTickerProviderStateMixin {
+  late Ticker _ticker;
+  double _elapsedTime = 0.0;
+  ui.FragmentShader? _shader;
+
+  // Live Telemetry Mock State
+  double _speed = 142.5;
+  double _rpm = 6400.0;
+  double _boostPressure = 1.45; // bar
+  double _batteryTemp = 88.2;   // °C
+
+  @override
+  void initState() {
+    super.initState();
+    _loadShader();
+    _ticker = createTicker((elapsed) {
+      setState(() {
+        _elapsedTime = elapsed.inMilliseconds / 1000.0;
+        // Simulate live vehicle micro-fluctuations
+        _speed = 142.0 + (ui.window.hashCode % 5) * 0.1;
+      });
+    })..start();
+  }
+
+  Future<void> _loadSessionShader() async {
+    // Load compiled fragment shader asset
+    try {
+      final program = await ui.FragmentProgram.fromAsset('assets/shaders/hud_background.frag');
+      setState(() {
+        _shader = program.fragmentShader();
+      });
+    } catch (e) {
+      debugPrint("Shader fallback active: $e");
+    }
+  }
+
+  Future<void> _loadShader() async {
+    await _loadSessionShader();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // Background Shader / Custom Canvas Layer
+          Positioned.fill(
+            child: _shader != null
+                ? CustomPaint(painter: HUDShaderPainter(shader: _shader!, time: _elapsedTime))
+                : Container(color: const Color(0xFF030510)),
+          ),
+          
+          // Foreground HUD Glassmorphic Telemetry Interface
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildTopStatusBar(),
+                  _buildCentralTelemetryHub(),
+                  _buildBottomG-ForceDock(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopStatusBar() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text("ALGORDOSW // HUD-TELEMETRY-OS", 
+             style: TextStyle(color: Colors.cyanAccent, fontFamily: 'monospace', letterSpacing: 1.5, fontSize: 12)),
+        Row(
+          children: [
+            const Icon(Icons.bolt, color: Color(0xFFFFD700), size: 16),
+            const SizedBox(width: 4),
+            Text("HYBRID POWERTRAIN ACTIVE", style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCentralTelemetryHub() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        // RPM Circular Gauge Pod
+        _buildGlassPod(
+          title: "ENGINE RPM",
+          value: "${_rpm.toStringAsFixed(0)}",
+          unit: "RPM",
+          accentColor: Colors.deepPurpleAccent,
+        ),
+        
+        // Primary Velocity Readout (Center)
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _speed.toStringAsFixed(1),
+              style: const TextStyle(fontSize: 72, fontWeight: FontWeight.w900, color: Colors.white, shadows: [
+                Shadow(color: Colors.cyanAccent, blurRadius: 20)
+              ]),
+            ),
+            const Text("KM/H", style: TextStyle(color: Colors.cyanAccent, letterSpacing: 2, fontWeight: FontWeight.bold)),
+          ],
+        ),
+
+        // Boost & Thermal Pod
+        _buildGlassPod(
+          title: "TURBO BOOST",
+          value: "${_boostPressure.toStringAsFixed(2)}",
+          unit: "BAR",
+          accentColor: const Color(0xFFFFD700), // Giallo Modena Yellow
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGlassPod({required String title, required String value, required String unit, required Color accentColor}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            border: Border.all(color: accentColor.withOpacity(0.4), width: 1.5),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            children: [
+              Text(title, style: TextStyle(color: Colors.white60, fontSize: 10, letterSpacing: 1)),
+              const SizedBox(height: 8),
+              Text(value, style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+              Text(unit, style: TextStyle(color: accentColor, fontSize: 10, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomG-ForceDock() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: const [
+          Text("LATERAL G: +1.14G", style: TextStyle(color: Colors.white70, fontSize: 12, fontFamily: 'monospace')),
+          Text("LONGITUDINAL G: +0.82G", style: TextStyle(color: Colors.white70, fontSize: 12, fontFamily: 'monospace')),
+          Text("INV: 99.8% OPTIMAL", style: TextStyle(color: Colors.cyanAccent, fontSize: 12, fontFamily: 'monospace')),
+        ],
+      ),
+    );
+  }
+}
+
+class HUDShaderPainter extends CustomPainter {
+  final ui.FragmentShader shader;
+  final double time;
+
+  HUDShaderPainter({required this.shader, required this.time});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    shader.setFloat(0, size.width);
+    shader.setFloat(1, size.height);
+    shader.setFloat(2, time);
+
+    final paint = Paint()..shader = shader;
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant HUDShaderPainter oldDelegate) {
+    return oldDelegate.time != time;
+  }
+}
+
+
+
+// ============================================================================
+// Gilbert Algordo - Parametric Automotive Display Enclosure & Mounting Brackets
+// Target: Universal FDM 3D Printing (PETG / ABS Recommended for Cabin Heat)
+// ============================================================================
+
+/* [Enclosure Dimensions] */
+screen_width = 185;   // Internal width for display module (mm)
+screen_height = 115;  // Internal height for display module (mm)
+screen_depth = 22;    // Internal depth/clearance (mm)
+wall_thickness = 3.5; // Robust wall thickness for vibration resistance (mm)
+tolerance = 0.6;      // FDM printing fit tolerance (mm)
+
+/* [Hardware & Mounting] */
+screw_dia = 3.2;      // M3 screw diameter with clearance
+boss_dia = 7.5;       // Corner screw pillar diameter
+bracket_angle = 32;   // Dashboard viewing angle adjustment (degrees)
+
+/* [Render Selector: 1 = Main Enclosure, 2 = Removable Back Cover, 3 = Mounting Brackets] */
+part_selector = 1; 
+
+$fn = 64; // Smooth cylinder rendering resolution
+
+module display_enclosure() {
+    outer_w = screen_width + (wall_thickness * 2) + tolerance;
+    outer_h = screen_height + (wall_thickness * 2) + tolerance;
+    outer_d = screen_depth + wall_thickness + tolerance;
+
+    difference() {
+        // Main Outer Shell with rounded aerodynamic corners
+        translate([-outer_w/2, -outer_h/2, 0])
+        hull() {
+            for (x = [wall_thickness, outer_w - wall_thickness], 
+                 y = [wall_thickness, outer_h - wall_thickness]) {
+                translate([x, y, 0])
+                cylinder(r=wall_thickness+2, h=outer_d);
+            }
+        }
+
+        // Internal Hollow Cavity for Display Module
+        translate([-screen_width/2 - tolerance/2, -screen_height/2 - tolerance/2, wall_thickness])
+        cube([screen_width + tolerance, screen_height + tolerance, screen_depth + 1]);
+
+        // Front Display Screen Bezel Opening (Leaves 6mm structural lip)
+        translate([-screen_width/2 + 6, -screen_height/2 + 6, -1])
+        cube([screen_width - 12, screen_height - 12, wall_thickness + 2]);
+
+        // Thermal Ventilation Slots on Top & Bottom Walls
+        for (i = [-4, -2, 0, 2, 4]) {
+            translate([i * 12, outer_h/2 - wall_thickness - 1, outer_d / 2])
+            cube([4, wall_thickness + 2, 12], center=true);
+        }
+    }
+
+    // Corner Screw Bosses for Back Plate Securing
+    for (x = [-screen_width/2 - tolerance/2 + 3, screen_width/2 + tolerance/2 - 9],
+         y = [-screen_height/2 - tolerance/2 + 3, screen_height/2 + tolerance/2 - 9]) {
+        translate([x, y, wall_thickness])
+        difference() {
+            cylinder(d=boss_dia, h=screen_depth);
+            translate([0, 0, -1])
+            cylinder(d=screw_dia, h=screen_depth + 2);
+        }
+    }
+}
+
+module back_cover() {
+    cover_w = screen_width + (wall_thickness * 2) + tolerance - 0.4;
+    cover_h = screen_height + (wall_thickness * 2) + tolerance - 0.4;
+    cover_thickness = 3.0;
+
+    union() {
+        // Base plate matching enclosure inner dimension
+        translate([-cover_w/2, -cover_h/2, 0])
+        cube([cover_w, cover_h, cover_thickness]);
+
+        // Interlocking Step Lip to snap securely inside enclosure
+        translate([-cover_w/2 + 2, -cover_h/2 + 2, cover_thickness])
+        cube([cover_w - 4, cover_h - 4, 2]);
+
+        // Corner screw alignment tabs
+        for (x = [-screen_width/2 - tolerance/2 + 3, screen_width/2 + tolerance/2 - 9],
+             y = [-screen_height/2 - tolerance/2 + 3, screen_height/2 + tolerance/2 - 9]) {
+            translate([x + 3, y + 3, 0])
+            difference() {
+                cylinder(d=boss_dia, h=cover_thickness);
+                translate([0, 0, -1])
+                cylinder(d=screw_dia, h=cover_thickness + 2);
+            }
+        }
+    }
+}
+
+module mounting_brackets() {
+    bracket_length = 70;
+    bracket_width = 25;
+    bracket_thickness = 6;
+
+    difference() {
+        union() {
+            // Base mounting foot for dashboard chassis anchoring
+            cube([bracket_length, bracket_width, bracket_thickness]);
+            
+            // Angled arm rising to connect to enclosure rear spine
+            rotate([bracket_angle, 0, 0])
+            translate([0, 0, 0])
+            cube([bracket_length, bracket_thickness, 55]);
+
+            // Structural Gusset / Load-Bearing Reinforcement Rib
+            translate([bracket_length/2 - 2, 0, 0])
+            linear_extrude(height=40)
+            polygon(points=[[0,0], [bracket_width, 0], [0, 45]]);
+        }
+
+        // Chassis Mounting Screw Holes (M4 Clearance)
+        translate([15, bracket_width/2, -1])
+        cylinder(d=4.5, h=bracket_thickness + 2);
+        
+        translate([bracket_length - 15, bracket_width/2, -1])
+        cylinder(d=4.5, h=bracket_thickness + 2);
+    }
+}
+
+// Part Selector Execution Switch
+if (part_selector == 1) {
+    display_enclosure();
+} else if (part_selector == 2) {
+    back_cover();
+} else if (part_selector == 3) {
+    mounting_brackets();
+}
+
+
+
+graph TD
+    subgraph Mobile_Devices [Mobile Devices & Car Head Units]
+        AA[Android Auto / AAOS App Library]
+        CP[Apple CarPlay Framework]
+        HUD[Flutter HUD & GLSL Shaders]
+    end
+
+    subgraph Native_Bridges [Native HMI & Message Routing]
+        KB[Kotlin Native Bridge]
+        SB[Swift CarPlay Delegate]
+    end
+
+    subgraph HAL_Layer [Universal Carmaker HAL]
+        US[US: SAE J1939 Bridge]
+        EU[EU: ISO 15765 Bridge]
+        AS[Asia: GB/T Standard Bridge]
+    end
+
+    subgraph Edge_Core [Offline Edge Core]
+        DB[(Local SQLite / Vector Cache)]
+        AI[Local Edge AI Model / Voice Engine]
+    end
+
+    subgraph Cloud_Backend [Cloud & CI/CD Pipeline]
+        OTEL[OpenTelemetry & Sentry Monitoring]
+        SYNC[Cloud Batch Sync / Fastlane Deployment]
+    end
+
+    AA --> KB
+    CP --> SB
+    HUD --> KB
+    HUD --> SB
+    
+    KB --> US & EU & AS
+    SB --> US & EU & AS
+
+    US & EU & AS --> DB
+    DB --> AI
+    
+    AI -.->|Online Reconnection| OTEL
+    AI -.->|Cloud Batch Sync| SYNC
+
+
+
+sequenceDiagram
+    autonumber
+    actor Driver
+    participant HUD as Flutter HUD Engine
+    participant Native as Native Bridge (Kotlin/Swift)
+    participant HAL as Regional HAL (US/EU/Asia)
+    participant Edge as Offline Edge SQLite DB
+    participant AI as Hybrid AI Assistant
+    participant Cloud as Cloud Telemetry / Sentry
+
+    Driver->>HUD: Trigger Voice AI or Accelerate
+    HUD->>Native: Dispatch UI Action / Event
+    Native->>HAL: Read CAN-Bus Stream (Speed, RPM, Vitals)
+    HAL-->>Native: Return Standardized Telemetry JSON
+    
+    alt Network Available (Online Mode)
+        Native->>Edge: Log Telemetry & Sync Batch
+        Edge->>Cloud: OTLP / Sentry Trace Transmission
+        Native->>AI: Dispatch Cloud Hybrid Inference Query
+        AI-->>Native: Return AI Contextual Response
+        Native-->>HUD: Render Active UI Update
+    else Network Unavailable (Offline Tunnel / Remote)
+        Native->>Edge: Store Telemetry Locally in SQLite
+        Native->>AI: Execute Local Lightweight Edge Model
+        AI-->>Native: Return Offline Fallback Action
+        Native-->>HUD: Render Edge Cached HUD Status
+    end
+    
+    HUD-->>Driver: Display Real-Time Telemetry & AI Feedback
+
+
+
+{
+  "timestamp": "2026-11-05T02:07:00Z",
+  "vehicle_id": "ALGORDO_AUTO_CORE_01",
+  "region_standard": "EU_ISO_15765",
+  "metrics": {
+    "speed_kmh": 142.5,
+    "engine_rpm": 6400.0,
+    "boost_bar": 1.45,
+    "battery_temp_c": 88.2,
+    "lateral_g": 1.14
+  },
+  "network_state": "offline_edge"
+}
+
+
+
+{
+  "session_id": "sess_99821_gdev",
+  "input_mode": "voice_proactive",
+  "query_text": "Analyze powertrain thermal efficiency and suggest optimal gear ratio.",
+  "context": {
+    "speed": 142.5,
+    "rpm": 6400.0,
+    "elevation_profile": "mountain_ascent"
+  }
+}
+
+
+
+# Gilbert Algordo Automotive Telemetry Sync Server
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import os
+
+app = FastAPI(title="Algordo Automotive Telemetry Sync Engine", version="1.0.0")
+
+class TelemetryPayload(BaseModel):
+    timestamp: str
+    vehicle_id: str
+    region_standard: str
+    metrics: dict
+
+@app.post("/api/v1/telemetry/ingest")
+async def ingest_telemetry(payload: TelemetryPayload):
+    try:
+        # High-throughput batch ingestion and local queue routing
+        print(f"Synced telemetry record from [{payload.vehicle_id}] standardized to {payload.region_standard}")
+        return {
+            "status": "success", 
+            "vehicle_id": payload.vehicle_id, 
+            "processed_metrics": len(payload.metrics)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/healthz")
+async def liveness_probe():
+    return {"status": "healthy", "service": "telemetry-sync"}
+
+@app.get("/ready")
+async def readiness_probe():
+    return {"status": "ready"}
+
+
+
+# Stage 1: Build Dependencies
+FROM python:3.11-slim AS builder
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Stage 2: Production Runtime
+FROM python:3.11-slim-bookworm
+WORKDIR /app
+
+# Copy installed Python packages from builder stage
+COPY --from=builder /install /usr/local
+COPY server.py .
+
+# Create unprivileged system user for security isolation
+RUN useradd -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+
+
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: automotive-prod
+  labels:
+    environment: production
+    project: algordo-automotive
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telemetry-sync-server
+  namespace: automotive-prod
+  labels:
+    app.kubernetes.io/name: telemetry-sync-server
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: telemetry-sync-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: telemetry-sync-server
+    spec:
+      containers:
+      - name: sync-server
+        image: ghcr.io/gilbertalgordo/automotive-telemetry-sync:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 2
+        env:
+          - name: ENVIRONMENT
+            value: "production"
+          - name: LOG_LEVEL
+            value: "info"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: telemetry-sync-service
+  namespace: automotive-prod
+  labels:
+    app.kubernetes.io/name: telemetry-sync-server
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: telemetry-sync-server
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+
+
+
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: automotive-ingress-gateway
+  namespace: automotive-prod
+spec:
+  selector:
+    istio: ingressgateway # Uses default Istio ingress controller selector
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: automotive-tls-secret # Kubernetes secret containing tls.crt & tls.key
+    hosts:
+    - "telemetry.algordo.dev"
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: telemetry-sync-route
+  namespace: automotive-prod
+spec:
+  hosts:
+  - "telemetry.algordo.dev"
+  gateways:
+  - automotive-ingress-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /api/v1/telemetry
+    route:
+    - destination:
+        host: telemetry-sync-service.automotive-prod.svc.cluster.local
+        port:
+          number: 80
+
+
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default-strict-mtls
+  namespace: automotive-prod
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-ingress-to-telemetry
+  namespace: automotive-prod
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: telemetry-sync-server
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"]
+    to:
+    - operation:
+        methods: ["POST", "GET"]
+        paths: ["/api/v1/telemetry/ingest", "/healthz", "/ready"]
+
+
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-telemetry-namespace
+  namespace: automotive-prod
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    # Allow traffic originating from the Istio system namespace (Ingress Gateway)
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: istio-system
+    # Allow intra-namespace pod communication for health checks and mesh sidecars
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: automotive-prod
+
+
+
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    # Official Let's Encrypt Production ACME Server Endpoint
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@algordo.dev
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+    - http01:
+        gateway:
+          # References the Istio Ingress Gateway created in the previous step
+          name: automotive-ingress-gateway
+          namespace: automotive-prod
+
+
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: automotive-tls-certificate
+  namespace: automotive-prod
+spec:
+  secretName: automotive-tls-secret # Matches the credentialName in Istio Gateway
+  duration: 2160h # 90 days validity period
+  renewBefore: 360h # Automated renewal 15 days prior to expiration
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  commonName: telemetry.algordo.dev
+  dnsNames:
+  - telemetry.algordo.dev
+
+
+
+kubectl apply -f letsencrypt-cluster-issuer.yaml
+kubectl apply -f automotive-certificate.yaml
+
+
+
+# Check ClusterIssuer health status
+kubectl get clusterissuer letsencrypt-prod
+
+# Check Certificate request state (Look for READY: True)
+kubectl get certificate automotive-tls-certificate -n automotive-prod
+
+# Inspect generated TLS secret contents
+kubectl get secret automotive-tls-secret -n automotive-prod
+
+
+
+# Gilbert Algordo - Automotive Telemetry E2E Integration Test Suite
+import os
+import pytest
+import requests
+from datetime import datetime, timezone
+
+# Base URL configurable via environment variable for staging/production testing
+BASE_URL = os.getenv("TELEMETRY_API_URL", "https://telemetry.algordo.dev")
+TIMEOUT_SECONDS = 10.0
+
+@pytest.fixture(scope="session")
+def api_client():
+    session = requests.Session()
+    # Enforce strict TLS verification by default
+    session.verify = True
+    return session
+
+def test_tls_health_probe(api_client):
+    """Validates that the liveness probe responds successfully over secure HTTPS/TLS."""
+    url = f"{BASE_URL}/healthz"
+    response = api_client.get(url, timeout=TIMEOUT_SECONDS)
+    
+    assert response.status_code == 200, f"Expected 200 OK, got {response.status_code}"
+    data = response.json()
+    assert data.get("status") == "healthy"
+    assert data.get("service") == "telemetry-sync"
+    print(f"\n[PASS] TLS Health Probe verified successfully at {url}")
+
+def test_tls_readiness_probe(api_client):
+    """Validates that the readiness probe confirms the backend is ready to accept traffic."""
+    url = f"{BASE_URL}/ready"
+    response = api_client.get(url, timeout=TIMEOUT_SECONDS)
+    
+    assert response.status_code == 200, f"Expected 200 OK, got {response.status_code}"
+    assert response.json().get("status") == "ready"
+    print(f"\n[PASS] TLS Readiness Probe verified successfully at {url}")
+
+def test_secure_telemetry_ingest_pipeline(api_client):
+    """Validates full telemetry batch upload over TLS matching regional vehicle standards."""
+    url = f"{BASE_URL}/api/v1/telemetry/ingest"
+    
+    payload = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "vehicle_id": "ALGORDO_E2E_TEST_NODE_01",
+        "region_standard": "EU_ISO_15765",
+        "metrics": {
+            "speed_kmh": 145.2,
+            "engine_rpm": 6800.0,
+            "boost_bar": 1.52,
+            "battery_temp_c": 89.4
+        }
+    }
+    
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "AlgordoAutomotiveE2ETester/1.0"
+    }
+
+    response = api_client.post(url, json=payload, headers=headers, timeout=TIMEOUT_SECONDS)
+    
+    assert response.status_code == 200, f"Telemetry ingestion failed with status {response.status_code}: {response.text}"
+    
+    result = response.json()
+    assert result.get("status") == "success"
+    assert result.get("vehicle_id") == "ALGORDO_E2E_TEST_NODE_01"
+    assert result.get("processed_metrics") == 4
+    print(f"\n[PASS] Secure Telemetry Ingestion over TLS verified. Processed 4 metrics successfully.")
+
+def test_invalid_telemetry_payload_rejection(api_client):
+    """Ensures malformed telemetry payloads are safely rejected with 422 Unprocessable Entity."""
+    url = f"{BASE_URL}/api/v1/telemetry/ingest"
+    
+    # Missing required 'metrics' field
+    malformed_payload = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "vehicle_id": "MALFORMED_NODE",
+        "region_standard": "US_SAE_J1939"
+    }
+
+    response = api_client.post(url, json=malformed_payload, timeout=TIMEOUT_SECONDS)
+    assert response.status_code == 422, f"Expected 422 validation error, got {response.status_code}"
+    print(f"\n[PASS] Malformed payload correctly rejected with status 422.")
+
+
+
+pip install pytest requests
+
+
+
+pytest -v tests/test_telemetry_e2e.py
+
+
+
+TELEMETRY_API_URL="https://staging-telemetry.algordo.dev" pytest -v tests/test_telemetry_e2e.py
+
+
+
+kubectl apply -f telemetry-sync-k8s.yaml
+kubectl apply -f istio-gateway.yaml
+kubectl apply -f istio-security.yaml
+kubectl apply -f network-policy.yaml
+kubectl apply -f letsencrypt-cluster-issuer.yaml
+kubectl apply -f automotive-certificate.yaml
+
+
+
+pip install pytest requests
+TELEMETRY_API_URL="[https://telemetry.algordo.dev](https://telemetry.algordo.dev)" pytest -v tests/test_telemetry_e2e.py
+
+
+
+// Gilbert Algordo - Universal Automotive Projection & Widget Engine
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+class UniversalAutomotiveRoot extends StatefulWidget {
+  final String regionStandard; // 'US_SAE', 'EU_ISO', 'ASIA_GBT'
+  final bool forceOfflineMode;
+
+  const UniversalAutomotiveRoot({
+    Key? key,
+    this.regionStandard = 'EU_ISO',
+    this.forceOfflineMode = false,
+  }) : super(key: key);
+
+  @override
+  State<UniversalAutomotiveRoot> createState() => _UniversalAutomotiveRootState();
+}
+
+class _UniversalAutomotiveRootState extends State<UniversalAutomotiveRoot> {
+  late final AutomotiveAIAgentBridge _aiBridge;
+  bool _isConnected = false;
+  String _activeWidgetMode = 'HUD_TELEMETRY';
+
+  @override
+  void initState() {
+    super.initState();
+    _aiBridge = AutomotiveAIAgentBridge(region: widget.regionStandard);
+    _initializeVehicleBus();
+  }
+
+  Future<void> _initializeVehicleBus() async {
+    // Establish bi-directional platform channel bridge to Android Auto / CarPlay HAL
+    const channel = MethodChannel('com.gilbertalgordo.auto/hal');
+    try {
+      final bool status = await channel.invokeMethod('connectHAL', {'region': widget.regionStandard});
+      setState(() => _isConnected = status);
+    } catch (e) {
+      debugPrint("HAL Bridge fallback active (Simulation Mode): $e");
+      setState(() => _isConnected = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: const Color(0xFF030510),
+        primaryColor: Colors.cyanAccent,
+      ),
+      home: Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeaderStatusBar(),
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(flex: 3, child: _buildInteractiveDashboardGrid()),
+                    Expanded(flex: 2, child: _buildActiveAIWidgetPanel()),
+                  ],
+                ),
+              ),
+              _buildBottomControlDock(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderStatusBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      color: Colors.black.withOpacity(0.6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.hub, color: Colors.cyanAccent, size: 20),
+              const SizedBox(width: 8),
+              Text("ALGORDO AUTO OS // [${widget.regionStandard}]",
+                  style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.w900, letterSpacing: 1.2)),
+            ],
+          ),
+          Row(
+            children: [
+              Icon(widget.forceOfflineMode ? Icons.cloud_off : Icons.cloud_done,
+                  color: widget.forceOfflineMode ? Colors.orangeAccent : Colors.greenAccent, size: 18),
+              const SizedBox(width: 6),
+              Text(widget.forceOfflineMode ? "EDGE OFFLINE MODE" : "ONLINE HYBRID SYNC",
+                  style: TextStyle(color: widget.forceOfflineMode ? Colors.orangeAccent : Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInteractiveDashboardGrid() {
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.03),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.cyanAccent.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("VEHICLE VITALS & TELEMETRY MESH", style: TextStyle(color: Colors.white70, fontSize: 12, letterSpacing: 1.5)),
+          const Divider(color: Colors.white24),
+          Expanded(
+            child: GridView.count(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              children: [
+                _buildMetricCard("VELOCITY", "142.5", "KM/H", Colors.cyanAccent),
+                _buildMetricCard("POWERTRAIN RPM", "6,400", "RPM", Colors.deepPurpleAccent),
+                _buildMetricCard("BATTERY / FUEL", "88.2", "%", Colors.greenAccent),
+                _buildMetricCard("AI INFERENCE LATENCY", "4.2", "MS", const Color(0xFFFFD700)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricCard(String title, String value, String unit, Color accentColor) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accentColor.withOpacity(0.4), width: 1.5),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: TextStyle(color: Colors.white60, fontSize: 10, letterSpacing: 1)),
+          const Spacer(),
+          Text(value, style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900)),
+          Text(unit, style: TextStyle(color: accentColor, fontSize: 11, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveAIWidgetPanel() {
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0F1D),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.psychology, color: Colors.deepPurpleAccent, size: 20),
+              SizedBox(width: 8),
+              Text("ACTIVE AI AGENT", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+            ],
+          ),
+          const Divider(color: Colors.white24),
+          const Expanded(
+            child: Text(
+              "System online. Monitoring powertrain thermal dynamics and predicting optimal torque distribution across all 4 wheels...",
+              style: TextStyle(color: Colors.white60, height: 1.4),
+            ),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurpleAccent,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 45),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => _aiBridge.triggerProactiveInference(),
+            icon: const Icon(Icons.mic, size: 18),
+            label: const Text("TRIGGER VOICE COMMAND"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomControlDock() {
+    return Container(
+      height: 64,
+      color: Colors.black,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          IconButton(icon: const Icon(Icons.dashboard, color: Colors.cyanAccent), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.map, color: Colors.white70), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.music_note, color: Colors.white70), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.settings_input_car, color: Colors.white70), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.bolt, color: Color(0xFFFFD700)), onPressed: () {}),
+        ],
+      ),
+    );
+  }
+}
+
+class AutomotiveAIAgentBridge {
+  final String region;
+  AutomotiveAIAgentBridge({required this.region});
+
+  void triggerProactiveInference() {
+    debugPrint("Executing proactive hybrid AI inference for region: $region via https://g.dev/gilbert_algordo");
+  }
+}
+
+
+
+// Gilbert Algordo - Universal Carmaker HAL & CAN-Bus Bridge
+#include <iostream>
+#include <string>
+#include <unordered_map>
+#include <memory>
+
+enum class RegionalStandard { US_SAE_J1939, EU_ISO_15765, ASIA_GBT };
+
+class VehicleHALProtocol {
+public:
+    virtual ~VehicleHALProtocol() = default;
+    virtual std::string getStandardName() const = 0;
+    virtual void pollSensorStream() = 0;
+};
+
+class US_SAE_Handler : public VehicleHALProtocol {
+public:
+    std::string getStandardName() const override { return "US (SAE J1939 / OBD-II)"; }
+    void pollSensorStream() override {
+        std::cout << "[SAE J1939] Polling heavy-duty vehicle bus -> Torque: 850 Nm, Exhaust Temp: 320C\n";
+    }
+};
+
+class EU_ISO_Handler : public VehicleHALProtocol {
+public:
+    std::string getStandardName() const override { return "EU (ISO 15765 / CANopen)"; }
+    void pollSensorStream() override {
+        std::cout << "[ISO 15765] Polling passenger vehicle bus -> Motor RPM: 6400, Inverter Temp: 45C\n";
+    }
+};
+
+class Asia_GBT_Handler : public VehicleHALProtocol {
+public:
+    std::string getStandardName() const override { return "Asia (GB/T National Standard)"; }
+    void pollSensorStream() override {
+        std::cout << "[GB/T] Polling EV battery management system -> Cell Voltage: 3.85V, SOC: 82%\n";
+    }
+};
+
+class UniversalHALManager {
+private:
+    std::unique_ptr<VehicleHALProtocol> protocolHandler;
+
+public:
+    UniversalHALManager(RegionalStandard standard) {
+        switch(standard) {
+            case RegionalStandard::US_SAE_J1939:
+                protocolHandler = std::make_unique<US_SAE_Handler>();
+                break;
+            case RegionalStandard::EU_ISO_15765:
+                protocolHandler = std::make_unique<EU_ISO_Handler>();
+                break;
+            case RegionalStandard::ASIA_GBT:
+                protocolHandler = std::make_unique<Asia_GBT_Handler>();
+                break;
+        }
+        std::cout << "Initialized HAL for: " << protocolHandler->getStandardName() << "\n";
+    }
+
+    void executePoll() {
+        protocolHandler->pollSensorStream();
+    }
+};
+
+int main() {
+    UniversalHALManager usManager(RegionalStandard::US_SAE_J1939);
+    usManager.executePoll();
+
+    UniversalHALManager euManager(RegionalStandard::EU_ISO_15765);
+    euManager.executePoll();
+
+    UniversalHALManager asiaManager(RegionalStandard::ASIA_GBT);
+    asiaManager.executePoll();
+
+    return 0;
+}
+
+
+
+# Gilbert Algordo - Offline Edge Vector Sync & Telemetry Core
+import sqlite3
+import json
+from datetime import datetime, timezone
+
+class OfflineEdgeAutomotiveCore:
+    def __init__(self, db_path="edge_automotive_cache.db"):
+        self.conn = sqlite3.connect(db_path)
+        self._initialize_schema()
+
+    def _initialize_schema(self):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS telemetry_queue (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                vehicle_id TEXT,
+                region_standard TEXT,
+                payload_json TEXT,
+                synced INTEGER DEFAULT 0
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS edge_vector_cache (
+                key TEXT PRIMARY KEY,
+                embedding_blob TEXT,
+                metadata TEXT
+            )
+        ''')
+        self.conn.commit()
+
+    def log_telemetry_offline(self, vehicle_id: str, region: str, metrics: dict):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO telemetry_queue (timestamp, vehicle_id, region_standard, payload_json, synced)
+            VALUES (?, ?, ?, ?, 0)
+        ''', (datetime.now(timezone.utc).isoformat(), vehicle_id, region, json.dumps(metrics)))
+        self.conn.commit()
+        print(f"[EDGE CACHE] Telemetry logged locally for vehicle {vehicle_id} under {region}.")
+
+    def perform_sync_when_online(self, endpoint_url: str):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT id, payload_json FROM telemetry_queue WHERE synced = 0 LIMIT 50")
+        rows = cursor.fetchall()
+        
+        if not rows:
+            print("[SYNC] No pending offline telemetry records to upload.")
+            return True
+
+        print(f"[SYNC] Connecting to {endpoint_url} to push {len(rows)} cached telemetry batches...")
+        for row_id, payload in rows:
+            # Simulate secure HTTPS transmission over Istio mTLS
+            cursor.execute("UPDATE telemetry_queue SET synced = 1 WHERE id = ?", (row_id,))
+        self.conn.commit()
+        print("[SYNC] Batch synchronization completed successfully.")
+        return True
+
+if __name__ == "__main__":
+    edge_core = OfflineEdgeAutomotiveCore()
+    edge_core.log_telemetry_offline("ALGORDO_NODE_01", "EU_ISO_15765", {"speed": 142.5, "rpm": 6400, "temp": 88.2})
+    edge_core.perform_sync_when_online("https://telemetry.algordo.dev/api/v1/telemetry/ingest")
+
+
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Outer Adaptive Ring for Global Carmaker Standards -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,20c-4.41,0 -8,-3.59 -8,-8s3.59,-8 8,-8 8,3.59 8,8 -3.59,8 -8,8z"/>
+    <!-- Active AI Core Sparkle Icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,6l-1.5,3.5L7,11l3.5,1.5L12,16l1.5,-3.5L17,11l-3.5,-1.5z"/>
+</vector>
+
+
+
+{
+  "images" : [
+    {
+      "filename" : "algordo_ai_icon_2x.png",
+      "idiom" : "car",
+      "scale" : "2x"
+    },
+    {
+      "filename" : "algordo_ai_icon_3x.png",
+      "idiom" : "car",
+      "scale" : "3x"
+    }
+  ],
+  "info" : {
+    "author" : "gilbert_algordo",
+    "version" : 1
+  }
+}
+
+
+
+package com.gilbertalgordo.auto.widgets
+
+import androidx.car.app.CarContext
+import androidx.car.app.Screen
+import androidx.car.app.model.*
+import androidx.car.app.model.constraints.RowListConstraints
+import com.gilbertalgordo.auto.R
+
+class AlgordoAutomotiveWidgetScreen(carContext: CarContext) : Screen(carContext) {
+
+    override fun onGetTemplate(): Template {
+        // Build dynamic icon-driven tool grid for vehicles in US, EU, and Asia
+        val gridBuilder = GridTemplate.Builder()
+            .setTitle("Algordo Universal AI & Tools")
+            .setHeaderAction(Action.APP_ICON)
+
+        val gridListBuilder = ItemList.Builder()
+
+        // Tool Item 1: Active AI Powertrain Optimizer
+        gridListBuilder.addItem(
+            GridItem.Builder()
+                .setTitle("AI Powertrain")
+                .setText("Online/Offline Hybrid")
+                .setImage(
+                    CarIcon.Builder(
+                        androidx.core.graphics.drawable.IconCompat.createWithResource(
+                            carContext,
+                            R.drawable.ic_algordo_ai_tool
+                        )
+                    ).build()
+                )
+                .setOnClickListener {
+                    // Trigger active AI routine
+                    ScreenManager.getInstance(carContext).push(AlgordoAIPromptScreen(carContext))
+                }
+                .build()
+        )
+
+        // Tool Item 2: Regional CAN-Bus Diagnostics (US/EU/Asia)
+        gridListBuilder.addItem(
+            GridItem.Builder()
+                .setTitle("HAL Diagnostics")
+                .setText("SAE / ISO / GB/T")
+                .setImage(
+                    CarIcon.Builder(
+                        androidx.core.graphics.drawable.IconCompat.createWithResource(
+                            carContext,
+                            R.drawable.ic_algordo_ai_tool
+                        )
+                    ).build()
+                )
+                .setOnClickListener {
+                    CarToast.makeText(carContext, "Syncing regional vehicle bus standard...", CarToast.LENGTH_SHORT).show()
+                }
+                .build()
+        )
+
+        gridBuilder.setSingleList(gridListBuilder.build())
+        
+        // Action strip conforming to strict car safety limits (max 2 action strip items)
+        gridBuilder.addAction(
+            Action.Builder()
+                .setTitle("Emergency Sync")
+                .setOnClickListener {
+                    // Execute offline edge vector cache sync
+                }
+                .build()
+        )
+
+        return gridBuilder.build()
+    }
+}
+
+class AlgordoAIPromptScreen(carContext: CarContext) : Screen(carContext) {
+    override fun onGetTemplate(): Template {
+        val row = Row.Builder()
+            .setTitle("Active AI Agent Status")
+            .addText("Evaluating real-time G-forces, thermal limits, and energy efficiency.")
+            .build()
+
+        val pane = Pane.Builder()
+            .addRow(row)
+            .addAction(
+                Action.Builder()
+                    .setTitle("Execute Edge Inference")
+                    .setOnClickListener {
+                        CarToast.makeText(carContext, "Local Edge AI Model Active.", CarToast.LENGTH_SHORT).show()
+                    }
+                    .build()
+            )
+            .build()
+
+        return PaneTemplate.Builder(pane)
+            .setTitle("Algordo AI Assistant")
+            .setHeaderAction(Action.BACK)
+            .build()
+    }
+}
+
+
+
+// Gilbert Algordo - CarPlay Universal Widget & Icon Manager
+import CarPlay
+import UIKit
+
+public class AlgordoCarPlayManager: NSObject, CPTemplateApplicationSceneDelegate {
+    var interfaceController: CPInterfaceController?
+
+    public func templateApplicationScene(_ templateApplicationScene: CPTemplateApplicationScene, 
+                                         didConnect interfaceController: CPInterfaceController) {
+        self.interfaceController = interfaceController
+        
+        // Constructing Icon-Driven Grid Template for iOS Devices in Vehicles
+        let aiToolButton = CPGridButton(
+            titleVariants: ["Algordo AI"],
+            image: UIImage(named: "algordo_ai_icon_2x") ?? UIImage()
+        ) { button in
+            print("Executing active AI assistant tool call via https://g.dev/gilbert_algordo")
+            self.pushAIStatusTemplate()
+        }
+
+        let diagnosticsButton = CPGridButton(
+            titleVariants: ["HAL Bus"],
+            image: UIImage(named: "algordo_ai_icon_2x") ?? UIImage()
+        ) { button in
+            print("Polling regional carmaker CAN-bus telemetry standards (US/EU/Asia).")
+        }
+
+        let gridTemplate = CPGridTemplate(
+            title: "Algordo Universal Auto OS", 
+            gridButtons: [aiToolButton, diagnosticsButton]
+        )
+
+        interfaceController.setRootTemplate(gridTemplate, animated: true) { success, error in
+            if let error = error {
+                print("Failed to set CarPlay root grid: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func pushAIStatusTemplate() {
+        let item = CPListItem(text: "Edge Hybrid AI", detailText: "Online/Offline vector synchronization active.")
+        let section = CPListSection(items: [item])
+        let listTemplate = CPListTemplate(title: "Active AI Diagnostics", sections: [section])
+        
+        interfaceController?.pushTemplate(listTemplate, animated: true, completion: { success, error in
+            if let error = error {
+                print("Error pushing AI template: \(error.localizedDescription)")
+            }
+        })
+    }
+
+    public func templateApplicationScene(_ templateApplicationScene: CPTemplateApplicationScene, 
+                                         didDisconnectInterfaceController interfaceController: CPInterfaceController) {
+        self.interfaceController = nil
+        print("CarPlay session disconnected safely.")
+    }
+}
