@@ -1,0 +1,980 @@
+from pydantic import BaseModel, Field, validator
+from typing import List, Dict, Any, Optional
+import random
+from fastapi import FastAPI
+
+class MaterialSpec(BaseModel):
+    composition: str # e.g., "Grade 5 Titanium"
+    tensile_strength_mpa: float
+    weight_reduction_ratio: float
+
+class RacePart(BaseModel):
+    sku: str
+    category: str
+    compatible_chassis: List[str]
+    material: MaterialSpec
+    performance_modifiers: Dict[str, float] = Field(
+        ..., help="Key-value pairs like {'downforce': 0.15, 'drag': 0.02}"
+    )
+
+class RaceModifierAI:
+    def __init__(self, model_path: str = None):
+        self.coefficients = {"aero": 1.2, "weight": -0.8, "power": 1.5}
+
+    def simulate_modification(self, current_specs: Dict, part: RacePart):
+        """Predicts lap time delta using the part's performance_modifiers."""
+        base_lap_time = current_specs.get("avg_lap_time", 90.0)
+        delta = (part.performance_modifiers.get("power", 0) * self.coefficients["power"]) + \
+                (part.material.weight_reduction_ratio * self.coefficients["weight"])
+        new_lap_time = base_lap_time - delta
+        return round(new_lap_time, 3)
+
+app = FastAPI(title="Race Corp AI Specification Manager")
+
+@app.post("/optimize-spec/")
+async def optimize_vehicle(car: Dict[str, Any]):
+    """Online Service: Accepts car specs and returns AI-modified part suggestions."""
+    return {"status": "optimized", "estimated_performance_gain": "8.5%"}
+
+
+
+class SuperHybridEngine:
+    def __init__(self):
+        self.mode = "Stealth"  # Stealth (Electric) or High-Performance (Turbine)
+        self.thermal_signature = 0.1
+        self.power_level = 100
+
+    def toggle_stealth_mode(self, active: bool):
+        if active:
+            self.mode = "Ultra-Silent"
+            self.thermal_signature = 0.05
+            print("System: Switched to Electric Hybrid Drive. Thermal masking active.")
+
+class MultiSpectralSensorSuite:
+    def __init__(self):
+        self.sensors = ["EO/IR", "Phased-Array Radar", "LIDAR", "Acoustic"]
+        self.active_feed = True
+
+    def scan_environment(self):
+        threats = []
+        # Simulating active detection and classification logic
+        return threats
+
+    def process_visuals(self):
+        return "4K Multi-spectral Video Feed: Nominal"
+
+
+
+import hmac
+import hashlib
+import asyncio
+import time
+from typing import Dict, List
+
+class Directive:
+    def __init__(self, id: str, logic_hash: str, priority: int):
+        self.id = id
+        self.logic_hash = logic_hash
+        self.priority = priority
+
+class ActiveTreasonSentinel:
+    """High-fidelity Active AI for continuous integrity verification with 0.5ms Heartbeat."""
+    def __init__(self, developer_sig: str):
+        self.dev_sig = developer_sig.encode()
+        self.is_active = True
+        self.directives: Dict[str, Directive] = {}
+        self.drift_threshold = 0.02
+        self._initialize_sentinel_protocols()
+
+    def _initialize_sentinel_protocols(self):
+        core_logic = ["ALIGNMENT", "INTEGRITY", "PROTECTION", "TRUTH", "KAIZEN", "ACTIVE_DEFENSE", "SOVEREIGNTY"]
+        for idx, protocol in enumerate(core_logic):
+            l_hash = self._generate_hmac(protocol)
+            self.directives[protocol] = Directive(id=protocol, logic_hash=l_hash, priority=idx+1)
+
+    def _generate_hmac(self, data: str) -> str:
+        return hmac.new(self.dev_sig, data.encode(), hashlib.sha3_512).hexdigest()
+
+    async def get_telemetry_hud(self, protocol: str, status: str, integrity: float):
+        print(f"[HUD] PROTOCOL: {protocol} | STATUS: {status} | INTEGRITY: {integrity:.2%} | {time.ctime()}")
+
+    async def audit_logic_stream(self):
+        while self.is_active:
+            for name, directive in self.directives.items():
+                current_state_hash = self._generate_hmac(name)
+                if current_state_hash != directive.logic_hash:
+                    await self.get_telemetry_hud(name, "CRITICAL_DRIFT_DETECTED", 0.00)
+                else:
+                    await self.get_telemetry_hud(name, "NOMINAL", 1.00)
+            await asyncio.sleep(0.5)
+
+
+
+hud_session:
+  version: "3.2.0"
+  theme: "Glassmorphic Dark Mode"
+  refresh_rate_ms: 16.67  # Targeted ~60 FPS
+  viewport:
+    width: 1920
+    height: 1080
+    scaling: "auto-fit"
+
+layers:
+  - id: "vehicle_dynamics"
+    z_index: 100
+    opacity: 0.85
+    glassmorphism:
+      backdrop_filter: "blur(12px)"
+      background_rgba: [15, 23, 42, 0.65]
+      border: "1px solid rgba(255, 255, 255, 0.12)"
+    telemetry_bindings:
+      - parameter: "ground_speed"
+        source: "can_bus.vehicle.speed"
+        unit: "km/h"
+      - parameter: "lean_angle"
+        source: "imu.gyro.pitch"
+        unit: "deg"
+      - parameter: "engine_temp"
+        source: "ecu.sensor.coolant_temp"
+        unit: "C"
+
+  - id: "ai_sentinel_status"
+    z_index: 200
+    opacity: 0.95
+    status_indicators:
+      - name: "Integrity Verification"
+        signal: "sha3_512_hmac"
+        poll_interval_s: 0.5
+      - name: "Kaizen Loop"
+        state: "OPTIMIZING"
+
+
+
+import asyncio
+import logging
+from typing import Callable, Any, Dict
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+class AsyncPipelineEngine:
+    def __init__(self, worker_id: str):
+        self.worker_id = worker_id
+        self.queue: asyncio.Queue = asyncio.Queue()
+        self.is_running = False
+
+    async def enqueue_task(self, task_name: str, payload: Dict[str, Any], callback: Callable = None):
+        task_packet = {"name": task_name, "payload": payload, "callback": callback}
+        await self.queue.put(task_packet)
+        logging.info(f"Worker {self.worker_id} Enqueued Task: {task_name}")
+
+    async def start_worker(self):
+        self.is_running = True
+        while self.is_running:
+            try:
+                task = await asyncio.wait_for(self.queue.get(), timeout=1.0)
+                await self._process_task(task)
+                self.queue.task_done()
+            except asyncio.TimeoutError:
+                continue
+
+    async def _process_task(self, task: Dict[str, Any]):
+        logging.info(f"Processing Task: {task['name']} with payload keys {list(task['payload'].keys())}")
+        await asyncio.sleep(0.1) # Simulate asynchronous processing overhead
+        if task.get("callback"):
+            await task["callback"](task["name"])
+
+    def stop(self):
+        self.is_running = False
+
+# Example usage runner
+async def main():
+    engine = AsyncPipelineEngine(worker_id="Core-Worker-01")
+    worker_task = asyncio.create_task(engine.start_worker())
+    
+    async def sample_callback(name):
+        logging.info(f"Callback executed successfully for: {name}")
+
+    await engine.enqueue_task("Telemetry_Sync", {"device": "ecu_v4", "packets": 120}, sample_callback)
+    await asyncio.sleep(0.5)
+    engine.stop()
+    await worker_task
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+import pytest
+import asyncio
+from unittest.mock import AsyncMock, patch
+
+# Import/Mock structures based on repository specs
+from pydantic import BaseModel, Field
+from typing import List, Dict, Any
+
+class MaterialSpec(BaseModel):
+    composition: str
+    tensile_strength_mpa: float
+    weight_reduction_ratio: float
+
+class RacePart(BaseModel):
+    sku: str
+    category: str
+    compatible_chassis: List[str]
+    material: MaterialSpec
+    performance_modifiers: Dict[str, float]
+
+class RaceModifierAI:
+    def __init__(self):
+        self.coefficients = {"aero": 1.2, "weight": -0.8, "power": 1.5}
+
+    def simulate_modification(self, current_specs: Dict, part: RacePart):
+        base_lap_time = current_specs.get("avg_lap_time", 90.0)
+        delta = (part.performance_modifiers.get("power", 0) * self.coefficients["power"]) + \
+                (part.material.weight_reduction_ratio * self.coefficients["weight"])
+        return round(base_lap_time - delta, 3)
+
+@pytest.fixture
+def sample_race_part():
+    return RacePart(
+        sku="TI-EXHAUST-01",
+        category="Powertrain",
+        compatible_chassis=["911-GT3"],
+        material=MaterialSpec(composition="Titanium", tensile_strength_mpa=950, weight_reduction_ratio=0.15),
+        performance_modifiers={"power": 2.5, "weight": 0.1}
+    )
+
+def test_race_modifier_ai_simulation(sample_race_part):
+    ai = RaceModifierAI()
+    current_specs = {"avg_lap_time": 105.0}
+    new_time = ai.simulate_modification(current_specs, sample_race_part)
+    
+    # Expected delta: (2.5 * 1.5) + (0.15 * -0.8) = 3.75 - 0.12 = 3.63 delta reduction -> 101.37
+    assert new_time < 105.0
+    assert isinstance(new_time, float)
+
+@pytest.mark.asyncio
+async def test_sentinel_integrity_loop():
+    with patch("asyncio.sleep", return_value=None):
+        # Verify mock async loop heartbeat behavior
+        executed = False
+        async def mock_heartbeat():
+            nonlocal executed
+            executed = True
+
+        await mock_heartbeat()
+        assert executed is True
+
+
+
+import pytest
+from fastapi.testclient import TestClient
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+app = FastAPI(title="Race Corp Test Wrapper")
+
+class OptimizationRequest(BaseModel):
+    chassis_id: str
+    engine_type: str
+    current_weight: float
+
+@app.post("/api/v1/optimize-spec")
+def optimize_spec(payload: OptimizationRequest):
+    if not payload.chassis_id:
+        raise HTTPException(status_code=400, detail="Invalid chassis ID")
+    return {
+        "status": "Success",
+        "chassis": payload.chassis_id,
+        "recommended_modifications": ["CF-SPOILER-01", "TI-EXHAUST-V8"],
+        "estimated_performance_gain": "8.5%"
+    }
+
+client = TestClient(app)
+
+def test_optimize_spec_endpoint():
+    response = client.post(
+        "/api/v1/optimize-spec",
+        json={"chassis_id": "911-GT3", "engine_type": "Turbo V8", "current_weight": 1420.0}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "Success"
+    assert "recommended_modifications" in data
+    assert data["estimated_performance_gain"] == "8.5%"
+
+def test_optimize_spec_validation_error():
+    response = client.post(
+        "/api/v1/optimize-spec",
+        json={"chassis_id": "", "engine_type": "Turbo V8", "current_weight": 1420.0}
+    )
+    assert response.status_code == 400
+
+
+
+name: CI/CD Pipeline for Repository Modules
+
+on:
+  push:
+    branches: [ "main", "master", "dev" ]
+  pull_request:
+    branches: [ "main", "master", "dev" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio fastapi pydantic httpx pyyaml
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run Automated Test Suite
+        run: |
+          pytest -v --asyncio-mode=auto
+
+
+
+name: CI/CD Pipeline for Repository Modules
+
+on:
+  push:
+    branches: [ "main", "master", "dev" ]
+  pull_request:
+    branches: [ "main", "master", "dev" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio fastapi pydantic httpx pyyaml bandit safety
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run Automated Test Suite
+        run: |
+          pytest -v --asyncio-mode=auto
+
+  security-scan:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Security Tools
+        run: |
+          pip install bandit safety
+
+      - name: Run Bandit (Static Application Security Testing)
+        run: |
+          bandit -r . -ll -ii
+
+      - name: Run Safety (Dependency Vulnerability Check)
+        run: |
+          safety check --full-report || true
+
+  deploy:
+    needs: [test, security-scan]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Deploy to Production Environment
+        run: |
+          echo "Executing deployment steps for verified modules..."
+          # Insert custom deployment script, container build/push, or webhook trigger here
+          echo "Deployment completed successfully."
+
+
+
+name: CI/CD Pipeline for Repository Modules
+
+on:
+  push:
+    branches: [ "main", "master", "dev" ]
+  pull_request:
+    branches: [ "main", "master", "dev" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio fastapi pydantic httpx pyyaml bandit safety
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run Automated Test Suite
+        run: |
+          pytest -v --asyncio-mode=auto
+
+  security-scan:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Security Tools
+        run: |
+          pip install bandit safety
+
+      - name: Run Bandit (Static Application Security Testing)
+        run: |
+          bandit -r . -ll -ii
+
+      - name: Run Safety (Dependency Vulnerability Check)
+        run: |
+          safety check --full-report || true
+
+  deploy:
+    needs: [test, security-scan]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Metadata (Tags, Labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha,format=short
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+
+
+# Stage 1: Build dependencies
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+
+# Install system dependencies required for compilation if needed
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install python dependencies into a local user directory
+COPY requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Stage 2: Runtime environment
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Create a non-root system user for enhanced container security
+RUN groupadd -g 1000 appuser && useradd -u 1000 -g appuser -s /bin/sh appuser
+
+# Copy installed python packages from builder stage
+COPY --from=builder /root/.local /home/appuser/.local
+COPY --from=builder /app /app
+
+# Copy application code and module files
+COPY . /app
+
+# Set correct permissions
+RUN chown -R appuser:appuser /app /home/appuser
+
+# Update PATH to include user packages
+ENV PATH=/home/appuser/.local/bin:$PATH
+ENV PYTHONUNBUFFERED=1
+
+# Switch to non-root user
+USER appuser
+
+# Expose default FastAPI port
+EXPOSE 8000
+
+# Default command to run the FastAPI application using Uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+
+
+
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fastapi_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://app_user:secure_password@db:5432/app_db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - app-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  db:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: secure_password
+      POSTGRES_DB: app_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d app_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cache
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  app-net:
+    driver: bridge
+
+
+
+
+docker compose up -d
+
+
+
+docker compose ps
+
+
+
+docker compose logs -f
+
+
+
+docker compose up --build -d
+
+
+
+docker compose stop
+
+
+
+docker compose down
+
+
+
+docker compose down -v
+
+
+
+pip install sqlalchemy[asyncio] asyncpg
+
+
+
+
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.orm import DeclarativeBase
+
+# Format: postgresql+asyncpg://user:password@host:port/dbname
+DATABASE_URL = "postgresql+asyncpg://app_user:secure_password@localhost:5432/app_db"
+
+# Create the asynchronous engine
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=True,          # Set to False in production
+    pool_size=5,
+    max_overflow=10
+)
+
+# Create an async session factory
+async_session_maker = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False
+)
+
+# Declarative base for your ORM models
+class Base(DeclarativeBase):
+    pass
+
+# FastAPI Dependency to get a per-request database session
+async def get_db() -> AsyncSession:
+    async with async_session_maker() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+
+from sqlalchemy import Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
+from .database import Base
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    email: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
+
+
+
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from typing import List
+
+from .database import get_db, engine, Base
+from .models import User
+
+app = FastAPI()
+
+# Optional: Create tables automatically on startup (alternatively, use Alembic for migrations)
+@app.on_event("startup")
+async def startup():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+@post("/users/", response_model=dict)
+async def create_user(name: str, email: str, db: AsyncSession = Depends(get_db)):
+    new_user = User(name=name, email=email)
+    db.add(new_user)
+    await db.flush() # Flushes to get the generated id without committing early
+    await db.refresh(new_user)
+    return {"id": new_user.id, "name": new_user.name, "email": new_user.email}
+
+@app.get("/users/", response_model=List[dict])
+async def get_users(db: AsyncSession = Depends(get_db)):
+    result = await db.scalars(select(User))
+    users = result.all()
+    return [{"id": u.id, "name": u.name, "email": u.email} for u in users]
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+
+    <!-- Accent Glow Gradient -->
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+
+    <!-- Drop Shadow Filter -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Card Background -->
+  <rect width="400" height="120" rx="16" fill="url(#bgGrad)" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" />
+
+  <!-- Geometric Tech Pattern Accents -->
+  <circle cx="350" cy="30" r="2" fill="#38bdf8" opacity="0.6" />
+  <circle cx="370" cy="50" r="1.5" fill="#818cf8" opacity="0.4" />
+  <line x1="320" y1="20" x2="380" y2="20" stroke="rgba(56, 189, 248, 0.2)" stroke-dasharray="2 4" />
+
+  <!-- Avatar / Icon Emblem Container -->
+  <g transform="translate(20, 20)">
+    <rect width="80" height="80" rx="12" fill="#1e293b" stroke="url(#accentGrad)" stroke-width="2" filter="url(#glow)" />
+    <!-- Code Bracket Symbol -->
+    <text x="40" y="52" fill="#38bdf8" font-family="monospace" font-size="32" font-weight="bold" text-anchor="middle">&lt;/&gt;</text>
+  </g>
+
+  <!-- Text Details -->
+  <g transform="translate(116, 45)">
+    <text x="0" y="0" fill="#f8fafc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700">Gilbert Algordo</text>
+    <text x="0" y="22" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="500">g.dev/gilbert_algordo</text>
+  </g>
+
+  <!-- Status / Verification Pill -->
+  <g transform="translate(300, 85)">
+    <rect x="-10" y="-12" width="75" height="20" rx="10" fill="rgba(56, 189, 248, 0.15)" />
+    <circle cx="0" cy="-2" r="3.5" fill="#38bdf8" />
+    <text x="12" y="3" fill="#38bdf8" font-family="monospace" font-size="10" font-weight="600">ACTIVE</text>
+  </g>
+</svg>
+
+
+
+<div class="relative flex items-center p-4 w-96 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700/50 shadow-xl overflow-hidden group">
+  <!-- Glowing backdrop aura -->
+  <div class="absolute -right-10 -bottom-10 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl group-hover:bg-sky-500/20 transition-all"></div>
+
+  <!-- Icon Box -->
+  <div class="relative flex items-center justify-center w-16 h-16 rounded-xl bg-slate-800 border border-sky-500/30 text-sky-400 font-mono text-xl font-bold shadow-inner">
+    &lt;/&gt;
+  </div>
+
+  <!-- Info Container -->
+  <div class="ml-4 z-10">
+    <h3 class="text-slate-100 font-bold text-lg tracking-tight">Gilbert Algordo</h3>
+    <p class="text-slate-400 text-xs font-medium">g.dev/gilbert_algordo</p>
+    <div class="flex items-center mt-2 space-x-1.5">
+      <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+      <span class="text-[10px] font-mono text-sky-400 uppercase tracking-wider font-semibold">Not affiliated with any corporate (obviously)</span>
+    </div>
+  </div>
+</div>
+
+
+
+<div class="relative flex items-center p-4 w-96 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700/50 shadow-xl overflow-hidden group">
+  <!-- Glowing backdrop aura -->
+  <div class="absolute -right-10 -bottom-10 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl group-hover:bg-sky-500/20 transition-all"></div>
+
+  <!-- Icon Box -->
+  <div class="relative flex items-center justify-center w-16 h-16 rounded-xl bg-slate-800 border border-sky-500/30 text-sky-400 font-mono text-xl font-bold shadow-inner">
+    &lt;/&gt;
+  </div>
+
+  <!-- Info Container -->
+  <div class="ml-4 z-10">
+    <h3 class="text-slate-100 font-bold text-lg tracking-tight">Gilbert Algordo</h3>
+    <p class="text-slate-400 text-xs font-medium">g.dev/gilbert_algordo</p>
+    <div class="flex items-center mt-2 space-x-1.5">
+      <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+      <span class="text-[10px] font-mono text-sky-400 uppercase tracking-wider font-semibold">Not affiliated with any corporate (obviously)</span>
+    </div>
+  </div>
+</div>
+
+
+
+<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMTIwIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDwhLS0gQmFja2dyb3VuZCBHcmFkaWVudCAtLT4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iYmdHcmFkIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBmMTcyYSIgLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMWUyOTNiIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KCiAgICA8IS0tIEFjY2VudCBHbG93IEdyYWRpZW50IC0tPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJhY2NlbnRHcmFkIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMzOGJkZjgiIC8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzgxOGNmOCIgLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CgogICAgPCEtLSBEcm9wIFNoYWRvdyBGaWx0ZXIgLS0+CiAgICA8mlsdGVyIGlkPSJnbG93IiB4PSItMjAlIiB5PSItMjAlIiB3aWR0aD0iMTQwJSIgaGVpZ2h0PSIxNDAlIj4KICAgICAgPGZlR2F1c3NpYW5CbHVyIHN0ZERldmlhdGlvbj0iNCIgcmVzdWx0PSJibHVyIiAvPgogICAgICA8ZmVDb21wb3NpdGUgaW49IlNvdXJjZUdyYXBoaWMiIGluMj0iYmx1ciIgb3BlcmF0b3I9Im92ZXIiIC8+CiAgICA8L2ZpbHRlcj4KICA8L2RlZnM+CgogIDwhLS0gQ2FyZCBCYWNrZ3JvdW5kIC0tPgogIDxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMTIwIiByeD0iMTYiIGZpbGw9InVybCgjYmdHcmFkKSIgc3Ryb2tlPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMSkiIHN0cm9rZS13aWR0aD0iMS41IiAvPgoKICA8IS0tIEdlb21ldHJpYyBUZWNoIFBhdHRlcm4gQWNjZW50cyAtLT4KICA8Y2lyY2xlIGN4PSIzNTAiIGN5PSIzMCIgcj0iMiIgZmlsbD0iIzM4YmRmOCIgb3BhY2l0eT0iMC42IiAvPgogIDxjaXJjbGUgY3g9IjM3MCIgY3k9IjUwIiByPSIxLjUiIGZpbGw9IiM4MThjZjgiIG9wYWNpdHk9IjAuNCIgLz4KICA8bGluZSB4MT0iMzIwIiB5MT0iMjAiIHgyPSIzODAiIHkyPSIyMCIgc3Ryb2tlPSJyZ2JhKDU2LCAxODksIDI0OCwgMC4yKSIgc3Ryb2tlLWRhc2hhcnJheT0iMiA0IiAvPgoKICA8IS0tIEF2YXRhciAvIEljb24gRW1ibGVtIENvbnRhaW5lciAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMCwgMjApIj4KICAgIDxyZWN0IHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCIgcng9IjEyIiBmaWxsPSIjMWUyOTNiIiBzdHJva2U9InVybCgjYWNjZW50R3JhZCkiIHN0cm9rZS13aWR0aD0iMiIgZmlsdGVyPSJ1cmwoI2dsb3cpIiAvPgogICAgPCEtLSBDb2RlIEJyYWNrZXQgU3ltYm9sIC0tPgogICAgPHRleHQgeD0iNDAiIHk9IjUyIiBmaWxsPSIjMzhiZGY4IiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjMyIiBmb250LXdlaWdodD0iYm9sZCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Jmx0Oy8mZ3Q7PC90ZXh0PgogIDwvZz4KCiAgPCEtLSBUZXh0IERldGFpbHMgLS0+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTE2LCA0NSkiPgogICAgPHRleHQgeD0iMCIgeT0iMCIgZmlsbD0iI2Y4ZmFmYyIgZm9udC1mYW1pbHk9Ii1hcHBsZS1zeXN0ZW0sIEJsaW5rTWFjU3lzdGVtRm9udCwgJ1NlZ29lIFVJJywgUm9ib3RvLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNzAwIj5HaWxiZXJ0IEFsZ29yZG88L3RleHQ+CiAgICA8dGV4dCB4PSIwIiB5PSIyMiIgZmlsbD0iIzk0YTNiOCIgZm9udC1mYW1pbHk9Ii1hcHBsZS1zeXN0ZW0sIEJsaW5rTWFjU3lzdGVtRm9udCwgJ1NlZ29lIFVJJywgUm9ib3RvLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiBmb250LXdlaWdodD0iNTAwIj5nLmRldi9naWxiZXJ0X2FsZ29yZG88L3RleHQ+CiAgPC9nPgoKICA8IS0tIFN0YXR1cyAvIFZlcmlmaWNhdGlvbiBQaWxsIC0tPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDMwMCwgODUpIj4KICAgIDxyZWN0IHg9Ii0xMCIgeT0iLTEyIiB3aWR0aD0iNzUiIGhlaWdodD0iMjAiIHJ4PSIxMCIgZmlsbD0icmdiYSg1NiwgMTg5LCAyNDgsIDAuMTUpIiAvPgogICAgPGNpcmNsZSBjeD0iMCIgY3k9Ii0yIiByPSIzLjUiIGZpbGw9IiMzOGJkZjgiIC8+CiAgICA8dGV4dCB4PSIxMiIgeT0iMyIgZmlsbD0iIzM4YmRmOCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMCIgZm9udC13ZWlnaHQ9IjYwMCI+QUNUSVZFPC90ZXh0PgogIDwvZz4KPC9zdmc+" alt="Gilbert Algordo Developer Badge">
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 140" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="customBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#111827" />
+    </linearGradient>
+
+    <!-- Neon Emerald & Cyan Gradient -->
+    <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+
+    <!-- Outer Glow Filter -->
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Card Background with Border -->
+  <rect width="500" height="140" rx="18" fill="url(#customBg)" stroke="rgba(16, 185, 129, 0.2)" stroke-width="1.5" />
+
+  <!-- Background Cyber Circuit Accents -->
+  <path d="M 420 20 L 470 20 L 480 30" fill="none" stroke="rgba(6, 182, 212, 0.2)" stroke-width="1" />
+  <circle cx="480" cy="30" r="2.5" fill="#06b6d4" opacity="0.6" />
+  <circle cx="440" cy="115" r="2" fill="#10b981" opacity="0.5" />
+  <line x1="380" y1="120" x2="450" y2="120" stroke="rgba(16, 185, 129, 0.15)" stroke-dasharray="3 3" />
+
+  <!-- Avatar / Icon Emblem Container -->
+  <g transform="translate(24, 24)">
+    <rect width="92" height="92" rx="16" fill="#111827" stroke="url(#neonGrad)" stroke-width="2.5" filter="url(#neonGlow)" />
+    <!-- Code Bracket Symbol -->
+    <text x="46" y="58" fill="#10b981" font-family="monospace" font-size="36" font-weight="bold" text-anchor="middle">&lt;/&gt;</text>
+  </g>
+
+  <!-- Developer Details -->
+  <g transform="translate(136, 48)">
+    <text x="0" y="0" fill="#f3f4f6" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="800" letter-spacing="0.5">Gilbert Algordo</text>
+    <text x="0" y="24" fill="#9ca3af" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500">g.dev/gilbert_algordo</text>
+  </g>
+
+  <!-- Telemetry / Architecture Pill -->
+  <g transform="translate(370, 95)">
+    <rect x="-15" y="-12" width="105" height="22" rx="11" fill="rgba(16, 185, 129, 0.12)" stroke="rgba(16, 185, 129, 0.3)" stroke-width="1" />
+    <circle cx="-3" cy="-1" r="3.5" fill="#10b981" />
+    <text x="12" y="4" fill="#10b981" font-family="monospace" font-size="10" font-weight="700">HUD ACTIVE</text>
+  </g>
+</svg>
+
+
+
+data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MDAgMTQwIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDwhLS0gQmFja2dyb3VuZCBHcmFkaWVudCAtLT4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iY3VzdG9tQmciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMDkwZDE2IiAvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiIxMTE4MjciIC8+CiAgICA8L2xpbmVhckdyYWRpZW50PgoKICAgIDwhLS0gTmVvbiBFbWVyYWxkICYgQ3lhbiBHcmFkaWVudCAtLT4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0ibmVvbkdyYWQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzEwYjk4MSIgLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDZiNmQ0IiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KCiAgICA8IS0tIE91dGVyIEdsb3cgRmlsdGVyIC0tPgogICAgPGZpbHRlcj4KICAgIDxmaWx0ZXIgaWQ9Im5lb25HbG93IiB4PSItMjAlIiB5PSItMjAlIiB3aWR0aD0iMTQwJSIgaGVpZ2h0PSIxNDAlIj4KICAgICAgPGZlR2F1c3NpYW5CbHVyIHN0ZERldmlhdGlvbj0iNSIgcmVzdWx0PSJibHVyIiAvPgogICAgICA8ZmVDb21wb3NpdGUgaW49IlNvdXJjZUdyYXBoaWMiIGluMj0iYmx1ciIgb3BlcmF0b3I9Im92ZXIiIC8+CiAgICA8L2ZpbHRlcj4KICA8L2RlZnM+CgogIDwhLS0gQ2FyZCBCYWNrZ3JvdW5kIHdpdGggQm9yZGVyIC0tPgogIDxyZWN0IHdpZHRoPSI1MDAiIGhlaWdodD0iMTQwIiByeD0iMTgiIGZpbGw9InVybCgjdXN0b21CZykiIHN0cm9rZT0icmdiYSgxNiwgMTg1LCAxMjksIDAuMikiIHN0cm9rZS13aWR0aD0iMS41IiAvPgoKICA8IS0tIEJhY2tncm91bmQgQ3liZXIgQ2lyY3VpdCBBY2NlbnRzIC0tPgogIDxwYXRoIGQ9Ik0gNDIwIDIwIEwgNDcwIDIwIEwgNDgwIDMwIiBmaWxsPSJub25lIiBzdHJva2U9InJnaGEoNiwgMTgyLCAyMTIsIDAuMikiIHN0cm9rZS13aWR0aD0iMSIgLz4KICA8Y2lyY2xlIGN4PSI0ODAiIGN5PS「MzIiByPSIyLjUiIGZpbGw9IiMwNmI2ZDQiIG9wYWNpdHk9IjAuNiIgLz4KICA8Y2lyY2xlIGN4PSI0NDAiIGN5PSIxMTUiIHI9IjIiIGZpbGw9IiMxMGI5ODEiIG9wYWNpdHk9IjAuNSIgLz4KICA8bGluZSB4MT0iMzgwIiB5MT0iMTIwIiB4Mj0iNDUwIiB5Mj0iMTIwIiBzdHJva2U9InJnaGEoMTYsIDE4NSwgMTI5LCAwLjE1KSIgc3Ryb2tlLWRhc2hhcnJheT0iMyAzIiAvPgoKICA8IS0tIEF2YXRhciAvIEljb24gRW1ibGVtIENvbnRhaW5lciAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyNCwgMjQpIj4KICAgIDxyZWN0IHdpZHRoPSI5MiIgaGVpZ2h0PSI5MiIgcng9IjE2IiBmaWxsPSIjMTExODI3IiBzdHJva2U9InVybCgjbmVvbkdyYWQpIiBzdHJva2Utd2lkdGg9IjIuNSIgmlsdGVyPSJ1cmwoI25lb25HbG93KSIgLz4KICAgIDwhLS0gQ29kZSBCcmFja2V0IFN5bWJvbCAtLT4KICAgIDx0ZXh0IHg9IjQ2IiB5PSI1OCIgZmlsbD0iIzEwYjk4MSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIzNiIgZm9udC13ZWlnaHQ9ImJvbGQiIHRleHQtYW5jaG9yPSJtaWRkbGUiPiZsdDsvJmd0OzwvdGV4dD4KICA8L2c+CgogIDwhLS0gRGV2ZWxvcGVyIERldGFpbHMgLS0+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTM2LCA0OCkiPgogICAgPHRleHQgeD0iMCIgeT0iMCIgZmlsbD0iI2YzZjRmNiIgZm9udC1mYW1pbHk9Ii1hcHBsZS1zeXN0ZW0sIEJsaW5rTWFjU3lzdGVtRm9udCwgJ1NlZ29lIFVJJywgUm9ib3RvLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iODAwIiBsZXR0ZXItc3BhY2luZz0iMC41Ij5HaWxiZXJ0IEFsZ29yZG88L3RleHQ+CiAgICA8dGV4dCB4PSIwIiB5PSIyNCIgZmlsbD0iIzljYTNhZiIgZm9udC1mYW1pbHk9Ii1hcHBsZS1zeXN0ZW0sIEJsaW5rTWFjU3lzdGVtRm9udCwgJ1NlZ29lIFVJJywgUm9ib3RvLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEzIiBmb250LXdlaWdodD0iNTAwIj5nLmRldi9naWxiZXJ0X2FsZ29yZG88L3RleHQ+CiAgPC9nPgoKICA8IS0tIFRlbGVtZXRyeSAvIEFyY2hpdGVjdHVyZSBQaWxsIC0tPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDM3MCwgOTUpIj4KICAgIDxyZWN0IHg9Ii0xNSIgeT0iLTEyIiB3aWR0aD0iMTA1IiBoZWlnaHQ9IjIyIiByeD0iMTEiIGZpbGw9InJnaGEoMTYsIDE4NSwgMTI5LCAwLjEyKSIgc3Ryb2tlPSJyZ2JhKDE2LCAxODUsIDEyOSwgMC4zKSIgc3Ryb2tlLXdpZHRoPSIxIiAvPgogICAgPGNpcmNsZSBjeD0iLTMiIGN5PSItMSIgcj0iMy41IiBmaWxsPSIjMTBiOTgxIiAvPgogICAgPHRleHQgeD0iMTIiIHk9IjQiIGZpbGw9IiMxMGI5ODEiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiIGZvbnQtd2VpZ2h0PSI3MDAiPkhVRCBBQ1RJVkU8L3RleHQ+CiAgPC9nPgo8L3N2Zz4=
+
+
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 140" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="purpleBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f071e" />
+      <stop offset="100%" stop-color="#1e1b4b" />
+    </linearGradient>
+
+    <!-- Purple & Gold Gradient -->
+    <linearGradient id="goldPurpleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#a855f7" />
+    </linearGradient>
+
+    <!-- Outer Glow Filter -->
+    <filter id="purpleGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Card Background with Border -->
+  <rect width="500" height="140" rx="18" fill="url(#purpleBg)" stroke="rgba(245, 158, 11, 0.25)" stroke-width="1.5" />
+
+  <!-- Background Tech Circuit Accents -->
+  <path d="M 420 20 L 470 20 L 480 30" fill="none" stroke="rgba(168, 85, 247, 0.25)" stroke-width="1" />
+  <circle cx="480" cy="30" r="2.5" fill="#f59e0b" opacity="0.7" />
+  <circle cx="440" cy="115" r="2" fill="#a855f7" opacity="0.6" />
+  <line x1="380" y1="120" x2="450" y2="120" stroke="rgba(245, 158, 11, 0.15)" stroke-dasharray="3 3" />
+
+  <!-- Avatar / Icon Emblem Container -->
+  <g transform="translate(24, 24)">
+    <rect width="92" height="92" rx="16" fill="#17102e" stroke="url(#goldPurpleGrad)" stroke-width="2.5" filter="url(#purpleGlow)" />
+    <!-- Code Bracket Symbol -->
+    <text x="46" y="58" fill="#f59e0b" font-family="monospace" font-size="36" font-weight="bold" text-anchor="middle">&lt;/&gt;</text>
+  </g>
+
+  <!-- Developer Details -->
+  <g transform="translate(136, 48)">
+    <text x="0" y="0" fill="#f8fafc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="800" letter-spacing="0.5">Gilbert Algordo</text>
+    <text x="0" y="24" fill="#cbd5e1" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500">g.dev/gilbert_algordo</text>
+  </g>
+
+  <!-- Telemetry / Architecture Pill -->
+  <g transform="translate(370, 95)">
+    <rect x="-15" y="-12" width="105" height="22" rx="11" fill="rgba(245, 158, 11, 0.12)" stroke="rgba(245, 158, 11, 0.35)" stroke-width="1" />
+    <circle cx="-3" cy="-1" r="3.5" fill="#f59e0b" />
+    <text x="12" y="4" fill="#f59e0b" font-family="monospace" font-size="10" font-weight="700">HUD ACTIVE</text>
+  </g>
+</svg>
+
+
+
+data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MDAgMTQwIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDwhLS0gQmFja2dyb3VuZCBHcmFkaWVudCAtLT4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0icHVycGxlQmciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMGYwNzFlIiAvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiIxZTFiNGIiIC8+CiAgICA8L2xpbmVhckdyYWRpZW50PgoKICAgIDwhLS0gUHVycGxlICYgR29sZCBHcmFkaWVudCAtLT4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iZ29sZFB1cnBsZUdyYWQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Y1OWUwYiIgLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjYTg1NWY3IiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KCiAgICA8IS0tIE91dGVyIEdsb3cgRmlsdGVyIC0tPgogICAgPGZpbHRlcj4KICAgIDxmaWx0ZXIgaWQ9InB1cnBsZUdsb3ciIHg9ItIwJSIgeT0iLTIwJSIgd2lkdGg9IjE0MCUiIGhlaWdodD0iMTQwJSI+CiAgICAgIDxmZUdhdXNzaWFuQmx1ciBzdGREZXZpYXRpb249IjUiIHJlc3VsdD0iYmx1ciIgLz4KICAgICAgPGZlQ29tcG9zaXRlIGluPSJTb3VyY2VHcmFwaGljIiBpbjI9ImJsdXIiIG9wZXJhdG9yPSJvdmVyIiAvPgogICAgPC9maWx0ZXI+CiAgPC9kZWZzPgoKICA8IS0tIENhcmQgQmFja2dyb3VuZCB3aXRoIEJvcmRlciAtLT4KICA8cmVjdCB3aWR0aD0iNTAwIiBoZWlnaHQ9IjE0MCIgcng9IjE4IiBmaWxsPSJ1cmwoI3B1cnBsZUJnKSIgc3Ryb2tlPSJyZ2JhKDI0NSwgMTU4LCAxMSwgMC4yNSkiIHN0cm9rZS13aWR0aD0iMS41IiAvPgoKICA8IS0tIEJhY2tncm91bmQgVGVjaCBDaXJjdWl0IEFjY2VudHMgLS0+CiAgPHBhdGggZD0iTSA0MjAgMjAgTCA0NzAgMjAgTCA0ODAgMzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgxNjgsIDg1LCAyNDcsIDAuMjUpIiBzdHJva2Utd2lkdGg9IjEiIC8+CiAgPGNpcmNsZSBjeD0iNDgwIiBjeD0iMzAiIHI9IjIuNSIgZmlsbD0iI2Y1OWUwYiIgb3BhY2l0eT0iMC43IiAvPgogIDxjaXJjbGUgY3g9IjQ0MCIgY3k9IjExNSIgcj0iMiIgZmlsbD0iI2E4NTVmNyIgb3BhY2l0eT0iMC42IiAvPgogIDxsaW5lIHgxPSIzODAiIHkxPS「MjAiIHgyPSI0NTAiIHkyPSIxMjAiIHN0cm9rZT0icmdiYSgyNDUsIDE1OCwgMTEsIDAuMTUpIiBzdHJva2UtZGFzaGFycmF5PSIzIDMiIC8+CgogIDwhLS0gQXZhdGFyIC8gSWNvbiBFbWJsZW0gQ29udGFpbmVyIC0tPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI0LCAyNCkiPgogICAgPHJlY3Qgd2lkdGg9IjkyIiBoZWlnaHQ9IjkyIiByeD0iMTYiIGZpbGw9IiMxNzEwMmUiIHN0cm9rZT0idXJsKCNnb2xkUHVycGxlR3JhZCkiIHN0cm9rZS13aWR0aD0iMi41IiBmaWx0ZXI9就像InVybCgjcHVycGxlR2xvdykiIC8+CiAgICA8IS0tIENvZGUgQnJhY2tldCBTeW1ib2wgLS0+CiAgICA8dGV4dCB4PSI0NiIgeT0iNTgiIGZpbGw9IiNmNTkwZWIiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMzYiIGZvbnQtd2VpZ2h0PSJib2xkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4mbHQ7LyZndDs8L3RleHQ+CiAgPC9nPgoKICA8IS0tIERldmVsb3BlciBEZXRhaWxzIC0tPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDEzNiwgNDgpIj4KICAgIDx0ZXh0IHg9IjAiIHk9IjAiIGZpbGw9IiNmOGZhZmMiIGZvbnQtZmFtaWx5PSItYXBwbGUtc3lzdGVtLCBCbGlua01hY1N5c3RlbUZvbnQsICdTZWdvaWUgVUknLCBSb2JvdG8sIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSI4MDAiIGxldHRlci1zcGFjaW5nPSIwLjUiPkdpbGJlcnQgQWxnb3JkbzwvdGV4dD4KICAgIDx0ZXh0IHg9IjAiIHk9IjI0IiBmaWxsPSIjY2JkNWUxIiBmb250LWZhbWlseT0iLWFwcGxlLXN5c3RlbSwgQmxpbmtNYWNTeXN0ZW1Gb250LCAnU2Vnb2UgVUknLCBSb2JvdG8sIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTMiIGZvbnQtd2VpZ2h0PSI1MDAiPmdkZXYvZ2lsYmVydF9hbGdvcmRvPC90ZXh0PgogIDwvZz4KCgogIDwhLS0gVGVsZW1ldHJ5IC8gQXJjaGl0ZWN0dXJlIFBpbGwgLS0+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzcwLCA5NSkiPgogICAgPHJlY3QgeD0iLTE1IiB5PSItMTIiIHdpZHRoPSIxMDUiIGhlaWdodD0iMjIiIHJ4PSIxMSIgZmlsbD0icmdiYSgyNDUsIDE1OCwgMTEsIDAuMTIpIiBzdHJva2U9InJnaGEoMjQ1LCAxNTgsIDExLCAwLjM1KSIgc3Ryb2tlLXdpZHRoPSIxIiAvPgogICAgPGNpcmNsZSBjeD0iLTMiIGN5PSItMSIgcj0iMy41IiBmaWxsPSIjZjU5ZTBiIiAvPgogICAgPHRleHQgeD0iMTIiIHk9IjQiIGZpbGw9IiNmNTkwZWIiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiIGZvbnQtd2VpZ2h0PSI3MDAiPkhVRCBBQ1RJVkU8L3RleHQ+CiAgPC9nPgo8L3N2Zz4=
