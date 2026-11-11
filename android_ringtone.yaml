@@ -1,0 +1,677 @@
+package com.example.arcaderingtone
+
+import android.content.ContentValues
+import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioTrack
+import android.media.RingtoneManager
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import java.io.ByteArrayOutputStream
+import java.io.OutputStream
+import kotlin.math.sin
+
+/**
+ * 90s Arcade Style Instrumental Ringtone Generator & Installer
+ * Synthesizes 16-bit FM/Chiptune audio programmatically and sets it as an official Android ringtone.
+ */
+class ArcadeRingtoneGenerator(private val context: Context) {
+
+    private val sampleRate = 44100
+
+    /**
+     * Synthesizes a 90s Chiptune/Arcade track and saves it into MediaStore as a Ringtone.
+     */
+    fun generateAndSetRingtone(): Uri? {
+        val pcmData = generateArcadeTrack()
+        val wavData = convertPcmToWav(pcmData, sampleRate)
+
+        val ringtoneUri = saveToMediaStore(wavData, "Arcade_90s_Ringtone.wav")
+        ringtoneUri?.let { uri ->
+            RingtoneManager.setActualDefaultRingtoneUri(
+                context,
+                RingtoneManager.TYPE_RINGTONE,
+                uri
+            )
+        }
+        return ringtoneUri
+    }
+
+    /**
+     * Synthesizes 8-bit / 16-bit sound chips using Square Waves, Noise, and Arpeggios.
+     */
+    private fun generateArcadeTrack(): ByteArray {
+        val durationSeconds = 8.0
+        val numSamples = (sampleRate * durationSeconds).toInt()
+        val pcm = ByteArray(numSamples)
+
+        val bpm = 140.0
+        val quarterNoteDuration = 60.0 / bpm
+        val sixteenthNoteDuration = quarterNoteDuration / 4.0
+
+        // MIDI note to Frequency helper
+        fun m2f(note: Int): Double = 440.0 * Math.pow(2.0, (note - 69) / 12.0)
+
+        // Classic 90s Arcade Arpeggio Lead Sequence (16th notes)
+        val leadNotes = intArrayOf(
+            60, 64, 67, 72, 60, 64, 67, 72, // C major arp
+            58, 62, 65, 70, 58, 62, 65, 70, // Bb major arp
+            57, 60, 64, 69, 57, 60, 64, 69, // A minor arp
+            55, 59, 62, 67, 55, 59, 62, 67  // G major arp
+        )
+
+        // Bassline Notes (8th notes)
+        val bassNotes = intArrayOf(
+            48, 48, 48, 48,
+            46, 46, 46, 46,
+            45, 45, 45, 45,
+            43, 43, 43, 43
+        )
+
+        var phaseLead = 0.0
+        var phaseBass = 0.0
+
+        for (i in 0 until numSamples) {
+            val currentTime = i.toDouble() / sampleRate
+
+            // 1. Lead Square Wave (Pulse Wave with bit-crushed texture)
+            val leadStep = ((currentTime / sixteenthNoteDuration) % leadNotes.size).toInt()
+            val freqLead = m2f(leadNotes[leadStep])
+            phaseLead += 2.0 * Math.PI * freqLead / sampleRate
+            val leadSample = if (sin(phaseLead) > 0.0) 0.3 else -0.3 // Square Wave
+
+            // 2. Bass Triangle/Square Wave
+            val bassStep = ((currentTime / (sixteenthNoteDuration * 2)) % bassNotes.size).toInt()
+            val freqBass = m2f(bassNotes[bassStep])
+            phaseBass += 2.0 * Math.PI * freqBass / sampleRate
+            val bassSample = if (sin(phaseBass) > 0.2) 0.4 else -0.4
+
+            // 3. Arcade Drum Noise (Snare / Hi-Hat emulation on beats)
+            val beatPos = currentTime % sixteenthNoteDuration
+            var noiseSample = 0.0
+            val isSnarePos = ((currentTime / sixteenthNoteDuration).toInt() % 4 == 2)
+            if (isSnarePos && beatPos < 0.08) {
+                val decay = (1.0 - (beatPos / 0.08))
+                noiseSample = (Math.random() * 2.0 - 1.0) * decay * 0.25
+            }
+
+            // Mix and Bit-Crush to 8-bit equivalent PCM (-128 to 127)
+            val mixed = (leadSample + bassSample + noiseSample).coerceIn(-1.0, 1.0)
+            pcm[i] = (mixed * 127.0).toInt().toByte()
+        }
+
+        return pcm
+    }
+
+    /**
+     * Converts raw 8-bit PCM data into a valid WAV file format header and payload.
+     */
+    private fun convertPcmToWav(pcmData: ByteArray, sampleRate: Int): ByteArray {
+        val totalAudioLen = pcmData.size
+        val totalDataLen = totalAudioLen + 36
+        val byteRate = sampleRate * 1 * 8 / 8
+
+        val header = ByteArray(44)
+        header[0] = 'R'.code.toByte(); header[1] = 'I'.code.toByte(); header[2] = 'F'.code.toByte(); header[3] = 'F'.code.toByte()
+        header[4] = (totalDataLen and 0xff).toByte()
+        header[5] = (totalDataLen shr 8 and 0xff).toByte()
+        header[6] = (totalDataLen shr 16 and 0xff).toByte()
+        header[7] = (totalDataLen shr 24 and 0xff).toByte()
+        header[8] = 'W'.code.toByte(); header[9] = 'A'.code.toByte(); header[10] = 'V'.code.toByte(); header[11] = 'E'.code.toByte()
+        header[12] = 'f'.code.toByte(); header[13] = 'm'.code.toByte(); header[14] = 't'.code.toByte(); header[15] = ' '.code.toByte()
+        header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0 // Chunk size
+        header[20] = 1; header[21] = 0 // Format (PCM = 1)
+        header[22] = 1; header[23] = 0 // Channels (1 = Mono)
+        header[24] = (sampleRate and 0xff).toByte()
+        header[25] = (sampleRate shr 8 and 0xff).toByte()
+        header[26] = (sampleRate shr 16 and 0xff).toByte()
+        header[27] = (sampleRate shr 24 and 0xff).toByte()
+        header[28] = (byteRate and 0xff).toByte()
+        header[29] = (byteRate shr 8 and 0xff).toByte()
+        header[30] = (byteRate shr 16 and 0xff).toByte()
+        header[31] = (byteRate shr 24 and 0xff).toByte()
+        header[32] = 1; header[33] = 0 // Block align
+        header[34] = 8; header[35] = 0 // Bits per sample (8-bit)
+        header[36] = 'd'.code.toByte(); header[37] = 'a'.code.toByte(); header[38] = 't'.code.toByte(); header[39] = 'a'.code.toByte()
+        header[40] = (totalAudioLen and 0xff).toByte()
+        header[41] = (totalAudioLen shr 8 and 0xff).toByte()
+        header[42] = (totalAudioLen shr 16 and 0xff).toByte()
+        header[43] = (totalAudioLen shr 24 and 0xff).toByte()
+
+        val out = ByteArrayOutputStream()
+        out.write(header)
+        out.write(pcmData)
+        return out.toByteArray()
+    }
+
+    /**
+     * Saves the WAV byte array to Android MediaStore and sets metadata flags for Ringtone.
+     */
+    private fun saveToMediaStore(wavBytes: ByteArray, filename: String): Uri? {
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+            put(MediaStore.MediaColumns.MIME_TYPE, "audio/wav")
+            put(MediaStore.Audio.Media.IS_RINGTONE, true)
+            put(MediaStore.Audio.Media.IS_NOTIFICATION, false)
+            put(MediaStore.Audio.Media.IS_ALARM, false)
+            put(MediaStore.Audio.Media.IS_MUSIC, false)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_RINGTONES)
+            }
+        }
+
+        val contentUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        val uri = context.contentResolver.insert(contentUri, values)
+
+        uri?.let {
+            context.contentResolver.openOutputStream(it)?.use { os ->
+                os.write(wavBytes)
+            }
+        }
+        return uri
+    }
+}
+
+
+
+<uses-permission android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
+
+
+
+if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(context)) {
+    val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+        data = Uri.parse("package:" + context.packageName)
+    }
+    context.startActivity(intent)
+}
+
+
+
+package com.example.arcaderingtone.advanced
+
+import android.content.ContentValues
+import android.content.Context
+import android.media.AudioFormat
+import android.media.AudioTrack
+import android.media.RingtoneManager
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import java.io.ByteArrayOutputStream
+import kotlin.math.PI
+import kotlin.math.exp
+import kotlin.math.sin
+
+/**
+ * Advanced 90s Arcade Chiptune & FM Synthesis Ringtone Engine
+ * Features multi-channel 8-bit pulse/triangle synthesis, ADSR envelopes, 
+ * digital vibrato, noise channel percussion, and automatic MediaStore ringtone registration.
+ */
+class AdvancedArcadeRingtoneEngine(private val context: Context) {
+
+    private val sampleRate = 44100
+
+    /**
+     * Synthesizes and installs the 90s arcade instrumental track as the active Android ringtone.
+     */
+    fun synthesizeAndSetRingtone(): Uri? {
+        val pcmData = generateAdvancedArcadeTrack()
+        val wavData = wrapPcmInWav(pcmData, sampleRate)
+        val uri = saveToMediaStore(wavData, "Arcade_90s_Advanced_Ringtone.wav")
+
+        uri?.let {
+            RingtoneManager.setActualDefaultRingtoneUri(
+                context,
+                RingtoneManager.TYPE_RINGTONE,
+                it
+            )
+        }
+        return uri
+    }
+
+    private class ADSR(
+        val attack: Double,
+        val decay: Double,
+        val sustainLevel: Double,
+        val release: Double
+    ) {
+        fun gain(timeInNote: Double, noteDuration: Double): Double {
+            if (timeInNote < 0 || timeInNote > noteDuration) return 0.0
+            if (timeInNote < attack) {
+                return timeInNote / attack
+            }
+            if (timeInNote < attack + decay) {
+                val progress = (timeInNote - attack) / decay
+                return 1.0 - (1.0 - sustainLevel) * progress
+            }
+            val releaseStart = noteDuration - release
+            if (timeInNote > releaseStart && release > 0) {
+                val progress = (timeInNote - releaseStart) / release
+                return sustainLevel * (1.0 - progress).coerceIn(0.0, 1.0)
+            }
+            return sustainLevel
+        }
+    }
+
+    private data class NoteEvent(val note: Int, val durationBeats: Double)
+
+    private fun generateAdvancedArcadeTrack(): ByteArray {
+        val bpm = 140.0
+        val beatDuration = 60.0 / bpm
+        val sixteenthDuration = beatDuration / 4.0
+
+        // Track sequence definition (MIDI notes)
+        val melody = listOf(
+            NoteEvent(60, 0.5), NoteEvent(64, 0.5), NoteEvent(67, 0.5), NoteEvent(72, 0.5),
+            NoteEvent(67, 0.5), NoteEvent(64, 0.5), NoteEvent(60, 0.5), NoteEvent(62, 0.5),
+            NoteEvent(65, 0.5), NoteEvent(69, 0.5), NoteEvent(72, 0.5), NoteEvent(77, 0.5),
+            NoteEvent(72, 0.5), NoteEvent(69, 0.5), NoteEvent(65, 0.5), NoteEvent(62, 0.5),
+            NoteEvent(58, 0.5), NoteEvent(62, 0.5), NoteEvent(65, 0.5), NoteEvent(70, 0.5),
+            NoteEvent(65, 0.5), NoteEvent(62, 0.5), NoteEvent(58, 0.5), NoteEvent(60, 0.5),
+            NoteEvent(57, 0.5), NoteEvent(60, 0.5), NoteEvent(64, 0.5), NoteEvent(69, 0.5),
+            NoteEvent(72, 1.5), NoteEvent(74, 0.5), NoteEvent(76, 1.0)
+        )
+
+        val totalDurationSeconds = melody.sumOf { it.durationBeats * beatDuration }
+        val numSamples = (sampleRate * totalDurationSeconds).toInt()
+        val pcm = ByteArray(numSamples)
+
+        fun midiToFreq(note: Int): Double = 440.0 * Math.pow(2.0, (note - 69) / 12.0)
+
+        // Expand melody into timed events
+        val events = mutableListOf<Triple<Double, Double, Int>>() // startSec, durationSec, note
+        var currentTimeCursor = 0.0
+        for (event in melody) {
+            val durSec = event.durationBeats * beatDuration
+            events.add(Triple(currentTimeCursor, durSec, event.note))
+            currentTimeCursor += durSec
+        }
+
+        var phaseLead1 = 0.0
+        var phaseLead2 = 0.0
+        var phaseBass = 0.0
+        val adsr = ADSR(0.01, 0.05, 0.8, 0.05)
+        var lfoPhase = 0.0
+
+        for (i in 0 until numSamples) {
+            val t = i.toDouble() / sampleRate
+            lfoPhase += 2.0 * PI * 5.0 / sampleRate // 5Hz vibrato LFO
+
+            var leadMix = 0.0
+            var bassMix = 0.0
+            var noiseMix = 0.0
+
+            // --- Lead Channel Generation (Dual Pulse + Vibrato) ---
+            for (event in events) {
+                val start = event.first
+                val duration = event.second
+                if (t in start..(start + duration)) {
+                    val localT = t - start
+                    val freq = midiToFreq(event.third)
+                    val vibrato = 1.0 + 0.015 * sin(lfoPhase)
+                    val modulatedFreq = freq * vibrato
+
+                    phaseLead1 += 2.0 * PI * modulatedFreq / sampleRate
+                    phaseLead2 += 2.0 * PI * (modulatedFreq * 1.001) / sampleRate // Slight detune chorus
+
+                    val env = adsr.gain(localT, duration)
+                    val pulse1 = if (sin(phaseLead1) > 0.3) 0.2 else -0.2
+                    val pulse2 = if (sin(phaseLead2) > -0.3) 0.15 else -0.15
+                    leadMix += (pulse1 + pulse2) * env
+                }
+            }
+
+            // --- Bass Channel (Triangle Wave) ---
+            val bassNoteIndex = ((t / sixteenthDuration).toInt() % 16)
+            val bassNotes = intArrayOf(36, 36, 48, 36, 34, 34, 46, 34, 33, 33, 45, 33, 31, 31, 43, 31)
+            val bassFreq = midiToFreq(bassNotes[bassNoteIndex])
+            phaseBass += 2.0 * PI * bassFreq / sampleRate
+            // Approximate triangle wave from sine
+            val triangle = (2.0 / PI) * kotlin.math.asin(sin(phaseBass))
+            bassMix += triangle * 0.35
+
+            // --- Noise Channel (Arcade Snare & Hi-Hat emulation) ---
+            val beatPosition = t % sixteenthDuration
+            val sixteenthIndex = (t / sixteenthDuration).toInt()
+            if (sixteenthIndex % 4 == 2 && beatPosition < 0.1) {
+                // Snare hit
+                val noiseEnv = 1.0 - (beatPosition / 0.1)
+                noiseMix += (Math.random() * 2.0 - 1.0) * 0.2 * noiseEnv
+            } else if (sixteenthIndex % 2 != 0 && beatPosition < 0.05) {
+                // Hi-Hat tick
+                val hihatEnv = 1.0 - (beatPosition / 0.05)
+                noiseMix += (Math.random() * 2.0 - 1.0) * 0.1 * hihatEnv
+            }
+
+            // --- Master Mix & Bit-Crush ---
+            val masterSample = (leadMix + bassMix + noiseMix).coerceIn(-1.0, 1.0)
+            pcm[i] = (masterSample * 127.0).toInt().toByte()
+        }
+
+        return pcm
+    }
+
+    private fun wrapPcmInWav(pcmData: ByteArray, sampleRate: Int): ByteArray {
+        val totalAudioLen = pcmData.size
+        val totalDataLen = totalAudioLen + 36
+        val byteRate = sampleRate * 1 * 8 / 8
+
+        val header = ByteArray(44)
+        header[0] = 'R'.code.toByte(); header[1] = 'I'.code.toByte(); header[2] = 'F'.code.toByte(); header[3] = 'F'.code.toByte()
+        header[4] = (totalDataLen and 0xff).toByte()
+        header[5] = (totalDataLen shr 8 and 0xff).toByte()
+        header[6] = (totalDataLen shr 16 and 0xff).toByte()
+        header[7] = (totalDataLen shr 24 and 0xff).toByte()
+        header[8] = 'W'.code.toByte(); header[9] = 'A'.code.toByte(); header[10] = 'V'.code.toByte(); header[11] = 'E'.code.toByte()
+        header[12] = 'f'.code.toByte(); header[13] = 'm'.code.toByte(); header[14] = 't'.code.toByte(); header[15] = ' '.code.toByte()
+        header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0 // SubChunk1Size (16 for PCM)
+        header[20] = 1; header[21] = 0 // AudioFormat (1 = PCM)
+        header[22] = 1; header[23] = 0 // NumChannels (1 = Mono)
+        header[24] = (sampleRate and 0xff).toByte()
+        header[25] = (sampleRate shr 8 and 0xff).toByte()
+        header[26] = (sampleRate shr 16 and 0xff).toByte()
+        header[27] = (sampleRate shr 24 and 0xff).toByte()
+        header[28] = (byteRate and 0xff).toByte()
+        header[29] = (byteRate shr 8 and 0xff).toByte()
+        header[30] = (byteRate shr 16 and 0xff).toByte()
+        header[31] = (byteRate shr 24 and 0xff).toByte()
+        header[32] = 1; header[33] = 0 // BlockAlign
+        header[34] = 8; header[35] = 0 // BitsPerSample (8-bit)
+        header[36] = 'd'.code.toByte(); header[37] = 'a'.code.toByte(); header[38] = 't'.code.toByte(); header[39] = 'a'.code.toByte()
+        header[40] = (totalAudioLen and 0xff).toByte()
+        header[41] = (totalAudioLen shr 8 and 0xff).toByte()
+        header[42] = (totalAudioLen shr 16 and 0xff).toByte()
+        header[43] = (totalAudioLen shr 24 and 0xff).toByte()
+
+        val out = ByteArrayOutputStream()
+        out.write(header)
+        out.write(pcmData)
+        return out.toByteArray()
+    }
+
+    private fun saveToMediaStore(wavBytes: ByteArray, filename: String): Uri? {
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+            put(MediaStore.MediaColumns.MIME_TYPE, "audio/wav")
+            put(MediaStore.Audio.Media.IS_RINGTONE, true)
+            put(MediaStore.Audio.Media.IS_NOTIFICATION, false)
+            put(MediaStore.Audio.Media.IS_ALARM, false)
+            put(MediaStore.Audio.Media.IS_MUSIC, false)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_RINGTONES)
+            }
+        }
+
+        val contentUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        val uri = context.contentResolver.insert(contentUri, values)
+
+        uri?.let {
+            context.contentResolver.openOutputStream(it)?.use { os ->
+                os.write(wavBytes)
+            }
+        }
+        return uri
+    }
+}
+
+
+
+package com.example.arcaderingtone.advanced
+
+import android.content.ContentValues
+import android.content.Context
+import android.media.RingtoneManager
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import java.io.ByteArrayOutputStream
+import kotlin.math.PI
+import kotlin.math.sin
+
+/**
+ * Advanced 90s Arcade Chiptune & FM Synthesis Ringtone Engine with DSP Delay/Reverb & Coin Drop Intro
+ */
+class AdvancedArcadeRingtoneEngine(private val context: Context) {
+
+    private val sampleRate = 44100
+
+    fun synthesizeAndSetRingtone(): Uri? {
+        val rawPcm = generateAdvancedArcadeTrackWithSFX()
+        val dspPcm = applyDelayAndReverbDSP(rawPcm, sampleRate, delayMs = 180.0, feedback = 0.35)
+        val wavData = wrapPcmInWav(dspPcm, sampleRate)
+        val uri = saveToMediaStore(wavData, "Arcade_90s_Pro_Ringtone.wav")
+
+        uri?.let {
+            RingtoneManager.setActualDefaultRingtoneUri(
+                context,
+                RingtoneManager.TYPE_RINGTONE,
+                it
+            )
+        }
+        return uri
+    }
+
+    private class ADSR(val attack: Double, val decay: Double, val sustainLevel: Double, val release: Double) {
+        fun gain(timeInNote: Double, noteDuration: Double): Double {
+            if (timeInNote < 0 || timeInNote > noteDuration) return 0.0
+            if (timeInNote < attack) return timeInNote / attack
+            if (timeInNote < attack + decay) {
+                val progress = (timeInNote - attack) / decay
+                return 1.0 - (1.0 - sustainLevel) * progress
+            }
+            val releaseStart = noteDuration - release
+            if (timeInNote > releaseStart && release > 0) {
+                val progress = (timeInNote - releaseStart) / release
+                return sustainLevel * (1.0 - progress).coerceIn(0.0, 1.0)
+            }
+            return sustainLevel
+        }
+    }
+
+    private data class NoteEvent(val note: Int, val durationBeats: Double)
+
+    private fun generateAdvancedArcadeTrackWithSFX(): ByteArray {
+        val bpm = 140.0
+        val beatDuration = 60.0 / bpm
+        val sixteenthDuration = beatDuration / 4.0
+
+        // Coin drop intro duration allocation (~0.6 seconds)
+        val coinDropSamples = (sampleRate * 0.6).toInt()
+
+        val melody = listOf(
+            NoteEvent(60, 0.5), NoteEvent(64, 0.5), NoteEvent(67, 0.5), NoteEvent(72, 0.5),
+            NoteEvent(67, 0.5), NoteEvent(64, 0.5), NoteEvent(60, 0.5), NoteEvent(62, 0.5),
+            NoteEvent(65, 0.5), NoteEvent(69, 0.5), NoteEvent(72, 0.5), NoteEvent(77, 0.5),
+            NoteEvent(72, 0.5), NoteEvent(69, 0.5), NoteEvent(65, 0.5), NoteEvent(62, 0.5),
+            NoteEvent(58, 0.5), NoteEvent(62, 0.5), NoteEvent(65, 0.5), NoteEvent(70, 0.5),
+            NoteEvent(65, 0.5), NoteEvent(62, 0.5), NoteEvent(58, 0.5), NoteEvent(60, 0.5),
+            NoteEvent(57, 0.5), NoteEvent(60, 0.5), NoteEvent(64, 0.5), NoteEvent(69, 0.5),
+            NoteEvent(72, 1.5), NoteEvent(74, 0.5), NoteEvent(76, 1.0)
+        )
+
+        val melodyDurationSeconds = melody.sumOf { it.durationBeats * beatDuration }
+        val totalSamples = coinDropSamples + (sampleRate * melodyDurationSeconds).toInt()
+        val pcm = ByteArray(totalSamples)
+
+        fun midiToFreq(note: Int): Double = 440.0 * Math.pow(2.0, (note - 69) / 12.0)
+
+        val events = mutableListOf<Triple<Double, Double, Int>>()
+        var cursor = 0.0
+        for (event in melody) {
+            val durSec = event.durationBeats * beatDuration
+            events.add(Triple(cursor, durSec, event.note))
+            cursor += durSec
+        }
+
+        var phaseLead1 = 0.0
+        var phaseLead2 = 0.0
+        var phaseBass = 0.0
+        val adsr = ADSR(0.01, 0.05, 0.8, 0.05)
+        var lfoPhase = 0.0
+
+        for (i in 0 until totalSamples) {
+            val tGlobal = i.toDouble() / sampleRate
+            var sampleValue = 0.0
+
+            // --- 1. Coin Drop Sound Effect (Intro) ---
+            if (i < coinDropSamples) {
+                val tCoin = tGlobal
+                // Two-tone metallic chime characteristic of arcade coin insertion (B5 -> E6 glissando)
+                val coinFreq = if (tCoin < 0.25) 987.77 else 1318.51
+                val coinPhase = 2.0 * PI * coinFreq * tCoin
+                val env = kotlin.math.exp(-tCoin * 6.0)
+                sampleValue += if (sin(coinPhase) > 0.0) 0.4 * env else -0.4 * env
+            } else {
+                // --- 2. Main Chiptune Sequence ---
+                val t = tGlobal - (coinDropSamples.toDouble() / sampleRate)
+                lfoPhase += 2.0 * PI * 5.0 / sampleRate
+
+                var leadMix = 0.0
+                var bassMix = 0.0
+                var noiseMix = 0.0
+
+                for (event in events) {
+                    val start = event.first
+                    val duration = event.second
+                    if (t in start..(start + duration)) {
+                        val localT = t - start
+                        val freq = midiToFreq(event.third)
+                        val vibrato = 1.0 + 0.015 * sin(lfoPhase)
+                        val modulatedFreq = freq * vibrato
+
+                        phaseLead1 += 2.0 * PI * modulatedFreq / sampleRate
+                        phaseLead2 += 2.0 * PI * (modulatedFreq * 1.001) / sampleRate
+
+                        val env = adsr.gain(localT, duration)
+                        val pulse1 = if (sin(phaseLead1) > 0.3) 0.2 else -0.2
+                        val pulse2 = if (sin(phaseLead2) > -0.3) 0.15 else -0.15
+                        leadMix += (pulse1 + pulse2) * env
+                    }
+                }
+
+                val bassNoteIndex = ((t / sixteenthDuration).toInt() % 16)
+                val bassNotes = intArrayOf(36, 36, 48, 36, 34, 34, 46, 34, 33, 33, 45, 33, 31, 31, 43, 31)
+                val bassFreq = midiToFreq(bassNotes[bassNoteIndex])
+                phaseBass += 2.0 * PI * bassFreq / sampleRate
+                val triangle = (2.0 / PI) * kotlin.math.asin(sin(phaseBass))
+                bassMix += triangle * 0.35
+
+                val beatPosition = t % sixteenthDuration
+                val sixteenthIndex = (t / sixteenthDuration).toInt()
+                if (sixteenthIndex % 4 == 2 && beatPosition < 0.1) {
+                    val noiseEnv = 1.0 - (beatPosition / 0.1)
+                    noiseMix += (Math.random() * 2.0 - 1.0) * 0.2 * noiseEnv
+                } else if (sixteenthIndex % 2 != 0 && beatPosition < 0.05) {
+                    val hihatEnv = 1.0 - (beatPosition / 0.05)
+                    noiseMix += (Math.random() * 2.0 - 1.0) * 0.1 * hihatEnv
+                }
+
+                sampleValue = leadMix + bassMix + noiseMix
+            }
+
+            pcm[i] = (sampleValue.coerceIn(-1.0, 1.0) * 127.0).toInt().toByte()
+        }
+
+        return pcm
+    }
+
+    /**
+     * Applies digital delay (echo) and feedback comb-filter reverb DSP to the raw PCM buffer.
+     */
+    private fun applyDelayAndReverbDSP(inputPcm: ByteArray, sampleRate: Int, delayMs: Double, feedback: Double): ByteArray {
+        val delaySamples = ((delayMs / 1000.0) * sampleRate).toInt()
+        val delayBuffer = DoubleArray(delaySamples)
+        var delayIndex = 0
+        val outputPcm = ByteArray(inputPcm.size)
+
+        for (i in inputPcm.indices) {
+            val dry = inputPcm[i].toDouble() / 127.0
+
+            // Read delayed sample from buffer
+            val delayed = delayBuffer[delayIndex]
+
+            // Apply simple feedback delay + multi-tap reverb simulation
+            val wet = dry + (delayed * feedback)
+            
+            // Write new mixed value back to circular delay buffer
+            delayBuffer[delayIndex] = wet
+            delayIndex = (delayIndex + 1) % delaySamples
+
+            // Blend dry and wet signals (30% wet mix)
+            val processed = (dry * 0.7) + (wet * 0.3)
+            outputPcm[i] = (processed.coerceIn(-1.0, 1.0) * 127.0).toInt().toByte()
+        }
+
+        return outputPcm
+    }
+
+    private fun wrapPcmInWav(pcmData: ByteArray, sampleRate: Int): ByteArray {
+        val totalAudioLen = pcmData.size
+        val totalDataLen = totalAudioLen + 36
+        val byteRate = sampleRate * 1 * 8 / 8
+
+        val header = ByteArray(44)
+        header[0] = 'R'.code.toByte(); header[1] = 'I'.code.toByte(); header[2] = 'F'.code.toByte(); header[3] = 'F'.code.toByte()
+        header[4] = (totalDataLen and 0xff).toByte()
+        header[5] = (totalDataLen shr 8 and 0xff).toByte()
+        header[6] = (totalDataLen shr 16 and 0xff).toByte()
+        header[7] = (totalDataLen shr 24 and 0xff).toByte()
+        header[8] = 'W'.code.toByte(); header[9] = 'A'.code.toByte(); header[10] = 'V'.code.toByte(); header[11] = 'E'.code.toByte()
+        header[12] = 'f'.code.toByte(); header[13] = 'm'.code.toByte(); header[14] = 't'.code.toByte(); header[15] = ' '.code.toByte()
+        header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0
+        header[20] = 1; header[21] = 0
+        header[22] = 1; header[23] = 0
+        header[24] = (sampleRate and 0xff).toByte()
+        header[25] = (sampleRate shr 8 and 0xff).toByte()
+        header[26] = (sampleRate shr 16 and 0xff).toByte()
+        header[27] = (sampleRate shr 24 and 0xff).toByte()
+        header[28] = (byteRate and 0xff).toByte()
+        header[29] = (byteRate shr 8 and 0xff).toByte()
+        header[30] = (byteRate shr 16 and 0xff).toByte()
+        header[31] = (byteRate shr 24 and 0xff).toByte()
+        header[32] = 1; header[33] = 0
+        header[34] = 8; header[35] = 0
+        header[36] = 'd'.code.toByte(); header[37] = 'a'.code.toByte(); header[38] = 't'.code.toByte(); header[39] = 'a'.code.toByte()
+        header[40] = (totalAudioLen and 0xff).toByte()
+        header[41] = (totalAudioLen shr 8 and 0xff).toByte()
+        header[42] = (totalAudioLen shr 16 and 0xff).toByte()
+        header[43] = (totalAudioLen shr 24 and 0xff).toByte()
+
+        val out = ByteArrayOutputStream()
+        out.write(header)
+        out.write(pcmData)
+        return out.toByteArray()
+    }
+
+    private fun saveToMediaStore(wavBytes: ByteArray, filename: String): Uri? {
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+            put(MediaStore.MediaColumns.MIME_TYPE, "audio/wav")
+            put(MediaStore.Audio.Media.IS_RINGTONE, true)
+            put(MediaStore.Audio.Media.IS_NOTIFICATION, false)
+            put(MediaStore.Audio.Media.IS_ALARM, false)
+            put(MediaStore.Audio.Media.IS_MUSIC, false)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_RINGTONES)
+            }
+        }
+
+        val contentUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        val uri = context.contentResolver.insert(contentUri, values)
+
+        uri?.let {
+            context.contentResolver.openOutputStream(it)?.use { os ->
+                os.write(wavBytes)
+            }
+        }
+        return uri
+    }
+}
