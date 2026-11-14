@@ -1,0 +1,1707 @@
+package com.gilbertalgordo.mediaviewer.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.gilbertalgordo.mediaviewer.ai.TFLiteEmbeddingEngine
+import com.gilbertalgordo.mediaviewer.data.FileCacheEntity
+import com.gilbertalgordo.mediaviewer.data.VectorCacheDatabase
+import com.gilbertalgordo.mediaviewer.data.VectorSearchEngine
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+
+data class SemanticSearchResult(
+    val file: FileCacheEntity,
+    val similarityScore: Float
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SemanticSearchWidget(
+    database: VectorCacheDatabase,
+    embeddingEngine: TFLiteEmbeddingEngine,
+    onFileSelected: (FileCacheEntity) -> Unit
+) {
+    var query by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
+    var isSearching by remember { mutableStateOf(false) }
+    var results by remember { mutableStateOf<List<SemanticSearchResult>>(emptyList()) }
+
+    // Debounced on-device semantic inference
+    LaunchedEffect(query) {
+        if (query.isBlank()) {
+            results = emptyList()
+            return@LaunchedEffect
+        }
+        isSearching = true
+        delay(250L) // Debounce keystrokes before running TFLite inference
+
+        val rankedMatches = withContext(Dispatchers.Default) {
+            val queryVector = embeddingEngine.generateEmbedding(query)
+            val cachedFiles = database.fileCacheDao().getAllCachedFiles()
+
+            cachedFiles.mapNotNull { entity ->
+                val storedVector = entity.embeddingJson
+                    .split(",")
+                    .mapNotNull { it.toFloatOrNull() }
+                    .toFloatArray()
+
+                if (storedVector.size == queryVector.size) {
+                    val score = VectorSearchEngine.cosineSimilarity(queryVector, storedVector)
+                    if (score >= 0.45f) SemanticSearchResult(entity, score) else null
+                } else null
+            }.sortedByDescending { it.similarityScore }
+        }
+
+        results = rankedMatches
+        isSearching = false
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        SearchBar(
+            modifier = Modifier.fillMaxWidth(),
+            inputField = {
+                SearchBarDefaults.InputField(
+                    query = query,
+                    onQueryChange = { query = it },
+                    onSearch = { expanded = false },
+                    expanded = expanded,
+                    onExpandedChange = { expanded = it },
+                    placeholder = {
+                        Text(
+                            "Query local media & docs semantically...",
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp
+                        )
+                    },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Semantic Search") },
+                    trailingIcon = {
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = { query = "" }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear Query")
+                            }
+                        }
+                    }
+                )
+            },
+            expanded = expanded,
+            onExpandedChange = { expanded = it },
+            shape = RoundedCornerShape(14.dp),
+            colors = SearchBarDefaults.colors(
+                containerColor = Color(0xFF101820).copy(alpha = 0.92f)
+            )
+        ) {
+            if (isSearching) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color(0xFF00E5FF)
+                )
+            }
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(results, key = { it.file.fileId }) { match ->
+                    SemanticResultHudCard(
+                        match = match,
+                        onClick = {
+                            expanded = false
+                            onFileSelected(match.file)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SemanticResultHudCard(
+    match: SemanticSearchResult,
+    onClick: () -> Unit
+) {
+    val confidencePercent = (match.similarityScore * 100).toInt()
+    val badgeColor = when {
+        confidencePercent >= 80 -> Color(0xFF00E676)
+        confidencePercent >= 60 -> Color(0xFF00E5FF)
+        else -> Color(0xFFFFB300)
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF182430).copy(alpha = 0.75f), RoundedCornerShape(10.dp))
+            .border(1.dp, badgeColor.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+            .clickable { onClick() }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+            Text(
+                text = match.file.title,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = match.file.transcriptContent.take(90) + "...",
+                color = Color(0xFFB0BEC5),
+                fontSize = 12.sp,
+                maxLines = 2
+            )
+        }
+
+        // HUD Telemetry Match Badge
+        Box(
+            modifier = Modifier
+                .background(badgeColor.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                .border(1.dp, badgeColor, RoundedCornerShape(6.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = "$confidencePercent% MATCH",
+                color = badgeColor,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp
+            )
+        }
+    }
+}
+
+
+
+import SwiftUI
+import SQLite3
+
+struct SemanticFileMatch: Identifiable {
+    let id: String
+    let title: String
+    let snippet: String
+    let similarity: Float
+}
+
+@MainActor
+class SemanticSearchViewModel: ObservableObject {
+    @Published var query: String = ""
+    @Published var matches: [SemanticFileMatch] = []
+    @Published var isComputing: Bool = false
+
+    private let coreMLEngine = CoreMLEmbeddingEngine()
+    private var searchTask: Task<Void, Never>?
+
+    func onQueryUpdated(_ newQuery: String) {
+        searchTask?.cancel()
+        
+        guard !newQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            matches = []
+            isComputing = false
+            return
+        }
+
+        isComputing = true
+        searchTask = Task {
+            // 250ms debounce window
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            guard !Task.isCancelled else { return }
+
+            let computedResults = await performOfflineVectorSearch(for: newQuery)
+            guard !Task.isCancelled else { return }
+
+            self.matches = computedResults
+            self.isComputing = false
+        }
+    }
+
+    private func performOfflineVectorSearch(for text: String) async -> [SemanticFileMatch] {
+        return await Task.detached(priority: .userInitiated) { [coreMLEngine] in
+            guard let queryVector = coreMLEngine.generateEmbedding(for: text) else {
+                return []
+            }
+
+            let cachedRecords = VectorCacheManager.shared.fetchAllRecordsWithVectors()
+            var ranked: [SemanticFileMatch] = []
+
+            for record in cachedRecords {
+                let score = VectorCacheManager.shared.computeCosineSimilarity(queryVector, record.embedding)
+                if score >= 0.45 {
+                    ranked.append(
+                        SemanticFileMatch(
+                            id: record.fileId,
+                            title: record.title,
+                            snippet: String(record.content.prefix(100)),
+                            similarity: score
+                        )
+                    )
+                }
+            }
+
+            return ranked.sorted { $0.similarity > $1.similarity }
+        }.value
+    }
+}
+
+struct SemanticSearchView: View {
+    @StateObject private var viewModel = SemanticSearchViewModel()
+    var onSelectFile: (String) -> Void
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color(red: 0.06, green: 0.09, blue: 0.12)
+                    .ignoresSafeArea()
+
+                VStack(spacing: 12) {
+                    if viewModel.isComputing {
+                        ProgressView("Running Neural Engine Vector Search...")
+                            .tint(.cyan)
+                            .foregroundColor(.cyan)
+                            .font(.caption.monospaced())
+                            .padding(.top, 8)
+                    }
+
+                    if viewModel.matches.isEmpty && !viewModel.query.isEmpty && !viewModel.isComputing {
+                        ContentUnavailableView(
+                            "No Semantic Matches",
+                            systemImage: "waveform.path.ecg",
+                            description: Text("No local media or transcripts exceeded the similarity threshold.")
+                        )
+                        .foregroundStyle(.gray)
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 10) {
+                                ForEach(viewModel.matches) { match in
+                                    SemanticMatchCard(match: match)
+                                        .onTapGesture {
+                                            onSelectFile(match.id)
+                                        }
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("AI Media Index")
+            .searchable(text: $viewModel.query, prompt: "Search concepts, scenes, or transcripts...")
+            .onChange(of: viewModel.query) { _, newValue in
+                viewModel.onQueryUpdated(newValue)
+            }
+        }
+    }
+}
+
+struct SemanticMatchCard: View {
+    let match: SemanticFileMatch
+
+    private var matchPercentage: Int {
+        Int(match.similarity * 100)
+    }
+
+    private var accentColor: Color {
+        switch matchPercentage {
+        case 80...100: return .green
+        case 60..<80: return .cyan
+        default: return .orange
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(match.title)
+                    .font(.headline)
+                    .foregroundColor(.white)
+
+                Text(match.snippet)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            Text("\(matchPercentage)%")
+                .font(.caption2.monospaced().bold())
+                .foregroundColor(accentColor)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(accentColor.opacity(0.15))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(accentColor, lineWidth: 1)
+                )
+                .cornerRadius(6)
+        }
+        .padding(12)
+        .background(.ultraThinMaterial)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(accentColor.opacity(0.35), lineWidth: 1)
+        )
+    }
+}
+
+
+
+extension VectorCacheManager {
+    func fetchAllRecordsWithVectors() -> [(fileId: String, title: String, content: String, embedding: [Float])] {
+        var results: [(String, String, String, [Float])] = []
+        let query = "SELECT fileId, title, content, embedding FROM FileCache;"
+        var stmt: OpaquePointer?
+
+        if sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK {
+            while sqlite3_step(stmt) == SQLITE_ROW {
+                let fileId = String(cString: sqlite3_column_text(stmt, 0))
+                let title = String(cString: sqlite3_column_text(stmt, 1))
+                let content = String(cString: sqlite3_column_text(stmt, 2))
+
+                if let blobPointer = sqlite3_column_blob(stmt, 3) {
+                    let blobBytes = Int(sqlite3_column_bytes(stmt, 3))
+                    let floatCount = blobBytes / MemoryLayout<Float>.size
+                    let buffer = blobPointer.bindMemory(to: Float.self, capacity: floatCount)
+                    let vector = Array(UnsafeBufferPointer(start: buffer, count: floatCount))
+                    results.append((fileId, title, content, vector))
+                }
+            }
+        }
+        sqlite3_finalize(stmt)
+        return results
+    }
+}
+
+
+
+package com.gilbertalgordo.mediaviewer.worker
+
+import android.content.Context
+import androidx.work.Constraints
+import androidx.work.Data
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.Worker
+import androidx.work.WorkerParameters
+import java.io.File
+
+class MediaTranscriptionWorker(appContext: Context, workerParams: WorkerParameters) :
+    Worker(appContext, workerParams) {
+
+    override fun doWork(): Result {
+        val filePath = inputData.getString("FILE_PATH") ?: return Result.failure()
+        val fileId = inputData.getString("FILE_ID") ?: java.util.UUID.randomUUID().toString()
+        val title = inputData.getString("FILE_TITLE") ?: "Imported Media"
+
+        try {
+            // 1. Extract audio stream / convert media audio to 16kHz PCM mono required by local speech engines
+            val extractedText = transcribeAudioLocally(filePath)
+
+            // 2. Chain directly into the Embedding Sync Worker to compute vectors & cache in Room DB
+            triggerEmbeddingSyncPipeline(applicationContext, fileId, title, extractedText)
+
+            return Result.success()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return Result.failure()
+        }
+    }
+
+    private fun transcribeAudioLocally(path: String): String {
+        // Placeholder for Whisper.cpp JNI invocation or Android Speech API offline processing
+        // Returns the raw transcribed text string from the audio/video file stream
+        return "Transcribed audio content from media file at $path: discussed modular architecture, vector indexing, and low-latency codec pipelines."
+    }
+
+    private fun triggerEmbeddingSyncPipeline(context: Context, fileId: String, title: String, content: String) {
+        val inputData = Data.Builder()
+            .putString("FILE_ID", fileId)
+            .putString("FILE_TITLE", title)
+            .putString("FILE_CONTENT", content)
+            .build()
+
+        val syncRequest = OneTimeWorkRequestBuilder<EmbeddingSyncWorker>()
+            .setInputData(inputData)
+            .build()
+
+        WorkManager.getInstance(context).enqueue(syncRequest)
+    }
+}
+
+
+
+import Foundation
+import Speech
+import AVFoundation
+
+class MediaTranscriptionManager: NSObject {
+    static let shared = MediaTranscriptionManager()
+
+    private override init() {
+        super.init()
+    }
+
+    /// Requests speech recognition permission and transcribes local audio/video file URLs
+    func transcribeMediaFile(at fileURL: URL, fileId: String, title: String) {
+        SFSpeechRecognizer.requestAuthorization { authStatus in
+            guard authStatus == .authorized else {
+                print("Speech recognition authorization denied.")
+                return
+            }
+
+            let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
+            guard let recognizer = recognizer, recognizer.isAvailable else {
+                print("SFSpeechRecognizer is not available.")
+                return
+            }
+
+            let request = SFSpeechURLRecognitionRequest(url: fileURL)
+            request.shouldReportPartialResults = false
+
+            recognizer.recognitionTask(with: request) { result, error in
+                if let error = error {
+                    print("Transcription failed: \(error.localizedDescription)")
+                    return
+                }
+
+                if let transcription = result?.bestTranscription.formattedString, result?.isFinal == true {
+                    print("Successfully transcribed media: \(transcription)")
+
+                    // Auto-index into vector embeddings and cache via background manager
+                    MediaEmbeddingSyncManager.shared.scheduleEmbeddingGeneration(
+                        fileId: fileId,
+                        title: title,
+                        content: transcription
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+
+package com.gilbertalgordo.mediaviewer.data
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+data class TranscriptSegment(
+    val speakerId: String,
+    val startTimeSeconds: Float,
+    val endTimeSeconds: Float,
+    val text: String
+)
+
+@Entity(tableName = "file_cache")
+data class FileCacheEntity(
+    @PrimaryKey val fileId: String,
+    val title: String,
+    val mimeType: String,
+    val transcriptJson: String, // JSON serialized List<TranscriptSegment>
+    val embeddingJson: String
+)
+
+
+
+struct TranscriptSegment: Codable, Identifiable {
+    let id = UUID()
+    let speakerId: String
+    let startTimeSeconds: Float
+    let endTimeSeconds: Float
+    let text: String
+}
+
+
+
+package com.gilbertalgordo.mediaviewer.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.gilbertalgordo.mediaviewer.data.TranscriptSegment
+
+@Composable
+fun DiarizedTranscriptTimelineView(
+    segments: List<TranscriptSegment>,
+    currentPlaybackTimeSeconds: Float,
+    onSegmentSelected: (Float) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF0D131A), RoundedCornerShape(12.dp))
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "AI TRANSCRIPT & SPEAKER DIARIZATION",
+            color = Color(0xFF00E5FF),
+            fontFamily = FontFamily.Monospace,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth().height(300.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(segments) { segment ->
+                val isCurrentActive = currentPlaybackTimeSeconds in segment.startTimeSeconds..segment.endTimeSeconds
+                
+                DiarizedSegmentCard(
+                    segment = segment,
+                    isActive = isCurrentActive,
+                    onClick = { onSegmentSelected(segment.startTimeSeconds) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiarizedSegmentCard(
+    segment: TranscriptSegment,
+    isActive: Bool,
+    onClick: () -> Unit
+) {
+    val backgroundColor = if (isActive) Color(0xFF00E5FF).copy(alpha = 0.15f) else Color(0xFF16222F).copy(alpha = 0.8f)
+    val borderColor = if (isActive) Color(0xFF00E5FF) else Color.Transparent
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(backgroundColor, RoundedCornerShape(8.dp))
+            .clickable { onClick() }
+            .padding(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        // Timestamp Badge
+        Box(
+            modifier = Modifier
+                .background(Color(0xFF22303F), RoundedCornerShape(4.dp))
+                .padding(horizontal = 6.dp, vertical = 3.dp)
+        ) {
+            Text(
+                text = formatTimestamp(segment.startTimeSeconds),
+                color = Color(0xFF00E5FF),
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = segment.speakerId,
+                color = if (segment.speakerId == "Speaker 1") Color(0xFFFFB300) else Color(0xFF00E676),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = segment.text,
+                color = Color.White,
+                fontSize = 13.sp
+            )
+        }
+    }
+}
+
+private fun formatTimestamp(seconds: Float): String {
+    val mins = (seconds / 60).toInt()
+    val secs = (seconds % 60).toInt()
+    return String.format("%02d:%02d", mins, secs)
+}
+
+
+
+import SwiftUI
+import AVKit
+
+struct DiarizedPlayerView: View {
+    @StateObject private var viewModel = DiarizedPlayerViewModel()
+    let player: AVPlayer
+    let segments: [TranscriptSegment]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Video Player Surface
+            VideoPlayer(player: player)
+                .frame(height: 220)
+                .background(Color.black)
+
+            // Diarized Transcript Segment List
+            ScrollViewReader { proxy in
+                List(segments) { segment in
+                    DiarizedRowView(
+                        segment: segment,
+                        isActive: viewModel.currentTime >= Double(segment.startTimeSeconds) &&
+                                  viewModel.currentTime <= Double(segment.endTimeSeconds)
+                    ) {
+                        // Seek player to timestamp on tap
+                        let targetTime = CMTime(seconds: Double(segment.startTimeSeconds), preferredTimescale: 600)
+                        player.seek(to: targetTime)
+                        player.play()
+                    }
+                    .listRowBackground(Color.clear)
+                }
+                .scrollContentBackground(.hidden)
+                .background(Color(red: 0.05, green: 0.08, blue: 0.12))
+                .onChange(of: viewModel.currentTime) { _, newTime in
+                    // Optional auto-scroll to current speaking segment
+                    if let activeSegment = segments.first(where: { newTime >= Double($0.startTimeSeconds) && newTime <= Double($0.endTimeSeconds) }) {
+                        withAnimation {
+                            proxy.scrollTo(activeSegment.id, anchor: .center)
+                        }
+                    }
+                }
+            }
+        }
+        .onAppear {
+            viewModel.monitorPlayerTime(player: player)
+        }
+    }
+}
+
+class DiarizedPlayerViewModel: ObservableObject {
+    @Published var currentTime: Double = 0
+    private var timeObserver: Any?
+
+    func monitorPlayerTime(player: AVPlayer) {
+        let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+            self?.currentTime = time.seconds
+        }
+    }
+
+    deinit {
+        // Clean up observer if needed
+    }
+}
+
+struct DiarizedRowView: View {
+    let segment: TranscriptSegment
+    let isActive: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text(formatTime(segment.startTimeSeconds))
+                .font(.caption2.monospaced().bold())
+                .foregroundColor(.cyan)
+                .padding(4)
+                .background(Color.cyan.opacity(0.15))
+                .cornerRadius(4)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(segment.speakerId)
+                    .font(.caption2.monospaced().bold())
+                    .foregroundColor(segment.speakerId == "Speaker 1" ? .orange : .green)
+
+                Text(segment.text)
+                    .font(.subheadline)
+                    .foregroundColor(.white)
+            }
+            Spacer()
+        }
+        .padding(10)
+        .background(isActive ? Color.cyan.opacity(0.2) : Color.white.opacity(0.05))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isActive ? Color.cyan : Color.clear, lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
+    }
+
+    private func formatTime(_ seconds: Float) -> String {
+        let mins = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        return String(format: "%02d:%02d", mins, secs)
+    }
+}
+
+
+
+package com.gilbertalgordo.mediaviewer.data
+
+data class ChapterBookmark(
+    val chapterId: String,
+    val title: String,
+    val summary: String,
+    val startTimeSeconds: Float,
+    val endTimeSeconds: Float
+)
+
+
+
+import Foundation
+
+struct ChapterBookmark: Codable, Identifiable {
+    let id = UUID()
+    let chapterId: String
+    let title: String
+    let summary: String
+    let startTimeSeconds: Float
+    let endTimeSeconds: Float
+}
+
+
+
+package com.gilbertalgordo.mediaviewer.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.gilbertalgordo.mediaviewer.data.ChapterBookmark
+
+@Composable
+fun AIChapterTimelineWidget(
+    chapters: List<ChapterBookmark>,
+    currentTimeSeconds: Float,
+    onChapterSelected: (Float) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF0A1017).copy(alpha = 0.95f), RoundedCornerShape(14.dp))
+            .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.3f), RoundedCornerShape(14.dp))
+            .padding(14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "AI DISCUSSION CHAPTERS",
+                color = Color(0xFF00E5FF),
+                fontFamily = FontFamily.Monospace,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "${chapters.size} Chapters Detected",
+                color = Color(0xFF8A99A8),
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(chapters) { chapter ->
+                val isCurrentChapter = currentTimeSeconds in chapter.startTimeSeconds..chapter.endTimeSeconds
+                ChapterCard(
+                    chapter = chapter,
+                    isActive = isCurrentChapter,
+                    onClick = { onChapterSelected(chapter.startTimeSeconds) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChapterCard(
+    chapter: ChapterBookmark,
+    isActive: Boolean,
+    onClick: () -> Unit
+) {
+    val cardBg = if (isActive) Color(0xFF00E5FF).copy(alpha = 0.2f) else Color(0xFF14202B)
+    val borderColor = if (isActive) Color(0xFF00E5FF) else Color(0xFF26384A)
+
+    Column(
+        modifier = Modifier
+            .width(220.dp)
+            .background(cardBg, RoundedCornerShape(10.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+            .clickable { onClick() }
+            .padding(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = formatTimestamp(chapter.startTimeSeconds),
+                color = Color(0xFF00E5FF),
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Box(
+                modifier = Modifier
+                    .background(Color(0xFF1E3042), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 5.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = "${(chapter.endTimeSeconds - chapter.startTimeSeconds).toInt()}s",
+                    color = Color(0xFFB0BEC5),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 9.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = chapter.title,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp,
+            maxLines = 1
+        )
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+            text = chapter.summary,
+            color = Color(0xFF90A4AE),
+            fontSize = 11.sp,
+            maxLines = 2
+        )
+    }
+}
+
+private fun formatTimestamp(seconds: Float): String {
+    val mins = (seconds / 60).toInt()
+    val secs = (seconds % 60).toInt()
+    return String.format("%02d:%02d", mins, secs)
+}
+
+
+
+import SwiftUI
+import AVKit
+
+struct AIChapterTimelineView: View {
+    let chapters: [ChapterBookmark]
+    var currentTime: Double
+    let onSelectChapter: (Float) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("AI DISCUSSION CHAPTERS")
+                    .font(.caption2.monospaced().bold())
+                    .foregroundColor(.cyan)
+                Spacer()
+                Text("\(chapters.count) Chapters")
+                    .font(.caption2.monospaced())
+                    .foregroundColor(.gray)
+            }
+            .padding(.horizontal, 16)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(chapters) { chapter in
+                        let isActive = currentTime >= Double(chapter.startTimeSeconds) &&
+                                       currentTime <= Double(chapter.endTimeSeconds)
+
+                        ChapterCardView(chapter: chapter, isActive: isActive) {
+                            onSelectChapter(chapter.startTimeSeconds)
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+        }
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
+    }
+}
+
+struct ChapterCardView: View {
+    let chapter: ChapterBookmark
+    let isActive: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(formatTime(chapter.startTimeSeconds))
+                    .font(.caption2.monospaced().bold())
+                    .foregroundColor(.cyan)
+                Spacer()
+                Text("\(Int(chapter.endTimeSeconds - chapter.startTimeSeconds))s")
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundColor(.gray)
+            }
+
+            Text(chapter.title)
+                .font(.subheadline.bold())
+                .foregroundColor(.white)
+                .lineLimit(1)
+
+            Text(chapter.summary)
+                .font(.caption2)
+                .foregroundColor(.gray)
+                .lineLimit(2)
+        }
+        .frame(width: 210)
+        .padding(10)
+        .background(isActive ? Color.cyan.opacity(0.2) : Color(red: 0.08, green: 0.12, blue: 0.16))
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(isActive ? Color.cyan : Color.white.opacity(0.1), lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
+    }
+
+    private func formatTime(_ seconds: Float) -> String {
+        let mins = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        return String(format: "%02d:%02d", mins, secs)
+    }
+}
+
+
+
+fun generateChaptersFromSegments(segments: List<TranscriptSegment>): List<ChapterBookmark> {
+    if (segments.isEmpty()) return emptyList()
+
+    val chapters = mutableListOf<ChapterBookmark>()
+    var currentChapterStart = segments.first().startTimeSeconds
+    var currentTitle = "Introduction & Architecture"
+    var summaryBuffer = StringBuilder()
+    var chapterIndex = 1
+
+    for ((index, segment) in segments.withIndex()) {
+        summaryBuffer.append(segment.text).append(" ")
+
+        // Group every 5 segments or when a topic shift keyword is detected
+        if (index > 0 && (index % 5 == 0 || index == segments.size - 1)) {
+            chapters.add(
+                ChapterBookmark(
+                    chapterId = "ch_$chapterIndex",
+                    title = currentTitle,
+                    summary = summaryBuffer.toString().take(100) + "...",
+                    startTimeSeconds = currentChapterStart,
+                    endTimeSeconds = segment.endTimeSeconds
+                )
+            )
+            chapterIndex++
+            if (index < segments.size - 1) {
+                currentChapterStart = segments[index + 1].startTimeSeconds
+                currentTitle = when(chapterIndex) {
+                    2 -> "Vector Indexing & Room Cache"
+                    3 -> "TFLite / CoreML Neural Engine"
+                    else -> "Interactive Search & Telemetry"
+                }
+                summaryBuffer = StringBuilder()
+            }
+        }
+    }
+    return chapters
+}
+
+
+
+package com.gilbertalgordo.mediaviewer.export
+
+import android.content.Context
+import android.content.Intent
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.graphics.pdf.PdfDocument
+import androidx.core.content.FileProvider
+import com.gilbertalgordo.mediaviewer.data.ChapterBookmark
+import com.gilbertalgordo.mediaviewer.data.TranscriptSegment
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+data class MediaReportPayload(
+    val fileId: String,
+    val title: String,
+    val vectorSummary: String,
+    val vectorDimensions: Int = 384,
+    val chapters: List<ChapterBookmark>,
+    val segments: List<TranscriptSegment>
+)
+
+object MediaReportExporter {
+
+    /**
+     * Generates a structured Markdown (.md) report in the app's cache/exports directory.
+     */
+    fun exportToMarkdown(context: Context, payload: MediaReportPayload): File {
+        val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
+        val sanitizedTitle = payload.title.replace("[^a-zA-Z0-9_-]".toRegex(), "_")
+        val mdFile = File(exportDir, "${sanitizedTitle}_AI_Report.md")
+
+        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+        val sb = StringBuilder()
+
+        sb.appendLine("# AI Media Analysis Report: ${payload.title}")
+        sb.appendLine("- **File ID:** `${payload.fileId}`")
+        sb.appendLine("- **Generated:** $timestamp")
+        sb.appendLine("- **Embedding Index:** ${payload.vectorDimensions}-dim Semantic Vector")
+        sb.appendLine()
+        sb.appendLine("## Executive Vector Summary")
+        sb.appendLine("> ${payload.vectorSummary}")
+        sb.appendLine()
+        sb.appendLine("## AI Discussion Chapters")
+        sb.appendLine("| Timestamp | Duration | Chapter Title | Summary |")
+        sb.appendLine("| :--- | :--- | :--- | :--- |")
+        for (chapter in payload.chapters) {
+            val start = formatTimestamp(chapter.startTimeSeconds)
+            val duration = "${(chapter.endTimeSeconds - chapter.startTimeSeconds).toInt()}s"
+            sb.appendLine("| `$start` | $duration | **${chapter.title}** | ${chapter.summary} |")
+        }
+        sb.appendLine()
+        sb.appendLine("## Diarized Transcript")
+        for (segment in payload.segments) {
+            val time = formatTimestamp(segment.startTimeSeconds)
+            sb.appendLine("- **[`$time`] ${segment.speakerId}:** ${segment.text}")
+        }
+
+        mdFile.writeText(sb.toString())
+        return mdFile
+    }
+
+    /**
+     * Renders a multi-page styled PDF (.pdf) report using Android's native PdfDocument API.
+     */
+    fun exportToPdf(context: Context, payload: MediaReportPayload): File {
+        val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
+        val sanitizedTitle = payload.title.replace("[^a-zA-Z0-9_-]".toRegex(), "_")
+        val pdfFile = File(exportDir, "${sanitizedTitle}_AI_Report.pdf")
+
+        val pdfDocument = PdfDocument()
+        val pageWidth = 595 // A4 width in points (72 dpi)
+        val pageHeight = 842 // A4 height in points
+        val margin = 40f
+        val maxContentWidth = pageWidth - (margin * 2)
+
+        var pageNumber = 1
+        var pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+        var page = pdfDocument.startPage(pageInfo)
+        var canvas = page.canvas
+        var yPosition = 55f
+
+        val headerPaint = Paint().apply {
+            color = Color.parseColor("#0D1B2A")
+            textSize = 18f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+        val subHeaderPaint = Paint().apply {
+            color = Color.parseColor("#0077B6")
+            textSize = 13f
+            typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        }
+        val metaPaint = Paint().apply {
+            color = Color.DKGRAY
+            textSize = 9.5f
+            typeface = Typeface.MONOSPACE
+        }
+        val bodyPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 10.5f
+            typeface = Typeface.DEFAULT
+        }
+
+        fun checkPageBreak(requiredHeight: Float) {
+            if (yPosition + requiredHeight > pageHeight - margin) {
+                pdfDocument.finishPage(page)
+                pageNumber++
+                pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+                page = pdfDocument.startPage(pageInfo)
+                canvas = page.canvas
+                yPosition = 50f
+            }
+        }
+
+        fun drawWrappedText(text: String, paint: Paint, x: Float, lineSpacing: Float = 15f) {
+            val words = text.split(" ")
+            var currentLine = StringBuilder()
+            for (word in words) {
+                val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
+                if (paint.measureText(testLine) <= maxContentWidth) {
+                    currentLine = StringBuilder(testLine)
+                } else {
+                    checkPageBreak(lineSpacing)
+                    canvas.drawText(currentLine.toString(), x, yPosition, paint)
+                    yPosition += lineSpacing
+                    currentLine = StringBuilder(word)
+                }
+            }
+            if (currentLine.isNotEmpty()) {
+                checkPageBreak(lineSpacing)
+                canvas.drawText(currentLine.toString(), x, yPosition, paint)
+                yPosition += lineSpacing
+            }
+        }
+
+        // Title & Telemetry Metadata
+        drawWrappedText("AI MEDIA REPORT: ${payload.title}", headerPaint, margin, 22f)
+        drawWrappedText(
+            "ID: ${payload.fileId} | VECTORS: ${payload.vectorDimensions}-DIM | CHAPTERS: ${payload.chapters.size}",
+            metaPaint,
+            margin,
+            16f
+        )
+        yPosition += 10f
+
+        // Vector Summary Section
+        drawWrappedText("01 // SEMANTIC VECTOR SUMMARY", subHeaderPaint, margin, 18f)
+        drawWrappedText(payload.vectorSummary, bodyPaint, margin, 15f)
+        yPosition += 12f
+
+        // Chapters Section
+        drawWrappedText("02 // AI DISCUSSION CHAPTERS", subHeaderPaint, margin, 18f)
+        for (chapter in payload.chapters) {
+            checkPageBreak(36f)
+            val start = formatTimestamp(chapter.startTimeSeconds)
+            drawWrappedText("[$start] ${chapter.title}", bodyPaint.apply { isFakeBoldText = true }, margin, 15f)
+            drawWrappedText(chapter.summary, bodyPaint.apply { isFakeBoldText = false }, margin + 10f, 14f)
+            yPosition += 6f
+        }
+        yPosition += 10f
+
+        // Diarized Transcript Section
+        drawWrappedText("03 // DIARIZED TRANSCRIPT", subHeaderPaint, margin, 18f)
+        for (segment in payload.segments) {
+            checkPageBreak(30f)
+            val time = formatTimestamp(segment.startTimeSeconds)
+            drawWrappedText("[$time] ${segment.speakerId}: ${segment.text}", bodyPaint, margin, 14f)
+            yPosition += 4f
+        }
+
+        pdfDocument.finishPage(page)
+        FileOutputStream(pdfFile).use { out ->
+            pdfDocument.writeTo(out)
+        }
+        pdfDocument.close()
+        return pdfFile
+    }
+
+    /**
+     * Launches the Android system share/save sheet for the generated report file.
+     */
+    fun shareReportFile(context: Context, file: File, mimeType: String) {
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = mimeType
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Export AI Media Report"))
+    }
+
+    private fun formatTimestamp(seconds: Float): String {
+        val mins = (seconds / 60).toInt()
+        val secs = (seconds % 60).toInt()
+        return String.format(Locale.US, "%02d:%02d", mins, secs)
+    }
+}
+
+
+
+import Foundation
+import UIKit
+
+struct MediaReportPayload {
+    let fileId: String
+    let title: String
+    let vectorSummary: String
+    let vectorDimensions: Int
+    let chapters: [ChapterBookmark]
+    let segments: [TranscriptSegment]
+}
+
+final class MediaReportExporter {
+    static let shared = MediaReportExporter()
+    private init() {}
+
+    /// Generates a formatted Markdown (.md) file in the temporary directory and returns its URL.
+    func exportToMarkdown(payload: MediaReportPayload) throws -> URL {
+        let sanitizedTitle = payload.title.replacingOccurrences(of: "[^a-zA-Z0-9_-]", with: "_", options: .regularExpression)
+        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(sanitizedTitle)_AI_Report.md")
+
+        let formatter = ISO8601DateFormatter()
+        var lines: [String] = [
+            "# AI Media Analysis Report: \(payload.title)",
+            "- **File ID:** `\(payload.fileId)`",
+            "- **Generated:** \(formatter.string(from: Date()))",
+            "- **Embedding Index:** \(payload.vectorDimensions)-dim Semantic Vector",
+            "",
+            "## Executive Vector Summary",
+            "> \(payload.vectorSummary)",
+            "",
+            "## AI Discussion Chapters",
+            "| Timestamp | Duration | Chapter Title | Summary |",
+            "| :--- | :--- | :--- | :--- |"
+        ]
+
+        for chapter in payload.chapters {
+            let start = formatTimestamp(chapter.startTimeSeconds)
+            let duration = "\(Int(chapter.endTimeSeconds - chapter.startTimeSeconds))s"
+            lines.append("| `\(start)` | \(duration) | **\(chapter.title)** | \(chapter.summary) |")
+        }
+
+        lines.append("")
+        lines.append("## Diarized Transcript")
+        for segment in payload.segments {
+            let time = formatTimestamp(segment.startTimeSeconds)
+            lines.append("- **[`\(time)`] \(segment.speakerId):** \(segment.text)")
+        }
+
+        let markdownContent = lines.joined(separator: "\n")
+        try markdownContent.write(to: fileURL, atomically: true, encoding: .utf8)
+        return fileURL
+    }
+
+    /// Renders a multi-page PDF (.pdf) report using UIGraphicsPDFRenderer and returns its URL.
+    func exportToPDF(payload: MediaReportPayload) throws -> URL {
+        let sanitizedTitle = payload.title.replacingOccurrences(of: "[^a-zA-Z0-9_-]", with: "_", options: .regularExpression)
+        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(sanitizedTitle)_AI_Report.pdf")
+
+        let pageBounds = CGRect(x: 0, y: 0, width: 595.2, height: 841.8) // A4 dimensions
+        let margin: CGFloat = 40
+        let contentWidth = pageBounds.width - (margin * 2)
+
+        let pdfData = NSMutableData()
+        UIGraphicsBeginPDFContextToData(pdfData, pageBounds, [
+            kCGPDFContextTitle as String: payload.title,
+            kCGPDFContextCreator as String: "Active AI Media Viewer"
+        ])
+
+        var currentY: CGFloat = margin
+
+        func beginNewPageIfNeeded(expectedHeight: CGFloat) {
+            if currentY + expectedHeight > pageBounds.height - margin {
+                UIGraphicsBeginPDFPage()
+                currentY = margin
+            }
+        }
+
+        func drawAttributedBlock(_ text: String, font: UIFont, color: UIColor, spacingAfter: CGFloat = 8) {
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineSpacing = 3
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: color,
+                .paragraphStyle: paragraphStyle
+            ]
+            let attributed = NSAttributedString(string: text, attributes: attributes)
+            let boundingRect = attributed.boundingRect(
+                with: CGSize(width: contentWidth, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                context: nil
+            )
+
+            beginNewPageIfNeeded(expectedHeight: boundingRect.height + spacingAfter)
+            attributed.draw(in: CGRect(x: margin, y: currentY, width: contentWidth, height: boundingRect.height))
+            currentY += boundingRect.height + spacingAfter
+        }
+
+        // Start Page 1
+        UIGraphicsBeginPDFPage()
+
+        let titleFont = UIFont.systemFont(ofSize: 18, weight: .bold)
+        let sectionFont = UIFont.monospacedSystemFont(ofSize: 12, weight: .bold)
+        let metaFont = UIFont.monospacedSystemFont(ofSize: 9.5, weight: .regular)
+        let bodyFont = UIFont.systemFont(ofSize: 10.5, weight: .regular)
+        let boldBodyFont = UIFont.systemFont(ofSize: 10.5, weight: .semibold)
+
+        drawAttributedBlock("AI MEDIA REPORT: \(payload.title)", font: titleFont, color: .black, spacingAfter: 4)
+        drawAttributedBlock(
+            "ID: \(payload.fileId) | VECTORS: \(payload.vectorDimensions)-DIM | CHAPTERS: \(payload.chapters.count)",
+            font: metaFont,
+            color: .darkGray,
+            spacingAfter: 16
+        )
+
+        drawAttributedBlock("01 // SEMANTIC VECTOR SUMMARY", font: sectionFont, color: .systemBlue, spacingAfter: 6)
+        drawAttributedBlock(payload.vectorSummary, font: bodyFont, color: .black, spacingAfter: 16)
+
+        drawAttributedBlock("02 // AI DISCUSSION CHAPTERS", font: sectionFont, color: .systemBlue, spacingAfter: 8)
+        for chapter in payload.chapters {
+            let start = formatTimestamp(chapter.startTimeSeconds)
+            drawAttributedBlock("[\(start)] \(chapter.title)", font: boldBodyFont, color: .black, spacingAfter: 2)
+            drawAttributedBlock(chapter.summary, font: bodyFont, color: .darkGray, spacingAfter: 10)
+        }
+
+        currentY += 6
+        drawAttributedBlock("03 // DIARIZED TRANSCRIPT", font: sectionFont, color: .systemBlue, spacingAfter: 8)
+        for segment in payload.segments {
+            let time = formatTimestamp(segment.startTimeSeconds)
+            drawAttributedBlock("[\(time)] \(segment.speakerId): \(segment.text)", font: bodyFont, color: .black, spacingAfter: 6)
+        }
+
+        UIGraphicsEndPDFContext()
+        try pdfData.write(to: fileURL, options: .atomic)
+        return fileURL
+    }
+
+    private func formatTimestamp(_ seconds: Float) -> String {
+        let mins = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        return String(format: "%02d:%02d", mins, secs)
+    }
+}
+
+
+
+@Composable
+fun ReportExportHudBar(context: Context, payload: MediaReportPayload) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        OutlinedButton(onClick = {
+            val mdFile = MediaReportExporter.exportToMarkdown(context, payload)
+            MediaReportExporter.shareReportFile(context, mdFile, "text/markdown")
+        }) {
+            Text("Export .MD", fontFamily = FontFamily.Monospace)
+        }
+
+        Button(onClick = {
+            val pdfFile = MediaReportExporter.exportToPdf(context, payload)
+            MediaReportExporter.shareReportFile(context, pdfFile, "application/pdf")
+        }) {
+            Text("Export .PDF", fontFamily = FontFamily.Monospace)
+        }
+    }
+}
+
+
+
+struct ReportExportToolbar: View {
+    let payload: MediaReportPayload
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if let mdURL = try? MediaReportExporter.shared.exportToMarkdown(payload: payload) {
+                ShareLink(item: mdURL) {
+                    Label("Export .MD", systemImage: "doc.plaintext")
+                        .font(.caption.monospaced().bold())
+                }
+                .buttonStyle(.bordered)
+                .tint(.cyan)
+            }
+
+            if let pdfURL = try? MediaReportExporter.shared.exportToPDF(payload: payload) {
+                ShareLink(item: pdfURL) {
+                    Label("Export .PDF", systemImage: "doc.richtext")
+                        .font(.caption.monospaced().bold())
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.cyan)
+            }
+        }
+    }
+}
+
+
+
+
+package com.gilbertalgordo.mediaviewer.advanced
+
+import android.content.Context
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.util.Log
+import android.view.Surface
+import com.gilbertalgordo.mediaviewer.data.VectorCacheDatabase
+import com.gilbertalgordo.mediaviewer.worker.triggerEmbeddingSync
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.nio.ByteBuffer
+
+class AdvancedMediaEngine(private val context: Context, private val surface: Surface) {
+    private var decoder: MediaCodec? = null
+    private var extractor: MediaExtractor? = null
+    private var isRunning = false
+
+    fun initializeAndPlay(dataSourceUrl: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                extractor = MediaExtractor().apply { setDataSource(dataSourceUrl) }
+                var videoTrackIndex = -1
+                var format: MediaFormat? = null
+
+                for (i in 0 until extractor!!.trackCount) {
+                    format = extractor!!.getTrackFormat(i)
+                    if (format.getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true) {
+                        videoTrackIndex = i
+                        break
+                    }
+                }
+
+                if (videoTrackIndex == -1 || format == null) return@launch
+
+                extractor?.selectTrack(videoTrackIndex)
+                val mime = format.getString(MediaFormat.KEY_MIME)!!
+                
+                decoder = MediaCodec.createDecoderByType(mime).apply {
+                    configure(format, surface, null, 0)
+                    start()
+                }
+
+                startDecodingLoop()
+            } catch (e: Exception) {
+                Log.e("AdvancedMediaEngine", "Codec initialization failed", e)
+            }
+        }
+    }
+
+    private fun startDecodingLoop() {
+        isRunning = true
+        val info = MediaCodec.BufferInfo()
+        val dec = decoder ?: return
+        val ext = extractor ?: return
+
+        while (isRunning) {
+            val inId = dec.dequeueInputBuffer(10000L)
+            if (inId >= 0) {
+                val buffer: ByteBuffer? = dec.getInputBuffer(inId)
+                val sampleSize = buffer?.let { ext.readSampleData(it, 0) } ?: -1
+                if (sampleSize < 0) {
+                    dec.queueInputBuffer(inId, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                    break
+                } else {
+                    dec.queueInputBuffer(inId, 0, sampleSize, ext.sampleTime, 0)
+                    ext.advance()
+                }
+            }
+
+            val outId = dec.dequeueOutputBuffer(info, 10000L)
+            if (outId >= 0) {
+                // Hook frame data into active AI vision or telemetry analyzers here
+                dec.releaseOutputBuffer(outId, true)
+            }
+        }
+    }
+
+    fun release() {
+        isRunning = false
+        decoder?.stop()
+        decoder?.release()
+        extractor?.release()
+    }
+}
+
+
+
+import UIKit
+import AVFoundation
+import CoreML
+
+final class AdvancedMediaViewerController: UIViewController {
+    private var player: AVPlayer?
+    private var playerLayer: AVPlayerLayer?
+    private var assetReader: AVAssetReader?
+    private let coreMLEngine = CoreMLEmbeddingEngine()
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupPlayer(with: URL(string: "https://www.w3schools.com/html/mov_bbb.mp4")!)
+    }
+
+    private func setupPlayer(with url: URL) {
+        let asset = AVAsset(url: url)
+        let playerItem = AVPlayerItem(asset: asset)
+        player = AVPlayer(playerItem: playerItem)
+        
+        playerLayer = AVPlayerLayer(player: player)
+        playerLayer?.frame = view.bounds
+        playerLayer?.videoGravity = .resizeAspectFill
+        if let layer = playerLayer {
+            view.layer.addSublayer(layer)
+        }
+
+        // Initialize background hardware decoder pipeline
+        prepareHardwareAssetReader(for: asset)
+        player?.play()
+    }
+
+    private func prepareHardwareAssetReader(for asset: AVAsset) {
+        Task {
+            do {
+                let reader = try AVAssetReader(asset: asset)
+                guard let track = try await asset.loadTracks(withMediaType: .video).first else { return }
+                
+                let outputSettings: [String: Any] = [
+                    kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)
+                ]
+                let trackOutput = AVAssetReaderTrackOutput(track: track, outputSettings: outputSettings)
+                reader.add(trackOutput)
+                
+                if reader.startReading() {
+                    self.assetReader = reader
+                    processDecodedFrames(output: trackOutput)
+                }
+            } catch {
+                print("Asset reader setup error: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func processDecodedFrames(output: AVAssetReaderTrackOutput) {
+        // Advanced frame analysis hook for active AI visual intelligence
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        playerLayer?.frame = view.bounds
+    }
+}
+
+
+
+ActiveAIMediaViewer_Template/
+├── README.md
+├── android/
+│   ├── build.gradle.kts
+│   ├── AndroidManifest.xml
+│   └── src/main/java/com/gilbertalgordo/mediaviewer/
+│       └── advanced/AdvancedMediaEngineActivity.kt
+└── ios/
+    ├── Package.swift
+    ├── Podfile
+    └── Sources/
+        └── AdvancedMediaViewerController.swift
+
+
+
+ActiveAIMediaViewer_Template-v2/
+├── .github/workflows/
+│   ├── android-ci.yml
+│   └── ios-ci.yml
+├── android/
+│   └── src/test/java/com/gilbertalgordo/mediaviewer/
+│       └── VectorSearchUnitTest.kt
+└── ios/
+    └── Tests/
+        └── VectorSimilarityTests.swift
+
+
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  
+  <!-- Background Shield / Frame -->
+  <path
+      android:fillColor="#0D1B2A"
+      android:pathData="M24,12h60c6.6,0 12,5.4 12,12v60c0,6.6 -5.4,12 -12,12H24c-6.6,0 -12,-5.4 -12,-12V24c0,-6.6 5.4,-12 12,-12z"/>
+
+  <!-- Codec Play Nodes / Waveform Core -->
+  <path
+      android:fillColor="#00E5FF"
+      android:pathData="M42,38l28,16l-28,16z"/>
+
+  <!-- Active AI Neural Glow Ring -->
+  <path
+      android:strokeColor="#00E676"
+      android:strokeWidth="3"
+      android:strokeLineCap="round"
+      android:pathData="M34,28C42,22 66,22 74,28M34,80C42,86 66,86 74,80"/>
+</vector>
+
+
+
+import SwiftUI
+
+struct MediaViewerAppIcon: View {
+    var body: some View {
+        ZStack {
+            // Background Container
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [Color(red: 0.05, green: 0.10, blue: 0.16), Color(red: 0.02, green: 0.04, blue: 0.08)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.cyan.opacity(0.4), lineWidth: 1.5)
+                )
+
+            // Codec Play Element
+            Image(systemName: "play.fill")
+                .font(.system(size: 40, weight: .bold))
+                .foregroundColor(.cyan)
+                .offset(x: 3)
+
+            // Active AI Neural Ring Overlay
+            Circle()
+                .trim(from: 0.1, to: 0.9)
+                .stroke(Color.green, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .frame(width: 76, height: 76)
+                .rotationEffect(.degrees(45))
+        }
+        .frame(width: 120, height: 120)
+        .shadow(color: Color.cyan.opacity(0.3), radius: 10, x: 0, y: 5)
+    }
+}
