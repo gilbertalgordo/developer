@@ -1,0 +1,262 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#050b1b">
+<title>Gilbert Algordo | AI & Technology</title>
+<meta name="description" content="Gilbert Algordo — Software Developer, AI Enthusiast and Technology Innovator.">
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background: #050b1b;
+  color: white;
+  line-height: 1.6;
+}
+
+header {
+  padding: 22px 8%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #09142b;
+}
+
+.logo {
+  font-size: 25px;
+  font-weight: bold;
+  color: #38bdf8;
+}
+
+nav a {
+  color: white;
+  text-decoration: none;
+  margin-left: 20px;
+}
+
+nav a:hover {
+  color: #38bdf8;
+}
+
+.hero {
+  min-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 50px 20px;
+  background: radial-gradient(circle, #123b75, #050b1b 70%);
+}
+
+.hero h1 {
+  font-size: clamp(38px, 7vw, 65px);
+  margin-bottom: 15px;
+}
+
+.hero h1 span {
+  color: #38bdf8;
+}
+
+.hero p {
+  max-width: 650px;
+  color: #cbd5e1;
+  margin-bottom: 25px;
+}
+
+.btn {
+  display: inline-block;
+  background: #0284c7;
+  color: white;
+  padding: 13px 28px;
+  border-radius: 30px;
+  text-decoration: none;
+  margin: 6px;
+}
+
+.btn:hover {
+  background: #0369a1;
+}
+
+section {
+  padding: 75px 8%;
+  text-align: center;
+}
+
+section h2 {
+  font-size: 32px;
+  color: #38bdf8;
+  margin-bottom: 25px;
+}
+
+.about {
+  max-width: 800px;
+  margin: auto;
+  color: #cbd5e1;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(210px, 1fr));
+  gap: 20px;
+  margin-top: 35px;
+}
+
+.card {
+  background: #101e38;
+  border: 1px solid #164e80;
+  padding: 30px 20px;
+  border-radius: 15px;
+  transition: .3s;
+}
+
+.card:hover {
+  transform: translateY(-7px);
+  border-color: #38bdf8;
+}
+
+.card h3 {
+  color: #38bdf8;
+  margin-bottom: 12px;
+}
+
+.card p {
+  color: #cbd5e1;
+}
+
+.contact {
+  background: #09142b;
+}
+
+footer {
+  padding: 25px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+@media(max-width: 600px) {
+  header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  nav a {
+    margin: 0 7px;
+    font-size: 13px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">GILBERT ALGORDO</div>
+  <nav>
+    <a href="#home">Home</a>
+    <a href="#about">About</a>
+    <a href="#technology">Technology</a>
+    <a href="#contact">Contact</a>
+  </nav>
+</header>
+
+<main>
+<section class="hero" id="home">
+  <h1>Hello, I'm <span>Gilbert Algordo</span></h1>
+  <p>
+    Software Developer | AI Enthusiast |
+    Technology Innovator
+  </p>
+  <p>
+    Exploring artificial intelligence, developing
+    digital solutions, and building tomorrow's technology.
+  </p>
+  <div>
+    <a class="btn" href="#about">Explore My Profile</a>
+    <a class="btn" href="#contact">Connect With Me</a>
+  </div>
+</section>
+
+<section id="about">
+  <h2>About Gilbert</h2>
+  <div class="about">
+    <p>
+      Welcome to my digital portfolio.
+      I am passionate about software development,
+      artificial intelligence, cloud technologies,
+      and continuous innovation.
+    </p>
+    <p>
+      My goal is to explore emerging technologies
+      and create meaningful digital experiences.
+    </p>
+    <p>
+      Developer profile:
+      <a href="https://g.dev_algordo"
+         style="color:#38bdf8">
+        g.dev_algordo
+      </a>
+    </p>
+  </div>
+</section>
+
+<section id="technology">
+  <h2>Technology & Innovation</h2>
+  <div class="cards">
+
+    <div class="card">
+      <h3>🤖 Artificial Intelligence</h3>
+      <p>Exploring AI, machine learning and intelligent applications.</p>
+    </div>
+
+    <div class="card">
+      <h3>💻 Software Development</h3>
+      <p>Building modern applications and digital solutions.</p>
+    </div>
+
+    <div class="card">
+      <h3>☁️ Cloud Computing</h3>
+      <p>Exploring cloud platforms and scalable technologies.</p>
+    </div>
+
+    <div class="card">
+      <h3>🚀 Innovation</h3>
+      <p>Turning creative ideas into practical technology projects.</p>
+    </div>
+
+  </div>
+</section>
+
+<section class="contact" id="contact">
+  <h2>Connect With Gilbert</h2>
+  <p>Let's explore the future of technology.</p>
+  <a class="btn"
+     href="https://g.dev_algordo"
+     target="_blank"
+     rel="noopener noreferrer">
+     Google Developer Profile
+  </a>
+  <a class="btn"
+     href="https://github.com/gilbertalgordo"
+     target="_blank"
+     rel="noopener noreferrer">
+     GitHub
+  </a>
+</section>
+</main>
+
+<footer>
+  © 2026 Gilbert Algordo | Dream. Code. Create.
+</footer>
+
+</body>
+</html>
